@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitionResources xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" revision="1.0" schemaVersion="1.0">
+  <displayName />
+  <description />
+  <resources>
+    <stringTable>
+      <string id="Cat_Store">Trgovina</string>
+      <string id="RemoveStore">Isključi aplikaciju Trgovina</string>
+      <string id="RemoveStore_Help">Uklanja Trgovinu.</string>
+      <string id="UpdateMode">Način ažuriranja Trgovine</string>
+      <string id="UpdateMode_Help">Konfigurira ažuriranja.</string>
+      <string id="Mode_Always">Uvijek</string>
+      <string id="Mode_Never">Nikada</string>
+    </stringTable>
+  </resources>
+</policyDefinitionResources>

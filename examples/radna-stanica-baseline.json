@@ -1,0 +1,62 @@
+{
+  "name": "Radna stanica - baseline",
+  "description": "Osnovne postavke za uredska računala (primjer).",
+  "version": "1.0.0",
+  "settings": [
+    {
+      "id": "WindowsStore.RemoveStore",
+      "displayName": "Isključi aplikaciju Trgovina",
+      "scope": "Machine",
+      "key": "Software\\Policies\\Microsoft\\WindowsStore",
+      "valueName": "RemoveWindowsStore",
+      "type": "REG_DWORD",
+      "data": 1
+    },
+    {
+      "id": "WindowsUpdate.AU.NoAutoUpdate",
+      "displayName": "Windows Update: automatska ažuriranja uključena",
+      "scope": "Machine",
+      "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+      "valueName": "NoAutoUpdate",
+      "type": "REG_DWORD",
+      "data": 0
+    },
+    {
+      "id": "WindowsUpdate.AU.Options",
+      "displayName": "Windows Update: automatsko preuzimanje i zakazana instalacija",
+      "scope": "Machine",
+      "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+      "valueName": "AUOptions",
+      "type": "REG_DWORD",
+      "data": 4
+    },
+    {
+      "id": "Personalization.NoLockScreenCamera",
+      "displayName": "Onemogući kameru na zaključanom zaslonu",
+      "scope": "Machine",
+      "key": "Software\\Policies\\Microsoft\\Windows\\Personalization",
+      "valueName": "NoLockScreenCamera",
+      "type": "REG_DWORD",
+      "data": 1
+    },
+    {
+      "id": "Explorer.NoAutorun",
+      "displayName": "Isključi AutoPlay za sve pogone",
+      "scope": "User",
+      "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer",
+      "valueName": "NoDriveTypeAutoRun",
+      "type": "REG_DWORD",
+      "data": 255
+    }
+  ],
+  "security": {
+    "MinimumPasswordLength": 14,
+    "PasswordComplexity": 1,
+    "MaximumPasswordAge": 90,
+    "LockoutBadCount": 5
+  },
+  "audit": {
+    "Logon": "Success,Failure",
+    "Account Lockout": "Failure"
+  }
+}

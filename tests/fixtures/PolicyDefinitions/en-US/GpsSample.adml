@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitionResources xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" revision="1.0" schemaVersion="1.0">
+  <displayName />
+  <description />
+  <resources>
+    <stringTable>
+      <string id="Cat_Store">Store</string>
+      <string id="RemoveStore">Turn off the Store application</string>
+      <string id="RemoveStore_Help">Removes the Store.</string>
+      <string id="UpdateMode">Store update mode</string>
+      <string id="UpdateMode_Help">Configures updates.</string>
+      <string id="Mode_Always">Always</string>
+      <string id="Mode_Never">Never</string>
+    </stringTable>
+  </resources>
+</policyDefinitionResources>

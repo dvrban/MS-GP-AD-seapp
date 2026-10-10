@@ -1,0 +1,3 @@
+*.gps-tmp
+TestResults/
+*.log
