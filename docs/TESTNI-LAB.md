@@ -215,9 +215,12 @@ Kad je WS01 u domeni, na DC01 ponovno pokrenite skriptu 03. Ona dodaje WS01 u gr
 računalo dobije novo članstvo:
 
 ```powershell
-C:\Lab\03-Initialize-GpsLabAD.ps1        # na DC01
-Restart-Computer -ComputerName WS01 -Force
+C:\Lab\03-Initialize-GpsLabAD.ps1                              # na DC01
+Invoke-Command -ComputerName WS01 { Restart-Computer -Force }   # na DC01, preko WinRM-a
 ```
+
+`Restart-Computer -ComputerName` u Windows PowerShellu 5.1 po zadanom koristi DCOM/WMI, koji vatrozid
+Windowsa 11 blokira; zato restart ide preko WinRM-a (ili WS01 restartajte s njegove konzole).
 
 ### 3.7. Admin stanica
 
@@ -326,6 +329,9 @@ Import-Module .\src\GpoStudio.Local\GpoStudio.Local.psm1, .\src\GpoStudio.Domain
 $set = Import-GpsPolicySet .\examples\radna-stanica-baseline.json
 ```
 
+Lokalna primjena (N1, N3) traži povišenu sesiju kao `gps.admin`; A1 i A2 se namjerno pokreću kao
+`gps.editor` u običnoj sesiji.
+
 ### 5.1. GUI
 
 | ID | Koraci | Očekivano | Rezultat |
@@ -345,9 +351,11 @@ $set = Import-GpsPolicySet .\examples\radna-stanica-baseline.json
 | G12 | *Primijeni* | potvrda navodi cilj (*ovo računalo*); log pokazuje status OK i putanju backupa; postavke računala (HKLM) su odmah u registryju, a korisnička postavka (`NoDriveTypeAutoRun` u HKCU) tek nakon `gpupdate /target:user /force` ili nove prijave | |
 | G13 | *Backup*, zatim *Vrati iz backupa…* s pogrešnom putanjom | backup: putanja u logu; pogrešna putanja: status Error i poruka, ništa se ne mijenja | |
 | G14 | *Vrati iz backupa…* s ispravnom putanjom iz G12 | status OK; vrijednosti iz G12 nestaju nakon `gpupdate` | |
+| G14b | lokalno: politiku s izborom dodajte kao *Enabled*, zatim ponovno s drugom opcijom, a drugu politiku kao *Disabled*; *Primijeni*, zatim otvorite `gpedit.msc` | gpedit prikazuje obje politike u stanju i s opcijom koju je postavio GPO Studio; vratite backup kao u G14 | |
 | G15 | *Računala*: `WS01, WS02`, *Usporedi*, zatim *Primijeni* | rezultat po računalu u kartici *Diff* i logu; poruka da su računala u domeni | |
 | G16 | domenski način, prazan naziv GPO-a, *Usporedi* | upozorenje *Upišite naziv GPO-a*; ništa se ne pokreće | |
 | G17 | domena: GPO `GPS-LAB-GUI`, link na `OU=Pilot,...`, grupa `GPS-Pilot-PC`; *Usporedi*, zatim *Primijeni* | potvrda navodi link; u GPMC-u se vide GPO, link i Security Filtering | |
+| G17b | u isti GPO kao G17 dodajte stvarnu politiku kao *Disabled* (npr. *Turn off the Store application*) i politiku s izborom, zatim je ponovno dodajte s drugom opcijom; *Primijeni*. Zatim `Get-GpsDomainGpoReport -GpoName GPS-LAB-GUI -Path "$env:TEMP\gpo.html"` | u izvještaju (i u GPMC-u, kartica *Settings*) politike su pod svojim nazivima sa stanjem *Disabled* odnosno s novom opcijom, a ne pod *Extra Registry Settings*; nema vrijednosti iz prve opcije | |
 | G18 | *Provjeri replikaciju* | tablica DC-ova u kartici *Log*, svi `InSync = True` | |
 | G19 | zatvaranje prozora dok operacija traje | pitanje za potvrdu | |
 
@@ -368,8 +376,8 @@ Bez toga operacija i dalje radi, ali revizijski zapis se ne upisuje (GPO Studio 
 
 | ID | Koraci | Očekivano | Rezultat |
 |---|---|---|---|
-| A1 | na ADMIN01 kao `GPSLAB\gps.editor` (Group Policy Creator Owners), uz preambulu iz 5. poglavlja: `Publish-GpsDomainPolicy -PolicySet $set -GpoName GPS-LAB-Editor -LinkTarget 'OU=Pilot,OU=Racunala,OU=GpsLab,DC=gpslab,DC=test'` | GPO se stvara, link ne uspijeva (nema delegiranog prava *Link GPO*); greška *Objava GPO-a … nije dovršena*; u `audit.jsonl` je `result: Error`, `linked: false`. Upozorenje za security/audit je očekivano | |
-| A2 | kao A1 (uz `-BackupPath $env:USERPROFILE\GpoBackup`), nakon što u GPMC-u (*Pilot → Delegation*) dodate `GPS-GPO-Editors` s pravom *Link GPOs* | objava s linkom uspijeva | |
+| A1 | na ADMIN01 kao `GPSLAB\gps.editor` (Group Policy Creator Owners), uz preambulu iz 5. poglavlja: `Publish-GpsDomainPolicy -PolicySet $set -GpoName GPS-LAB-Editor -LinkTarget 'OU=Pilot,OU=Racunala,OU=GpsLab,DC=gpslab,DC=test'` | GPO se stvara, link ne uspijeva (nema delegiranog prava *Link GPO*); greška *Objava GPO-a … nije dovršena*; u `audit.jsonl` je `result: Error`, `linked: false` | |
+| A2 | kao A1 (uz `-BackupPath $env:USERPROFILE\GpoBackup`), nakon što u GPMC-u (*Pilot → Delegation*) dodate `GPS-GPO-Editors` s pravom *Link GPOs* | objava s linkom uspijeva; očekivano je upozorenje *Sigurnosne postavke i revizija za domenske GPO-ove još nisu implementirane* (primjer sadrži security/audit; u A1 se ne pojavljuje jer objava završi greškom prije tog koraka) | |
 | A3 | u `pwsh` (instalira ga skripta 05): `Import-Module .\src\GpoStudio.Domain\GpoStudio.Domain.psm1; Get-GpsDomainContext` | jasna poruka da domenski dio traži Windows PowerShell 5.1 | |
 
 ### 5.3. Otpornost i negativni slučajevi
@@ -378,9 +386,9 @@ Bez toga operacija i dalje radi, ali revizijski zapis se ne upisuje (GPO Studio 
 |---|---|---|---|
 | N1 | na WS02 `Stop-Service WinRM`; zatim `Set-GpsLocalPolicy -PolicySet $set -ComputerName WS01, WS02 -Confirm:$false` | WS01: status OK; WS02: greška veze; WS01 se ipak primijeni. Nakon testa `Start-Service WinRM` | |
 | N2 | na testnom računalu u `C:\Windows\System32\GroupPolicy\Machine\Registry.pol` upišite smeće; zatim primjena | status Error (*Neispravno zaglavlje*), datoteka se ne prepisuje; vratite checkpoint | |
-| N3 | `$min = Import-GpsPolicySet <vlastiti.json>` (JSON samo s `name` i `settings`); `Set-GpsLocalPolicy -PolicySet $min -Confirm:$false` | primjena uspijeva, revizijski zapis ima `version: 1.0.0` | |
+| N3 | `$min = Import-GpsPolicySet <vlastiti.json>` (JSON samo s `name` i `settings`); u povišenoj sesiji kao `gps.admin`: `Set-GpsLocalPolicy -PolicySet $min -Confirm:$false` | primjena uspijeva, revizijski zapis ima `version: 1.0.0` | |
 | N4 | u GUI-ju *Dodaj: Enabled* za politiku s elementom tipa *list* (npr. *Allow installation of devices that match any of these device IDs*) | dodaje se samo glavna vrijednost (npr. `AllowDeviceIDs = 1`), a log pokazuje *UPOZORENJE: Element tipa 'list' … nije podržan i izostavlja se* | |
-| N5 | na STANDALONE01 u `gpedit.msc` uključite jednu Administrative Templates postavku i zapišite redak `gPCMachineExtensionNames` iz `C:\Windows\System32\GroupPolicy\gpt.ini`; zatim `.\lab\Test-GpsLabSmoke.ps1 -Area Remote` | nakon primjene i nakon vraćanja u retku je točno jedna grupa koja počinje s `{35378EAC-683F-11D2-A89A-00C04FBBCFA2}`; postavka iz gpedita je i dalje u registryju i `gpedit.msc` je prikazuje kao *Enabled*; u *GroupPolicy/Operational* nema grešaka | |
+| N5 | na STANDALONE01 u `gpedit.msc` uključite jednu Administrative Templates postavku i zapišite redak `gPCMachineExtensionNames` iz `C:\Windows\System32\GroupPolicy\gpt.ini`; zatim `.\lab\Test-GpsLabSmoke.ps1 -Area Remote` | nakon testa (R4 vraća backup i ponovno upisuje `gpt.ini` istom funkcijom kao primjena) u retku je točno jedna grupa koja počinje s `{35378EAC-683F-11D2-A89A-00C04FBBCFA2}`, a GUID-ovi alata iz gpedita su i dalje u njoj; postavka iz gpedita je i dalje u registryju i `gpedit.msc` je prikazuje kao *Enabled*; u *GroupPolicy/Operational* nema grešaka | |
 
 ---
 
@@ -411,7 +419,7 @@ Korisni prilozi:
 | Revizijski zapis | `Get-Content C:\ProgramData\GpoStudio\audit.jsonl -Tail 20` |
 | Log iz GUI-a | kartica *Log*: označite sve i kopirajte |
 | Rezultat Group Policyja na klijentu | `gpresult /h "$env:TEMP\gpresult.html" /f` (povišeno) |
-| Izvještaj GPO-a | `Get-GpsDomainGpoReport -GpoName <naziv> -Path "$env:TEMP\gpo.html"` |
+| Izvještaj GPO-a | uz preambulu iz 5. poglavlja: `Get-GpsDomainGpoReport -GpoName <naziv> -Path "$env:TEMP\gpo.html"` |
 | Događaji Group Policyja | Event Viewer → *Applications and Services Logs → Microsoft → Windows → GroupPolicy → Operational* |
 | Verzije | `$PSVersionTable`, `winver`, `git rev-parse HEAD` |
 
@@ -466,10 +474,12 @@ Get-SmbShare SYSVOL, NETLOGON                                                  #
 dcdiag /test:sysvolcheck /test:advertising
 ```
 
-Ako SYSVOL nije spreman ni na jednom DC-u, napravite autoritativnu sinkronizaciju s DC01 prema
-Microsoftovom članku *How to force authoritative and non-authoritative synchronization for
-DFSR-replicated SYSVOL* (DC01 autoritativno, DC02 neautoritativno). Jednostavnija alternativa je
-izgraditi DC02 ponovno.
+Ako SYSVOL nije spreman ni na jednom DC-u, na DC01 je uvijek potrebna autoritativna sinkronizacija,
+a DC02 se zatim sinkronizira neautoritativno, prema Microsoftovom članku *How to force
+authoritative and non-authoritative synchronization for DFSR-replicated SYSVOL* (na DC01:
+`msDFSR-Options=1` na objektu *SYSVOL Subscription*, zatim `msDFSR-Enabled` FALSE/TRUE i
+`dfsrdiag pollad`). Ponovna izgradnja DC02 ne pomaže dok DC01 nema SYSVOL. Nakon popravka
+napravite novi checkpoint *Clean*, inače se problem ponavlja pri svakom vraćanju.
 
 Evaluacijske verzije: Windows 11 Enterprise vrijedi 90 dana, a Windows Server 180 dana. Preostalo
 vrijeme pokazuje `slmgr /dlv`. Kad istekne, lab izgradite ponovno.
