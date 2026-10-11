@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitions xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" revision="1.0" schemaVersion="1.0">
+  <policyNamespaces>
+    <target prefix="gpsadv" namespace="GpoStudio.Policies.Advanced" />
+    <using prefix="windows" namespace="Microsoft.Policies.Windows" />
+  </policyNamespaces>
+  <resources minRequiredRevision="1.0" />
+  <categories>
+    <category name="Cat_Adv" displayName="$(string.Cat_Adv)" />
+  </categories>
+  <policies>
+    <policy name="PrinterRestrictions" class="Machine" displayName="$(string.PrinterRestrictions)" explainText="$(string.PrinterRestrictions_Help)"
+            key="Software\Policies\Gps\Printers" presentation="$(presentation.PrinterRestrictions)">
+      <parentCategory ref="Cat_Adv" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledList defaultKey="Software\Policies\Gps\Printers">
+        <item valueName="Restricted"><value><decimal value="1" /></value></item>
+        <item key="Software\Policies\Gps\Printers\Mode" valueName="Mode"><value><string>strict</string></value></item>
+      </enabledList>
+      <disabledList>
+        <item key="Software\Policies\Gps\Printers" valueName="Restricted"><value><decimal value="0" /></value></item>
+      </disabledList>
+      <elements>
+        <boolean id="Inverted" valueName="ShowWarning">
+          <trueValue><decimal value="0" /></trueValue>
+          <falseValue><decimal value="1" /></falseValue>
+        </boolean>
+        <boolean id="Plain" valueName="Plain" />
+        <enum id="Level" valueName="Level">
+          <item displayName="$(string.Level_Low)">
+            <value><decimal value="1" /></value>
+            <valueList>
+              <item valueName="LowExtra"><value><string>yes</string></value></item>
+            </valueList>
+          </item>
+          <item displayName="$(string.Level_None)"><value><delete /></value></item>
+        </enum>
+      </elements>
+    </policy>
+    <policy name="EnabledListOnly" class="Both" displayName="$(string.EnabledListOnly)"
+            key="Software\Policies\Gps\Lists">
+      <parentCategory ref="Cat_Adv" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledList>
+        <item key="Software\Policies\Gps\Lists" valueName="A"><value><decimal value="1" /></value></item>
+      </enabledList>
+    </policy>
+    <policy name="BigQuota" class="User" displayName="$(string.BigQuota)" key="Software\Policies\Gps\Quota" valueName="Quota">
+      <parentCategory ref="Cat_Adv" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledValue><longDecimal value="5000000000" /></enabledValue>
+    </policy>
+  </policies>
+</policyDefinitions>

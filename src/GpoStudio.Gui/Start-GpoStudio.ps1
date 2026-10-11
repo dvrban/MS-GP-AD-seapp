@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Pokreće GPO Studio: WPF sučelje za slaganje lokalnih i domenskih grupnih politika.
@@ -16,11 +16,16 @@
 [CmdletBinding()]
 param([string]$AdmxPath)
 
-# WPF zahtijeva STA dretvu.
-if ([Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') {
+# GUI radi u 64-bitnom Windows PowerShellu 5.1 sa STA dretvom: WPF traži STA, domenski dio
+# traži 5.1 (RSAT GroupPolicy), a 32-bitni proces bi pisao u SysWOW64\GroupPolicy.
+$is32on64 = [Environment]::Is64BitOperatingSystem -and -not [Environment]::Is64BitProcess
+if ($PSVersionTable.PSEdition -eq 'Core' -or $is32on64 -or
+    [Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') {
+    $folder = if ($is32on64) { 'Sysnative' } else { 'System32' }
+    $exe = Join-Path $env:windir "$folder\WindowsPowerShell\v1.0\powershell.exe"
     $argList = @('-NoProfile', '-STA', '-File', "`"$PSCommandPath`"")
     if ($AdmxPath) { $argList += @('-AdmxPath', "`"$AdmxPath`"") }
-    Start-Process -FilePath (Get-Process -Id $PID).Path -ArgumentList $argList
+    Start-Process -FilePath $exe -ArgumentList $argList
     return
 }
 
@@ -64,7 +69,9 @@ function Write-UiLog([string]$Message) {
 }
 
 function Show-UiMessage([string]$Text, [string]$Icon = 'Information', [string]$Buttons = 'OK') {
-    [System.Windows.MessageBox]::Show($window, $Text, 'GPO Studio', $Buttons, $Icon)
+    $result = [System.Windows.MessageBox]::Show($window, $Text, 'GPO Studio', $Buttons, $Icon)
+    # Rezultat vraćamo samo kad postoji izbor, da ne "curi" u izlaz funkcija koje vraćaju $true/$false.
+    if ($Buttons -ne 'OK') { $result }
 }
 
 function Set-UiBusy([bool]$Busy, [string]$Status) {
@@ -106,7 +113,7 @@ $script:JobTimer.Add_Tick({
             $output = $job.PowerShell.EndInvoke($job.Handle)
             foreach ($w in $job.PowerShell.Streams.Warning) { Write-UiLog "UPOZORENJE: $w" }
             foreach ($e in $job.PowerShell.Streams.Error) { Write-UiLog "GREŠKA: $e" }
-            if ($job.OnSuccess) { & $job.OnSuccess @($output) }
+            if ($job.OnSuccess) { & $job.OnSuccess @($output) $job.Context }
             Set-UiBusy $false "$($job.Title): gotovo ($([int]((Get-Date) - $job.Started).TotalSeconds) s)."
         }
         catch {
@@ -126,7 +133,9 @@ function Start-UiJob {
         [Parameter(Mandatory)][scriptblock]$ScriptBlock,
         [object[]]$Arguments = @(),
         [scriptblock]$OnSuccess,
-        [string]$Command
+        [string]$Command,
+        # Proslijeđuje se OnSuccess bloku kao drugi argument (blokovi nisu closure).
+        $Context
     )
     if ($script:State.Job) { Show-UiMessage 'Operacija je već u tijeku.' 'Warning'; return }
 
@@ -142,7 +151,7 @@ function Start-UiJob {
     if ($Command) { Write-UiLog "> $Command" }
     $script:State.Job = @{
         PowerShell = $ps; Runspace = $rs; Handle = $ps.BeginInvoke()
-        Title = $Title; OnSuccess = $OnSuccess; Started = Get-Date
+        Title = $Title; OnSuccess = $OnSuccess; Context = $Context; Started = Get-Date
     }
     Set-UiBusy $true "$Title…"
     $script:JobTimer.Start()
@@ -314,7 +323,7 @@ function Invoke-UiPolicyAction([switch]$Apply) {
     if ($ui.rbLocal.IsChecked) {
         $computers = Get-UiComputers
         $targetText = if ($computers) { $computers -join ', ' } else { 'ovo računalo' }
-        if ($Apply -and (Show-UiMessage "Primijeniti '$($set.name)' na lokalni GP: $targetText?`nPrije primjene radi se backup." 'Question' 'YesNo') -ne 'Yes') { return }
+        if ($Apply -and (Show-UiMessage "Primijeniti '$($set.name)' na lokalni GP: ${targetText}?`nPrije primjene radi se backup." 'Question' 'YesNo') -ne 'Yes') { return }
 
         $cmd = "Set-GpsLocalPolicy -PolicySet `$set" + $(if ($computers) { " -ComputerName $($computers -join ',')" }) + $(if ($Apply) { ' -Confirm:$false' } else { ' -WhatIf' })
         Start-UiJob -Title $(if ($Apply) { 'Primjena (lokalno)' } else { 'Usporedba (lokalno)' }) -Command $cmd `
@@ -357,7 +366,7 @@ function Invoke-UiBackup {
             -Arguments @(, $computers) -ScriptBlock {
             param($computers)
             if ($computers) { Backup-GpsLocalPolicy -ComputerName $computers } else { Backup-GpsLocalPolicy }
-        } -OnSuccess { param($r) foreach ($path in @($r)) { Write-UiLog "Backup spremljen: $path" } }
+        } -OnSuccess { param($r) foreach ($b in @($r)) { Write-UiLog "Backup spremljen ($($b.ComputerName)): $($b.BackupPath)" } }
     }
     else {
         if (-not (Test-UiDomainInput)) { return }
@@ -386,7 +395,13 @@ function Invoke-UiRestore {
             $p = @{ BackupPath = $path }
             if ($computer) { $p.ComputerName = $computer }
             Restore-GpsLocalPolicy @p -Confirm:$false
-        } -OnSuccess { Write-UiLog 'Lokalni GP vraćen iz backupa.' }
+        } -OnSuccess {
+            param($r)
+            foreach ($x in @($r)) {
+                foreach ($m in @($x.Messages)) { Write-UiLog "$($x.ComputerName): $m" }
+                Write-UiLog "$($x.ComputerName): vraćanje iz backupa, status $($x.Status)"
+            }
+        }
     }
     else {
         if (-not (Test-UiDomainInput)) { return }
@@ -394,13 +409,13 @@ function Invoke-UiRestore {
         $domain = $ui.txtDomain.Text.Trim()
         $path = [Microsoft.VisualBasic.Interaction]::InputBox('Mapa s backupom GPO-a (vraća se najnoviji backup):', 'Vrati GPO', (Join-Path $env:ProgramData 'GpoStudio\GpoBackup'))
         if (-not $path) { return }
-        if ((Show-UiMessage "Vratiti GPO '$gpo' iz $path?" 'Question' 'YesNo') -ne 'Yes') { return }
-        Start-UiJob -Title 'Vraćanje (domena)' -Command "Restore-GPO -Name '$gpo' -Path '$path'" -Arguments @($gpo, $domain, $path) -ScriptBlock {
+        if ((Show-UiMessage "Vratiti GPO '$gpo' iz ${path}?" 'Question' 'YesNo') -ne 'Yes') { return }
+        Start-UiJob -Title 'Vraćanje (domena)' -Command "Restore-GPO -Name '$gpo' -Path '$path'" -Arguments @($gpo, $domain, $path) -Context $gpo -ScriptBlock {
             param($gpo, $domain, $path)
             $ctx = Get-GpsDomainContext -Domain $domain
             Restore-GPO -Name $gpo -Path $path -Domain $ctx.Domain -Server $ctx.Server
             Write-GpsAuditLog -Action 'Restore-GPO' -Target "$($ctx.Domain)/$gpo" -Details @{ path = $path }
-        } -OnSuccess { Write-UiLog "GPO '$gpo' vraćen iz backupa." }
+        } -OnSuccess { param($r, $gpoName) Write-UiLog "GPO '$gpoName' vraćen iz backupa." }
     }
 }
 

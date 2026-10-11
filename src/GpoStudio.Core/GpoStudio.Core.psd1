@@ -1,4 +1,4 @@
-@{
+﻿@{
     RootModule        = 'GpoStudio.Core.psm1'
     ModuleVersion     = '0.1.0'
     GUID              = '6f0e8d1c-3b52-4f0a-9a57-2c1f7d3e9b10'

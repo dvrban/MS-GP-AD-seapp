@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitionResources xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" revision="1.0" schemaVersion="1.0">
+  <displayName />
+  <description />
+  <resources>
+    <stringTable>
+      <string id="Cat_Adv">Advanced</string>
+      <string id="PrinterRestrictions">Printer restrictions</string>
+      <string id="PrinterRestrictions_Help">Restricts printer installation.</string>
+      <string id="Level_Low">Low</string>
+      <string id="Level_None">None</string>
+      <string id="EnabledListOnly">Enabled list only</string>
+      <string id="BigQuota">Big quota</string>
+    </stringTable>
+  </resources>
+</policyDefinitionResources>

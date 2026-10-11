@@ -1,4 +1,4 @@
-BeforeAll {
+﻿BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..\src\GpoStudio.Core') -Force
     $fixtures = Join-Path $PSScriptRoot 'fixtures'
 }
@@ -40,6 +40,17 @@ Describe 'Registry.pol' {
         $path = Join-Path $TestDrive 'bad.pol'
         [IO.File]::WriteAllBytes($path, [byte[]](0x50, 0x52, 0x65, 0x67, 1, 0, 0, 0, 0x5B, 0))
         { Read-GpsRegistryPol -Path $path } | Should -Throw
+    }
+
+    It 'zamjenjuje postojeću datoteku i radi s relativnom putanjom' {
+        Push-Location $TestDrive
+        try {
+            Write-GpsRegistryPol -Path 'rel.pol' -Entry @([pscustomobject]@{ Key = 'K'; ValueName = 'V'; Type = 'REG_DWORD'; Data = 1 })
+            Write-GpsRegistryPol -Path 'rel.pol' -Entry @([pscustomobject]@{ Key = 'K'; ValueName = 'V'; Type = 'REG_DWORD'; Data = 2 })
+            (Read-GpsRegistryPol -Path 'rel.pol').Data | Should -Be 2
+            @(Get-ChildItem -Path $TestDrive -Filter '*.gps-tmp').Count | Should -Be 0
+        }
+        finally { Pop-Location }
     }
 
     It 'WhatIf ne mijenja datoteku' {
@@ -95,6 +106,22 @@ Describe 'Policy Set' {
             Should -Be @('Same=Unchanged', 'Diff=Changed', 'New=Added', 'Gone=Removed')
     }
 
+    It 'REG_BINARY nakon JSON-a nije Changed' {
+        $current = @([pscustomobject]@{ Key = 'Software\X'; ValueName = 'B'; Type = 'REG_BINARY'; Data = [byte[]](1, 2, 255) })
+        $setting = New-GpsPolicySetting -Key 'Software\X' -ValueName 'B' -Type REG_BINARY -Data ([byte[]](1, 2, 255))
+        $roundTrip = $setting | ConvertTo-Json | ConvertFrom-Json
+        (Compare-GpsPolicySet -Current $current -Setting @($roundTrip)).Status | Should -Be 'Unchanged'
+    }
+
+    It 'uvozi minimalan JSON bez description i version' {
+        $path = Join-Path $TestDrive 'min.json'
+        Set-Content -Path $path -Encoding UTF8 -Value '{ "name": "Min", "settings": [ { "key": "Software\\X", "valueName": "V", "type": "REG_DWORD", "data": 1 } ] }'
+        $set = Import-GpsPolicySet -Path $path
+        $set.version | Should -Be '1.0.0'
+        $set.description | Should -Be ''
+        $set.settings.Count | Should -Be 1
+    }
+
     It 'JSON export i import čuvaju postavke' {
         $example = Join-Path $PSScriptRoot '..\examples\radna-stanica-baseline.json'
         $set = Import-GpsPolicySet -Path $example
@@ -110,7 +137,7 @@ Describe 'Policy Set' {
 
 Describe 'ADMX katalog' {
     It 'čita politike i prijevode iz ADML-a' {
-        $catalog = @(Get-GpsAdmxCatalog -Path (Join-Path $fixtures 'PolicyDefinitions') -Language 'hr-HR')
+        $catalog = @(Get-GpsAdmxCatalog -Path (Join-Path $fixtures 'PolicyDefinitions') -Language 'hr-HR' -Filter 'GpsSample.admx')
         $catalog.Count | Should -Be 2
 
         $store = $catalog | Where-Object Name -eq 'RemoveStore'
@@ -166,5 +193,79 @@ Describe 'ConvertTo-GpsPolicySetting' {
         $s = @(ConvertTo-GpsPolicySetting -Policy $updateMode -State Disabled)
         $s.action | Sort-Object -Unique | Should -Be 'Delete'
         $s.Count | Should -Be 3
+    }
+}
+
+Describe 'ConvertTo-GpsPolicySetting: liste i posebni tipovi' {
+    BeforeAll {
+        $catalog = @(Get-GpsAdmxCatalog -Path (Join-Path $fixtures 'PolicyDefinitions') -Language 'en-US' -Filter 'GpsAdvanced.admx')
+        $printers = $catalog | Where-Object Name -eq 'PrinterRestrictions'
+        $listOnly = $catalog | Where-Object Name -eq 'EnabledListOnly'
+        $quota = $catalog | Where-Object Name -eq 'BigQuota'
+    }
+
+    It 'Enabled upisuje enabledList (s defaultKey i vlastitim ključem)' {
+        $s = @(ConvertTo-GpsPolicySetting -Policy $printers -ElementValues @{ Level = 'Low' })
+        ($s | Where-Object valueName -eq 'Restricted').data | Should -Be 1
+        $mode = $s | Where-Object valueName -eq 'Mode'
+        $mode.key | Should -Be 'Software\Policies\Gps\Printers\Mode'
+        $mode.type | Should -Be 'REG_SZ'
+        $mode.data | Should -Be 'strict'
+    }
+
+    It 'Disabled upisuje disabledList, a bez nje briše enabledList' {
+        $s = @(ConvertTo-GpsPolicySetting -Policy $printers -State Disabled)
+        ($s | Where-Object valueName -eq 'Restricted').data | Should -Be 0
+
+        $d = @(ConvertTo-GpsPolicySetting -Policy $listOnly -State Disabled)
+        $d.Count | Should -Be 1
+        $d[0].action | Should -Be 'Delete'
+    }
+
+    It 'boolean koristi trueValue/falseValue, a bez njih DWORD 1/0' {
+        $on = @(ConvertTo-GpsPolicySetting -Policy $printers -ElementValues @{ Inverted = $true; Plain = $true; Level = 'Low' })
+        ($on | Where-Object valueName -eq 'ShowWarning').data | Should -Be 0
+        ($on | Where-Object valueName -eq 'Plain').data | Should -Be 1
+
+        $off = @(ConvertTo-GpsPolicySetting -Policy $printers -ElementValues @{ Inverted = $false; Plain = $false; Level = 'Low' })
+        ($off | Where-Object valueName -eq 'ShowWarning').data | Should -Be 1
+        ($off | Where-Object valueName -eq 'Plain').data | Should -Be 0
+    }
+
+    It 'Disabled: boolean s falseValue dobiva tu vrijednost, ostali elementi se brišu' {
+        $s = @(ConvertTo-GpsPolicySetting -Policy $printers -State Disabled)
+        $warning = $s | Where-Object valueName -eq 'ShowWarning'
+        $warning.action | Should -Be 'Set'
+        $warning.data | Should -Be 1
+        ($s | Where-Object valueName -eq 'Plain').action | Should -Be 'Delete'
+    }
+
+    It 'enum: valueList odabrane stavke i stavka koja briše vrijednost' {
+        $low = @(ConvertTo-GpsPolicySetting -Policy $printers -ElementValues @{ Level = 'Low' })
+        ($low | Where-Object valueName -eq 'Level').data | Should -Be 1
+        ($low | Where-Object valueName -eq 'LowExtra').data | Should -Be 'yes'
+
+        $none = @(ConvertTo-GpsPolicySetting -Policy $printers -ElementValues @{ Level = 'None' })
+        ($none | Where-Object valueName -eq 'Level').action | Should -Be 'Delete'
+    }
+
+    It 'longDecimal postaje REG_QWORD, a klasa User određuje scope' {
+        $s = ConvertTo-GpsPolicySetting -Policy $quota
+        $s.type | Should -Be 'REG_QWORD'
+        $s.data | Should -Be 5000000000
+        $s.scope | Should -Be 'User'
+    }
+}
+
+Describe 'Kodiranje datoteka' {
+    It 'sve PowerShell datoteke imaju UTF-8 BOM (Windows PowerShell 5.1 inače čita ANSI)' {
+        $root = Join-Path $PSScriptRoot '..'
+        $files = Get-ChildItem -Path $root -Recurse -File -Include '*.ps1', '*.psm1', '*.psd1' |
+            Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' }
+        $missing = foreach ($f in $files) {
+            $b = [IO.File]::ReadAllBytes($f.FullName)
+            if ($b.Length -lt 3 -or $b[0] -ne 0xEF -or $b[1] -ne 0xBB -or $b[2] -ne 0xBF) { $f.Name }
+        }
+        $missing | Should -BeNullOrEmpty
     }
 }

@@ -33,11 +33,19 @@ kao domenski GPO. Postavke se biraju iz kataloga izgrađenog iz ADMX/ADML predlo
 .\src\GpoStudio.Gui\Start-GpoStudio.ps1
 ```
 
+GUI radi u 64-bitnom Windows PowerShellu 5.1. Pokrene li se iz PowerShella 7 ili 32-bitnog
+procesa, sam se ponovno pokreće u `powershell.exe`. Domenski cmdleti (`GpoStudio.Domain`) također
+traže Windows PowerShell 5.1, a Core i lokalni dio rade i u PowerShellu 7.
+
 Za domenski način potreban je RSAT:
 
 ```powershell
+# Windows 10/11
 Add-WindowsCapability -Online -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0
 Add-WindowsCapability -Online -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0
+
+# Windows Server
+Install-WindowsFeature GPMC, RSAT-AD-PowerShell
 ```
 
 ## Korištenje iz skripte (bez GUI-a)

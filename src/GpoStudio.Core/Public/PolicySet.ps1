@@ -1,4 +1,4 @@
-<#
+﻿<#
     Policy Set: skup postavki neovisan o cilju (lokalno računalo ili domenski GPO).
 
     {
@@ -11,8 +11,10 @@
 #>
 
 function ConvertTo-GpsComparable {
-    param($Value)
+    param($Value, [string]$Type)
     if ($null -eq $Value) { return '' }
+    # Nakon JSON-a REG_BINARY stiže kao niz brojeva, a iz Registry.pol kao byte[].
+    if ($Type -eq 'REG_BINARY' -and $Value -isnot [byte[]]) { try { $Value = [byte[]]@($Value) } catch { } }
     if ($Value -is [byte[]]) { return 'hex:' + [BitConverter]::ToString($Value) }
     if ($Value -is [array]) { return (@($Value) | ForEach-Object { [string]$_ }) -join "`n" }
     return [string]$Value
@@ -96,11 +98,15 @@ function Import-GpsPolicySet {
     param([Parameter(Mandatory)][string]$Path)
 
     $json = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
-    $settings = foreach ($s in @($json.settings)) {
+    $prop = { param($o, $n) if ($o.PSObject.Properties[$n]) { $o.PSObject.Properties[$n].Value } }
+
+    if (-not (& $prop $json 'name')) { throw "Policy Set '$Path' nema naziv (name)." }
+    $settings = foreach ($s in @(& $prop $json 'settings')) {
         if ($null -eq $s) { continue }
+        if (-not (& $prop $s 'key')) { throw "Postavka u '$Path' nema registry ključ (key)." }
         $p = @{
             Key       = $s.key
-            ValueName = [string]$s.valueName
+            ValueName = [string](& $prop $s 'valueName')
         }
         foreach ($name in 'scope', 'type', 'data', 'action', 'id', 'displayName') {
             if ($s.PSObject.Properties[$name] -and $null -ne $s.$name) { $p[$name] = $s.$name }
@@ -108,7 +114,8 @@ function Import-GpsPolicySet {
         New-GpsPolicySetting @p
     }
 
-    $set = New-GpsPolicySet -Name $json.name -Description ([string]$json.description) -Version ([string]$json.version) -Setting @($settings)
+    $version = if (& $prop $json 'version') { [string]$json.version } else { '1.0.0' }
+    $set = New-GpsPolicySet -Name $json.name -Description ([string](& $prop $json 'description')) -Version $version -Setting @($settings)
     foreach ($section in 'security', 'audit') {
         if ($json.PSObject.Properties[$section] -and $json.$section) {
             foreach ($prop in $json.$section.PSObject.Properties) { $set.$section[$prop.Name] = $prop.Value }
@@ -190,7 +197,7 @@ function Compare-GpsPolicySet {
             if ($cur) { 'Removed' } elseif ($hasDel) { 'Unchanged' } else { 'Added' }
         }
         elseif (-not $cur) { 'Added' }
-        elseif ($cur.Type -ne $s.type -or (ConvertTo-GpsComparable $cur.Data) -ne (ConvertTo-GpsComparable $s.data)) { 'Changed' }
+        elseif ($cur.Type -ne $s.type -or (ConvertTo-GpsComparable $cur.Data $cur.Type) -ne (ConvertTo-GpsComparable $s.data $s.type)) { 'Changed' }
         else { 'Unchanged' }
 
         [pscustomobject]@{
@@ -198,8 +205,8 @@ function Compare-GpsPolicySet {
             Scope     = $s.scope
             Key       = $s.key
             ValueName = $s.valueName
-            Current   = if ($cur) { ConvertTo-GpsComparable $cur.Data } else { $null }
-            Desired   = if ($s.action -eq 'Delete') { '<obrisano>' } else { ConvertTo-GpsComparable $s.data }
+            Current   = if ($cur) { ConvertTo-GpsComparable $cur.Data $cur.Type } else { $null }
+            Desired   = if ($s.action -eq 'Delete') { '<obrisano>' } else { ConvertTo-GpsComparable $s.data $s.type }
             Action    = $s.action
         }
     }

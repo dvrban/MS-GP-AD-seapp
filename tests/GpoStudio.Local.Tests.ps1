@@ -1,4 +1,4 @@
-BeforeAll {
+﻿BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..\src\GpoStudio.Local\GpoStudio.Local.psm1') -Force
 }
 
@@ -56,5 +56,61 @@ Describe 'Payload za udaljena računala' {
         $result[0].Data | Should -Be 7
         $result[0].Diff | Should -Be 'Unchanged'
         $result[0].Audit | Should -Be '{0CCE9215-69AE-11D9-BED3-505054503030}'
+    }
+}
+
+Describe 'Invoke-GpsLocalApplyCore' {
+    BeforeAll {
+        # Get-CimInstance ne postoji u PowerShellu na Linuxu; Pester treba postojeću naredbu za Mock.
+        if (-not (Get-Command Get-CimInstance -ErrorAction SilentlyContinue)) {
+            function global:Get-CimInstance { param($ClassName) }
+            $script:cimStub = $true
+        }
+    }
+    AfterAll { if ($script:cimStub) { Remove-Item function:global:Get-CimInstance } }
+
+    It 'diff radi i kad Policy Set nema security ni audit (StrictMode)' {
+        InModuleScope GpoStudio.Local {
+            Mock Get-CimInstance { [pscustomobject]@{ PartOfDomain = $false } }
+            Mock Get-GpsLocalGpRoot { Join-Path $TestDrive 'GroupPolicy' }
+            $json = [pscustomobject]@{
+                name     = 'Bez sigurnosti'
+                settings = @([pscustomobject]@{ scope = 'Machine'; key = 'Software\X'; valueName = 'V'; type = 'REG_DWORD'; data = 1; action = 'Set' })
+            } | ConvertTo-Json -Depth 5
+
+            $r = Invoke-GpsLocalApplyCore -PolicySetJson $json -WhatIfMode $true
+            $r.Status | Should -Be 'WhatIf'
+            @($r.Diff).Status | Should -Be 'Added'
+        }
+    }
+}
+
+Describe 'Restore-GpsLocalPolicyCore' {
+    It 'ne dira GroupPolicy mapu kad putanja nije backup' {
+        InModuleScope GpoStudio.Local {
+            $gpRoot = Join-Path $TestDrive 'GroupPolicy'
+            $null = New-Item -ItemType Directory -Path (Join-Path $gpRoot 'Machine') -Force
+            Set-Content -Path (Join-Path $gpRoot 'gpt.ini') -Value '[General]', 'Version=1'
+            Mock Get-GpsLocalGpRoot { Join-Path $TestDrive 'GroupPolicy' }
+
+            $missing = Restore-GpsLocalPolicyCore -BackupPath (Join-Path $TestDrive 'nema-ga')
+            $missing.Status | Should -Be 'Error'
+
+            $notBackup = Join-Path $TestDrive 'neka-mapa'
+            $null = New-Item -ItemType Directory -Path $notBackup
+            (Restore-GpsLocalPolicyCore -BackupPath $notBackup).Status | Should -Be 'Error'
+
+            Test-Path (Join-Path $gpRoot 'gpt.ini') | Should -BeTrue
+        }
+    }
+}
+
+Describe 'Prepoznavanje lokalnog računala' {
+    It 'vlastito DNS ime je lokalno, a tuđe nije' {
+        InModuleScope GpoStudio.Local {
+            Test-GpsIsLocalComputer ([System.Net.Dns]::GetHostName()) | Should -BeTrue
+            Test-GpsIsLocalComputer 'LOCALHOST' | Should -BeTrue
+            Test-GpsIsLocalComputer 'neko-drugo-racunalo.example.invalid' | Should -BeFalse
+        }
     }
 }

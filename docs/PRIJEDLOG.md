@@ -251,15 +251,19 @@ zaseban runspace da GUI ne zamrzava. Kostur je u `src/GpoStudio.Gui/`.
 | Komponenta | Zahtjev |
 |---|---|
 | OS (admin stanica) | Windows 10/11 ili Windows Server 2016+ |
-| PowerShell | Windows PowerShell 5.1 (preporuka za GUI/WPF i GroupPolicy modul); PS 7.4+ podržan za Core logiku |
-| RSAT | `Rsat.GroupPolicy.Management.Tools` i `Rsat.ActiveDirectory.DS-LDS.Tools` |
-| Mreža | WinRM (5985/5986) prema ciljanim računalima; SMB i LDAP prema DC-ovima |
+| PowerShell | Windows PowerShell 5.1, 64-bitni (obavezno za GUI/WPF i domenski dio); PS 7.4+ podržan za Core i lokalni dio |
+| RSAT | Windows 10/11: `Rsat.GroupPolicy.Management.Tools` i `Rsat.ActiveDirectory.DS-LDS.Tools`; Windows Server: značajke `GPMC` i `RSAT-AD-PowerShell` |
+| Mreža | WinRM (5985/5986) prema ciljanim računalima; prema DC-ovima: ADWS (TCP 9389, ActiveDirectory modul), LDAP (389), SMB (445, SYSVOL), Kerberos (88) i DNS (53) |
 | Ovlasti | Lokalni administrator na ciljevima (lokalni GP); delegirane GPO ovlasti (domena) |
 
 Instalacija RSAT-a:
 ```powershell
+# Windows 10/11
 Add-WindowsCapability -Online -Name Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0
 Add-WindowsCapability -Online -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0
+
+# Windows Server 2016+
+Install-WindowsFeature GPMC, RSAT-AD-PowerShell
 ```
 
 ---
@@ -282,9 +286,9 @@ Add-WindowsCapability -Online -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0
 |---|---|
 | Pogrešan GPO na korijenu domene utječe na sva računala | Testni OU + "staging" tijek; upozorenja; obavezan backup; `-WhatIf` |
 | AD i SYSVOL verzije se raziđu kod izravnog pisanja u SYSVOL | Uvijek se piše preko PDC emulatora, ažurira se verzija u oba izvora, provjera nakon primjene |
-| Oštećen `Registry.pol` | Pisanje u privremenu datoteku + validacija ponovnim čitanjem + atomarna zamjena; backup |
+| Oštećen `Registry.pol` | Pisanje u privremenu datoteku + validacija ponovnim čitanjem + atomarna zamjena (`File.Replace`); backup |
 | Parsiranje velikog broja ADMX-ova je sporo | Keširanje kataloga (JSON) s hashom izvornih datoteka |
-| GroupPolicy modul u PS7 | Pokretanje u Windows PowerShell 5.1 ili `Import-Module GroupPolicy -UseWindowsPowerShell` |
+| GroupPolicy modul u PS7 | Domenski dio radi samo u Windows PowerShellu 5.1. Kroz `-UseWindowsPowerShell` objekti stižu deserijalizirani, pa ugniježđena svojstva (`GpoLinks`, verzije GPO-a) postaju stringovi. GUI se sam ponovno pokreće u 64-bitnom `powershell.exe` |
 | Lokalni GP nadjačan domenskim | GUI upozorava kad je računalo u domeni (LGPO ima najniži prioritet u LSDOU redoslijedu) |
 
 ---

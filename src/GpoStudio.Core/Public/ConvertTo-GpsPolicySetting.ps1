@@ -1,12 +1,14 @@
-function ConvertTo-GpsPolicySetting {
+﻿function ConvertTo-GpsPolicySetting {
     <#
     .SYNOPSIS
         Pretvara ADMX politiku iz kataloga + odabir korisnika (Enabled/Disabled, vrijednosti elemenata)
         u postavke Policy Seta, po istim pravilima kao gpedit/GPMC.
     .DESCRIPTION
-        Enabled : valueName dobiva enabledValue (zadano DWORD 1); elementi dobivaju unesene vrijednosti.
+        Enabled : valueName dobiva enabledValue (zadano DWORD 1), upisuje se enabledList, a elementi
+                  dobivaju unesene vrijednosti (boolean: trueValue/falseValue, enum: vrijednost + valueList).
         Disabled: valueName dobiva disabledValue, a ako ga nema, vrijednost se briše (**del.);
-                  vrijednosti elemenata se brišu.
+                  upisuje se disabledList (ako je nema, brišu se vrijednosti iz enabledList);
+                  boolean s eksplicitnom falseValue/falseList dobiva tu vrijednost, ostali elementi se brišu.
     .EXAMPLE
         $p = Get-GpsAdmxCatalog | Where-Object Name -eq 'RemoveWindowsStore_2'
         ConvertTo-GpsPolicySetting -Policy $p -State Enabled
@@ -25,64 +27,112 @@ function ConvertTo-GpsPolicySetting {
     $common = @{ Scope = $Scope; DisplayName = $Policy.DisplayName }
     $idBase = "$($Policy.Source)/$($Policy.Name)"
 
-    $typeOf = { param($kind) if ($kind -eq 'string') { 'REG_SZ' } else { 'REG_DWORD' } }
-
-    if ($Policy.ValueName) {
-        $value = if ($State -eq 'Enabled') { $Policy.EnabledValue } else { $Policy.DisabledValue }
-        $kind = if ($State -eq 'Enabled') { $Policy.EnabledType } else { $Policy.DisabledType }
-        if ($State -eq 'Enabled' -and -not $kind) { $value = 1; $kind = 'decimal' }
-
-        if ($kind -in 'decimal', 'string') {
-            $data = if ($kind -eq 'decimal') { [uint32]$value } else { [string]$value }
-            New-GpsPolicySetting @common -Id $idBase -Key $Policy.Key -ValueName $Policy.ValueName -Type (& $typeOf $kind) -Data $data
+    $typeOf = {
+        param($kind)
+        switch ($kind) {
+            'decimal' { 'REG_DWORD' }
+            'longDecimal' { 'REG_QWORD' }
+            'string' { 'REG_SZ' }
+            default { throw "Nepodržan tip vrijednosti '$kind' u politici '$($Policy.DisplayName)'." }
         }
-        else {
-            New-GpsPolicySetting @common -Id $idBase -Key $Policy.Key -ValueName $Policy.ValueName -Action Delete
+    }
+    # Jedna registry vrijednost iz ADMX-a (decimal / longDecimal / string / delete).
+    $emit = {
+        param([string]$Id, [string]$Key, [string]$ValueName, $Kind, $Value)
+        if ($Kind -eq 'delete') {
+            New-GpsPolicySetting @common -Id $Id -Key $Key -ValueName $ValueName -Action Delete
+            return
+        }
+        $type = & $typeOf $Kind
+        $data = switch ($Kind) {
+            'decimal' { [uint32]$Value }
+            'longDecimal' { [uint64]$Value }
+            default { [string]$Value }
+        }
+        New-GpsPolicySetting @common -Id $Id -Key $Key -ValueName $ValueName -Type $type -Data $data
+    }
+    $emitList = {
+        param($List, [string]$IdPrefix, [switch]$AsDelete)
+        foreach ($i in @($List)) {
+            if (-not $i) { continue }
+            $kind = if ($AsDelete) { 'delete' } else { $i.Type }
+            & $emit "$IdPrefix/$($i.ValueName)" $i.Key $i.ValueName $kind $i.Value
         }
     }
 
-    foreach ($el in @($Policy.Elements)) {
-        if (-not $el -or -not $el.ValueName) { continue } # npr. 'list' bez valueName (faza 2)
-        $id = "$idBase/$($el.Id)"
-
-        if ($State -eq 'Disabled') {
-            New-GpsPolicySetting @common -Id $id -Key $el.Key -ValueName $el.ValueName -Action Delete
-            continue
+    $result = @(
+        if ($Policy.ValueName) {
+            if ($State -eq 'Enabled') {
+                if ($Policy.EnabledType) { & $emit $idBase $Policy.Key $Policy.ValueName $Policy.EnabledType $Policy.EnabledValue }
+                else { & $emit $idBase $Policy.Key $Policy.ValueName 'decimal' 1 }
+            }
+            elseif ($Policy.DisabledType) { & $emit $idBase $Policy.Key $Policy.ValueName $Policy.DisabledType $Policy.DisabledValue }
+            else { & $emit $idBase $Policy.Key $Policy.ValueName 'delete' $null }
         }
 
-        $hasValue = $ElementValues.ContainsKey($el.Id) -and $null -ne $ElementValues[$el.Id] -and "$($ElementValues[$el.Id])" -ne ''
-        if (-not $hasValue) {
-            if ($el.Required) { throw "Element '$($el.Id)' politike '$($Policy.DisplayName)' je obavezan." }
-            continue
-        }
-        $v = $ElementValues[$el.Id]
+        if ($State -eq 'Enabled') { & $emitList $Policy.EnabledList "$idBase/enabledList" }
+        elseif (@($Policy.DisabledList).Count -gt 0) { & $emitList $Policy.DisabledList "$idBase/disabledList" }
+        else { & $emitList $Policy.EnabledList "$idBase/enabledList" -AsDelete }
 
-        switch ($el.Kind) {
-            'decimal' {
-                $n = [decimal]$v
-                if (($el.MinValue -and $n -lt [decimal]$el.MinValue) -or ($el.MaxValue -and $n -gt [decimal]$el.MaxValue)) {
-                    throw "Vrijednost $n za '$($el.Id)' nije u rasponu $($el.MinValue)-$($el.MaxValue)."
+        foreach ($el in @($Policy.Elements)) {
+            if (-not $el -or -not $el.ValueName) { continue } # npr. 'list' bez valueName (faza 2)
+            $id = "$idBase/$($el.Id)"
+
+            if ($State -eq 'Disabled') {
+                if ($el.Kind -eq 'boolean' -and ($el.FalseType -or @($el.FalseList).Count -gt 0)) {
+                    if ($el.FalseType) { & $emit $id $el.Key $el.ValueName $el.FalseType $el.FalseValue }
+                    & $emitList $el.FalseList "$id/falseList"
                 }
-                if ($el.StoreAsText) { New-GpsPolicySetting @common -Id $id -Key $el.Key -ValueName $el.ValueName -Type REG_SZ -Data ([string]$n) }
-                else { New-GpsPolicySetting @common -Id $id -Key $el.Key -ValueName $el.ValueName -Type REG_DWORD -Data ([uint32]$n) }
+                else {
+                    & $emit $id $el.Key $el.ValueName 'delete' $null
+                }
+                continue
             }
-            'boolean' {
-                New-GpsPolicySetting @common -Id $id -Key $el.Key -ValueName $el.ValueName -Type REG_DWORD -Data ([uint32][bool]$v)
+
+            $hasValue = $ElementValues.ContainsKey($el.Id) -and $null -ne $ElementValues[$el.Id] -and "$($ElementValues[$el.Id])" -ne ''
+            if (-not $hasValue) {
+                if ($el.Required) { throw "Element '$($el.Id)' politike '$($Policy.DisplayName)' je obavezan." }
+                continue
             }
-            'text' {
-                $type = if ($el.Expandable) { 'REG_EXPAND_SZ' } else { 'REG_SZ' }
-                New-GpsPolicySetting @common -Id $id -Key $el.Key -ValueName $el.ValueName -Type $type -Data ([string]$v)
+            $v = $ElementValues[$el.Id]
+
+            switch ($el.Kind) {
+                'decimal' {
+                    $n = [decimal]$v
+                    if (($el.MinValue -and $n -lt [decimal]$el.MinValue) -or ($el.MaxValue -and $n -gt [decimal]$el.MaxValue)) {
+                        throw "Vrijednost $n za '$($el.Id)' nije u rasponu $($el.MinValue)-$($el.MaxValue)."
+                    }
+                    if ($el.StoreAsText) { & $emit $id $el.Key $el.ValueName 'string' ([string]$n) }
+                    else { & $emit $id $el.Key $el.ValueName 'decimal' $n }
+                }
+                'boolean' {
+                    $on = [bool]$v
+                    $kind = if ($on) { $el.TrueType } else { $el.FalseType }
+                    $value = if ($on) { $el.TrueValue } else { $el.FalseValue }
+                    if ($kind) { & $emit $id $el.Key $el.ValueName $kind $value }
+                    else { & $emit $id $el.Key $el.ValueName 'decimal' ([uint32]$on) }
+                    & $emitList $(if ($on) { $el.TrueList } else { $el.FalseList }) "$id/$(if ($on) { 'trueList' } else { 'falseList' })"
+                }
+                'text' {
+                    $type = if ($el.Expandable) { 'REG_EXPAND_SZ' } else { 'REG_SZ' }
+                    New-GpsPolicySetting @common -Id $id -Key $el.Key -ValueName $el.ValueName -Type $type -Data ([string]$v)
+                }
+                'multiText' {
+                    New-GpsPolicySetting @common -Id $id -Key $el.Key -ValueName $el.ValueName -Type REG_MULTI_SZ -Data @($v)
+                }
+                'enum' {
+                    $item = @($el.Items) | Where-Object { $_.DisplayName -eq $v -or "$($_.Value)" -eq "$v" } | Select-Object -First 1
+                    if (-not $item) { throw "Vrijednost '$v' nije dopuštena za '$($el.Id)'." }
+                    & $emit $id $el.Key $el.ValueName $item.Type $item.Value
+                    & $emitList $item.ValueList "$id/valueList"
+                }
+                default { Write-Warning "Element tipa '$($el.Kind)' ($($el.Id)) još nije podržan." }
             }
-            'multiText' {
-                New-GpsPolicySetting @common -Id $id -Key $el.Key -ValueName $el.ValueName -Type REG_MULTI_SZ -Data @($v)
-            }
-            'enum' {
-                $item = @($el.Items) | Where-Object { $_.DisplayName -eq $v -or "$($_.Value)" -eq "$v" } | Select-Object -First 1
-                if (-not $item) { throw "Vrijednost '$v' nije dopuštena za '$($el.Id)'." }
-                $data = if ($item.Type -eq 'string') { [string]$item.Value } else { [uint32]$item.Value }
-                New-GpsPolicySetting @common -Id $id -Key $el.Key -ValueName $el.ValueName -Type (& $typeOf $item.Type) -Data $data
-            }
-            default { Write-Warning "Element tipa '$($el.Kind)' ($($el.Id)) još nije podržan." }
         }
+    )
+
+    if ($result.Count -eq 0) {
+        throw "Politika '$($Policy.DisplayName)' nema registry vrijednosti koje GPO Studio zasad podržava."
     }
+    $result
 }

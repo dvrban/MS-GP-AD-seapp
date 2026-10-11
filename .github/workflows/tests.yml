@@ -22,13 +22,13 @@ jobs:
         shell: ${{ matrix.shell }}
     steps:
       - uses: actions/checkout@v4
-      - name: Pester 5
+      - name: Pester 5.7.1
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
-          Install-Module Pester -MinimumVersion 5.5.0 -Scope CurrentUser -Force -SkipPublisherCheck
+          Install-Module Pester -RequiredVersion 5.7.1 -Scope CurrentUser -Force -SkipPublisherCheck
       - name: Testovi
         run: |
-          Import-Module Pester -MinimumVersion 5.5.0
+          Import-Module Pester -RequiredVersion 5.7.1
           $config = New-PesterConfiguration
           $config.Run.Path = './tests'
           $config.Run.Exit = $true

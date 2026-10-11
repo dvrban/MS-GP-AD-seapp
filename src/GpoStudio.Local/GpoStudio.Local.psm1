@@ -1,4 +1,4 @@
-<#
+﻿<#
     GpoStudio.Local: primjena Policy Seta na lokalni Group Policy jednog ili više računala.
 
     Na ciljanom računalu ništa se ne instalira: potrebne funkcije se šalju kao tekst kroz
@@ -6,6 +6,8 @@
 #>
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot '..\GpoStudio.Core\GpoStudio.Core.psd1') -Global
+
+$script:GpsLocalNames = $null
 
 # Client-side extension za Administrative Templates + GUID alata (Machine / User).
 $script:GpsAdmCse = @{
@@ -40,7 +42,14 @@ function ConvertTo-GpsHashtable {
     $h
 }
 
-function Get-GpsLocalGpRoot { Join-Path $env:windir 'System32\GroupPolicy' }
+function Get-GpsLocalGpRoot {
+    # 32-bitni proces na 64-bitnom Windowsu WOW64 preusmjerava System32 u SysWOW64,
+    # koji Group Policy servis ne čita; Sysnative vodi na pravi System32.
+    if ([Environment]::Is64BitOperatingSystem -and -not [Environment]::Is64BitProcess) {
+        return (Join-Path $env:windir 'Sysnative\GroupPolicy')
+    }
+    Join-Path $env:windir 'System32\GroupPolicy'
+}
 
 function Update-GpsGptIni {
     <# Povećava verziju u gpt.ini i upisuje CSE GUID-ove; bez toga klijent ignorira promjenu. #>
@@ -86,48 +95,100 @@ function Get-GpsLocalPolicyCore {
 }
 
 function Backup-GpsLocalPolicyCore {
+    <# Sprema GroupPolicy mapu, sigurnosnu politiku i reviziju; manifest se piše zadnji. #>
     param([string]$Destination)
     if (-not $Destination) {
         $Destination = Join-Path $env:ProgramData ("GpoStudio\Backup\{0:yyyyMMdd-HHmmss}" -f (Get-Date))
     }
-    $null = New-Item -ItemType Directory -Path $Destination -Force
+    $null = New-Item -ItemType Directory -Path $Destination -Force -ErrorAction Stop
     $gpRoot = Get-GpsLocalGpRoot
-    if (Test-Path -LiteralPath $gpRoot) { Copy-Item -LiteralPath $gpRoot -Destination (Join-Path $Destination 'GroupPolicy') -Recurse -Force }
-    $null = & secedit.exe /export /cfg (Join-Path $Destination 'secpol.inf') /areas SECURITYPOLICY /quiet
-    $null = & auditpol.exe /backup /file:(Join-Path $Destination 'audit.csv')
-    $Destination
+    $gpExisted = Test-Path -LiteralPath $gpRoot
+    if ($gpExisted) { Copy-Item -LiteralPath $gpRoot -Destination (Join-Path $Destination 'GroupPolicy') -Recurse -Force -ErrorAction Stop }
+
+    $secInf = Join-Path $Destination 'secpol.inf'
+    $output = & secedit.exe /export /cfg $secInf /areas SECURITYPOLICY /quiet 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "secedit /export nije uspio ($LASTEXITCODE): $output" }
+    $auditCsv = Join-Path $Destination 'audit.csv'
+    $output = & auditpol.exe /backup "/file:$auditCsv" 2>&1
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $auditCsv)) { throw "auditpol /backup nije uspio ($LASTEXITCODE): $output" }
+
+    [ordered]@{ computerName = $env:COMPUTERNAME; created = (Get-Date).ToString('o'); gpRootExisted = $gpExisted } |
+        ConvertTo-Json | Set-Content -LiteralPath (Join-Path $Destination 'gpostudio-backup.json') -Encoding UTF8
+    [pscustomobject]@{ ComputerName = $env:COMPUTERNAME; BackupPath = $Destination }
 }
 
 function Restore-GpsLocalPolicyCore {
+    <# Vraća backup; prije ikakve promjene provjerava da je putanja stvarno backup GPO Studija. #>
     param([Parameter(Mandatory)][string]$BackupPath)
-    $gpRoot = Get-GpsLocalGpRoot
-    $savedGp = Join-Path $BackupPath 'GroupPolicy'
-    if (Test-Path -LiteralPath $gpRoot) { Remove-Item -LiteralPath $gpRoot -Recurse -Force }
-    if (Test-Path -LiteralPath $savedGp) { Copy-Item -LiteralPath $savedGp -Destination $gpRoot -Recurse -Force }
-    # Verzija mora porasti i nakon vraćanja, inače klijent preskače obradu.
-    if (Test-Path -LiteralPath $gpRoot) { Update-GpsGptIni -Root $gpRoot -Scope Machine, User -ExtensionNames $script:GpsAdmCse }
+    $messages = [System.Collections.Generic.List[string]]::new()
+    try {
+        $manifestPath = Join-Path $BackupPath 'gpostudio-backup.json'
+        if (-not (Test-Path -LiteralPath $BackupPath -PathType Container)) { throw "Backup '$BackupPath' ne postoji." }
+        if (-not (Test-Path -LiteralPath $manifestPath)) { throw "'$BackupPath' nije backup GPO Studija (nema gpostudio-backup.json)." }
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
-    $inf = Join-Path $BackupPath 'secpol.inf'
-    if (Test-Path -LiteralPath $inf) {
-        $db = Join-Path $env:TEMP 'gpostudio-restore.sdb'
-        $null = & secedit.exe /configure /db $db /cfg $inf /areas SECURITYPOLICY /quiet
+        # Trenutnu mapu preimenujemo i brišemo tek kad je kopija uspjela.
+        $gpRoot = Get-GpsLocalGpRoot
+        $savedGp = Join-Path $BackupPath 'GroupPolicy'
+        $old = $null
+        if (Test-Path -LiteralPath $gpRoot) {
+            $old = '{0}.gpostudio-old-{1:yyyyMMddHHmmss}' -f $gpRoot, (Get-Date)
+            Rename-Item -LiteralPath $gpRoot -NewName (Split-Path -Leaf $old) -ErrorAction Stop
+        }
+        try {
+            if ($manifest.gpRootExisted) { Copy-Item -LiteralPath $savedGp -Destination $gpRoot -Recurse -Force -ErrorAction Stop }
+        }
+        catch {
+            if (Test-Path -LiteralPath $gpRoot) { Remove-Item -LiteralPath $gpRoot -Recurse -Force }
+            if ($old) { Rename-Item -LiteralPath $old -NewName (Split-Path -Leaf $gpRoot) }
+            throw
+        }
+        if ($old) { Remove-Item -LiteralPath $old -Recurse -Force }
+        # Verzija mora porasti i nakon vraćanja, inače klijent preskače obradu.
+        if (Test-Path -LiteralPath $gpRoot) { Update-GpsGptIni -Root $gpRoot -Scope Machine, User -ExtensionNames $script:GpsAdmCse }
+
+        $inf = Join-Path $BackupPath 'secpol.inf'
+        if (Test-Path -LiteralPath $inf) {
+            $db = Join-Path $env:TEMP ('gpostudio-restore-{0}.sdb' -f [guid]::NewGuid().ToString('N'))
+            try {
+                $output = & secedit.exe /configure /db $db /cfg $inf /overwrite /areas SECURITYPOLICY /quiet 2>&1
+                if ($LASTEXITCODE -ne 0) { $messages.Add("secedit /configure završio s kodom ${LASTEXITCODE}: $output") }
+            }
+            finally { Remove-Item -LiteralPath $db, ([IO.Path]::ChangeExtension($db, '.jfm')) -Force -ErrorAction SilentlyContinue }
+        }
+        $csv = Join-Path $BackupPath 'audit.csv'
+        if (Test-Path -LiteralPath $csv) {
+            $output = & auditpol.exe /restore "/file:$csv" 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "auditpol /restore nije uspio ($LASTEXITCODE): $output" }
+        }
+        $null = & gpupdate.exe /force
+        $status = 'OK'
     }
-    $csv = Join-Path $BackupPath 'audit.csv'
-    if (Test-Path -LiteralPath $csv) { $null = & auditpol.exe /restore /file:$csv }
-    $null = & gpupdate.exe /force
+    catch {
+        $messages.Add("Greška: $_")
+        $status = 'Error'
+    }
+    [pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Status = $status; BackupPath = $BackupPath; Messages = $messages }
 }
 
 function Set-GpsSecurityPolicyCore {
     <# Primjenjuje [System Access] postavke (lozinke, zaključavanje računa) preko secedit-a. #>
     param([System.Collections.IDictionary]$Security)
     if (-not $Security -or $Security.Count -eq 0) { return }
-    $inf = Join-Path $env:TEMP 'gpostudio-security.inf'
-    $db = Join-Path $env:TEMP 'gpostudio-security.sdb'
+    # Nova baza za svaki poziv i /overwrite: inače secedit iznova primjenjuje i predloške iz ranijih pokretanja.
+    $id = [guid]::NewGuid().ToString('N')
+    $inf = Join-Path $env:TEMP "gpostudio-security-$id.inf"
+    $db = Join-Path $env:TEMP "gpostudio-security-$id.sdb"
     $content = @('[Unicode]', 'Unicode=yes', '[Version]', 'signature="$CHICAGO$"', 'Revision=1', '[System Access]') +
         @($Security.Keys | ForEach-Object { "$_ = $($Security[$_])" })
-    Set-Content -LiteralPath $inf -Value $content -Encoding Unicode
-    $output = & secedit.exe /configure /db $db /cfg $inf /areas SECURITYPOLICY /quiet 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "secedit nije uspio ($LASTEXITCODE): $output" }
+    try {
+        Set-Content -LiteralPath $inf -Value $content -Encoding Unicode
+        $output = & secedit.exe /configure /db $db /cfg $inf /overwrite /areas SECURITYPOLICY /quiet 2>&1
+        if ($LASTEXITCODE -ne 0) { throw "secedit nije uspio ($LASTEXITCODE): $output" }
+    }
+    finally {
+        Remove-Item -LiteralPath $inf, $db, ([IO.Path]::ChangeExtension($db, '.jfm')) -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Set-GpsAuditPolicyCore {
@@ -171,14 +232,16 @@ function Invoke-GpsLocalApplyCore {
             $diff += @(Compare-GpsPolicySet -Current $current -Setting $byScope[$scope])
         }
         $changedScopes = @($diff | Where-Object Status -ne 'Unchanged' | ForEach-Object Scope | Sort-Object -Unique)
-        $security = ConvertTo-GpsHashtable $set.PSObject.Properties['security'].Value
-        $audit = ConvertTo-GpsHashtable $set.PSObject.Properties['audit'].Value
+        $securityProp = $set.PSObject.Properties['security']
+        $auditProp = $set.PSObject.Properties['audit']
+        $security = ConvertTo-GpsHashtable $(if ($securityProp) { $securityProp.Value })
+        $audit = ConvertTo-GpsHashtable $(if ($auditProp) { $auditProp.Value })
 
         if ($WhatIfMode) {
             return [pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Status = 'WhatIf'; Diff = $diff; BackupPath = $null; Messages = $messages }
         }
 
-        $backup = Backup-GpsLocalPolicyCore
+        $backup = (Backup-GpsLocalPolicyCore).BackupPath
         foreach ($scope in $changedScopes) {
             $polPath = Join-Path $gpRoot "$scope\Registry.pol"
             $merged = Merge-GpsPolicySet -Existing @(Read-GpsRegistryPol -Path $polPath) -Setting $byScope[$scope]
@@ -238,8 +301,26 @@ function Get-GpsRemotePayload {
     $sb.ToString()
 }
 
+function Get-GpsLocalNameSet {
+    # Sva imena pod kojima je admin stanica dostupna: NetBIOS, DNS ime, FQDN i lokalne IP adrese.
+    $names = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($n in @('.', 'localhost', '127.0.0.1', '::1', $env:COMPUTERNAME, [System.Net.Dns]::GetHostName())) {
+        if ($n) { $null = $names.Add($n) }
+    }
+    try {
+        $ip = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties()
+        if ($ip.DomainName) { $null = $names.Add("$($ip.HostName).$($ip.DomainName)") }
+    }
+    catch { }
+    try { $null = $names.Add([System.Net.Dns]::GetHostEntry('').HostName) } catch { }
+    try { foreach ($a in [System.Net.Dns]::GetHostAddresses([System.Net.Dns]::GetHostName())) { $null = $names.Add($a.IPAddressToString) } } catch { }
+    , $names
+}
+
 function Test-GpsIsLocalComputer([string]$ComputerName) {
-    -not $ComputerName -or $ComputerName -in @('.', 'localhost', '127.0.0.1', $env:COMPUTERNAME)
+    if (-not $ComputerName) { return $true }
+    if (-not $script:GpsLocalNames) { $script:GpsLocalNames = Get-GpsLocalNameSet }
+    $script:GpsLocalNames.Contains($ComputerName.TrimEnd('.'))
 }
 
 function Invoke-GpsOnTarget {
@@ -323,6 +404,8 @@ function Backup-GpsLocalPolicy {
     <#
     .SYNOPSIS
         Sprema kopiju lokalnog GP-a, sigurnosne politike i revizije (na ciljanom računalu).
+    .OUTPUTS
+        Objekti s ComputerName i BackupPath.
     #>
     [CmdletBinding()]
     param([string[]]$ComputerName, [pscredential]$Credential)
@@ -342,8 +425,11 @@ function Restore-GpsLocalPolicy {
     )
     $target = if ($ComputerName) { $ComputerName } else { $env:COMPUTERNAME }
     if ($PSCmdlet.ShouldProcess($target, "Vraćanje lokalnog GP-a iz $BackupPath")) {
-        Invoke-GpsOnTarget -ComputerName $ComputerName -Function 'Restore-GpsLocalPolicyCore' -ArgumentList @($BackupPath) -Credential $Credential
-        Write-GpsAuditLog -Action 'Restore-GpsLocalPolicy' -Target $target -Details @{ backup = $BackupPath }
+        $results = @(Invoke-GpsOnTarget -ComputerName $ComputerName -Function 'Restore-GpsLocalPolicyCore' -ArgumentList @($BackupPath) -Credential $Credential)
+        foreach ($r in $results) {
+            Write-GpsAuditLog -Action 'Restore-GpsLocalPolicy' -Target $r.ComputerName -Result $r.Status -Details @{ backup = $BackupPath; messages = @($r.Messages) }
+        }
+        $results
     }
 }
 

@@ -1,8 +1,10 @@
-<#
+﻿<#
     GpoStudio.Domain: objava Policy Seta kao domenskog GPO-a preko RSAT GroupPolicy modula.
 
     Sve operacije idu na PDC emulator (kao u GPMC-u) da se izbjegnu konflikti u replikaciji.
-    Preduvjet: RSAT GroupPolicy i ActiveDirectory moduli (u PS7: -UseWindowsPowerShell).
+    Preduvjet: Windows PowerShell 5.1 i RSAT GroupPolicy + ActiveDirectory moduli.
+    U PowerShellu 7 GroupPolicy radi samo kroz WinPSCompatSession, a tamo objekti stižu
+    deserijalizirani (dubina 1), pa ugniježđena svojstva (GpoLinks, verzije) postaju stringovi.
 #>
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot '..\GpoStudio.Core\GpoStudio.Core.psd1') -Global
@@ -21,15 +23,32 @@ $script:GpsProtectedGpos = @(
 )
 
 function Import-GpsRsatModules {
+    if ($PSVersionTable.PSEdition -eq 'Core') {
+        throw 'GpoStudio.Domain zahtijeva Windows PowerShell 5.1 (powershell.exe): u PowerShellu 7 GroupPolicy objekti stižu deserijalizirani i gube ugniježđena svojstva.'
+    }
     foreach ($m in 'GroupPolicy', 'ActiveDirectory') {
         if (Get-Module $m) { continue }
         if (-not (Get-Module $m -ListAvailable)) {
-            throw "Modul '$m' nije instaliran. Instalirajte RSAT: Add-WindowsCapability -Online -Name Rsat.$(if ($m -eq 'GroupPolicy') { 'GroupPolicy.Management.Tools' } else { 'ActiveDirectory.DS-LDS.Tools' })~~~~0.0.1.0"
+            $isServer = (Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue).ProductType -ne 1
+            $hint = if ($isServer) {
+                "Install-WindowsFeature $(if ($m -eq 'GroupPolicy') { 'GPMC' } else { 'RSAT-AD-PowerShell' })"
+            }
+            else {
+                "Add-WindowsCapability -Online -Name Rsat.$(if ($m -eq 'GroupPolicy') { 'GroupPolicy.Management.Tools' } else { 'ActiveDirectory.DS-LDS.Tools' })~~~~0.0.1.0"
+            }
+            throw "Modul '$m' nije instaliran. Instalirajte RSAT: $hint"
         }
-        $p = @{ Name = $m; ErrorAction = 'Stop' }
-        if ($PSVersionTable.PSEdition -eq 'Core' -and $m -eq 'GroupPolicy') { $p.UseWindowsPowerShell = $true }
-        Import-Module @p -Global
+        Import-Module -Name $m -ErrorAction Stop -Global
     }
+}
+
+function Get-GpsSectionCount {
+    # Broj stavki u security/audit dijelu, bilo da je rječnik ili PSCustomObject (iz JSON-a).
+    param($PolicySet, [string]$Name)
+    $prop = $PolicySet.PSObject.Properties[$Name]
+    if (-not $prop -or $null -eq $prop.Value) { return 0 }
+    if ($prop.Value -is [System.Collections.IDictionary]) { return $prop.Value.Count }
+    @($prop.Value.PSObject.Properties).Count
 }
 
 function Get-GpsDomainContext {
@@ -97,9 +116,20 @@ function Get-GpsDomainPolicyState {
         }
         else {
             $type = $kindToType[[string]$v.Type]
-            $data = if ($type -eq 'REG_DWORD') { [uint32]([int64]$v.Value -band 0xFFFFFFFF) } else { $v.Value }
+            # 0xFFFFFFFF bi bio Int32 -1; maska mora biti Int64 da se negativni Int32 pretvori u UInt32.
+            $data = if ($type -eq 'REG_DWORD') { [uint32]([int64]$v.Value -band 0xFFFFFFFFL) } else { $v.Value }
             [pscustomobject]@{ Key = $s.key; ValueName = $s.valueName; Type = $type; Data = $data }
         }
+    }
+}
+
+function Get-GpsDomainDiff {
+    # Diff po scopeu: isti ključ i vrijednost mogu postojati i u HKLM i u HKCU.
+    param($PolicySet, $Gpo, $Context)
+    foreach ($group in @($PolicySet.settings | Where-Object { $_ }) | Group-Object scope) {
+        $scoped = [pscustomobject]@{ settings = @($group.Group) }
+        $current = if ($Gpo) { @(Get-GpsDomainPolicyState -PolicySet $scoped -Guid $Gpo.Id -Context $Context) } else { @() }
+        Compare-GpsPolicySet -Current $current -Setting @($group.Group)
     }
 }
 
@@ -118,8 +148,7 @@ function Compare-GpsDomainPolicy {
     )
     $ctx = Get-GpsDomainContext -Domain $Domain
     $gpo = Get-GPO -Name $GpoName -Domain $ctx.Domain -Server $ctx.Server -ErrorAction SilentlyContinue
-    $current = if ($gpo) { @(Get-GpsDomainPolicyState -PolicySet $PolicySet -Guid $gpo.Id -Context $ctx) } else { @() }
-    Compare-GpsPolicySet -Current $current -Setting @($PolicySet.settings)
+    Get-GpsDomainDiff -PolicySet $PolicySet -Gpo $gpo -Context $ctx
 }
 
 function Publish-GpsDomainPolicy {
@@ -154,11 +183,7 @@ function Publish-GpsDomainPolicy {
         throw "'$GpoName' je zadani domenski GPO. Promjene na njemu zahtijevaju -Force."
     }
 
-    $diff = @(if ($gpo) {
-            Compare-GpsPolicySet -Current @(Get-GpsDomainPolicyState -PolicySet $PolicySet -Guid $gpo.Id -Context $ctx) -Setting @($PolicySet.settings)
-        } else {
-            Compare-GpsPolicySet -Current @() -Setting @($PolicySet.settings)
-        })
+    $diff = @(Get-GpsDomainDiff -PolicySet $PolicySet -Gpo $gpo -Context $ctx)
     $changes = @($diff | Where-Object Status -ne 'Unchanged')
 
     $action = "Objava Policy Seta '$($PolicySet.name)': $($changes.Count) promjena" + $(if ($LinkTarget) { ", link na $LinkTarget" })
@@ -166,54 +191,70 @@ function Publish-GpsDomainPolicy {
         return [pscustomobject]@{ GpoName = $GpoName; Server = $ctx.Server; Status = 'WhatIf'; Diff = $diff; Backup = $null }
     }
 
+    # Backup je obavezan: bez njega se postojeći GPO ne mijenja.
     $backup = $null
     if ($gpo) {
-        $null = New-Item -ItemType Directory -Path $BackupPath -Force
-        $backup = Backup-GPO -Guid $gpo.Id -Path $BackupPath -Comment "GpoStudio prije '$($PolicySet.name)' $($PolicySet.version)" @common
-    }
-    else {
-        $gpo = New-GPO -Name $GpoName -Comment "$($PolicySet.description) [GpoStudio $($PolicySet.name) $($PolicySet.version)]" @common
-    }
-
-    $wanted = @{}
-    foreach ($c in $changes) { $wanted[(Get-GpsHivePath ([pscustomobject]@{ scope = $c.Scope; key = $c.Key })) + '\' + $c.ValueName] = $true }
-
-    foreach ($s in $PolicySet.settings) {
-        $keyPath = Get-GpsHivePath $s
-        if (-not $wanted.ContainsKey("$keyPath\$($s.valueName)")) { continue }
-        if ($s.action -eq 'Delete') {
-            $null = Set-GPRegistryValue -Guid $gpo.Id -Key $keyPath -ValueName $s.valueName -Disable @common
+        try {
+            $null = New-Item -ItemType Directory -Path $BackupPath -Force -ErrorAction Stop
+            $backup = Backup-GPO -Guid $gpo.Id -Path $BackupPath -Comment "GpoStudio prije '$($PolicySet.name)' $($PolicySet.version)" @common -ErrorAction Stop
         }
-        else {
-            $value = $s.data
-            # Set-GPRegistryValue očekuje Int32 za DWord; vrijednosti iznad 2^31 prevodimo bit-po-bit.
-            if ($s.type -eq 'REG_DWORD') { $value = [BitConverter]::ToInt32([BitConverter]::GetBytes([uint32]$s.data), 0) }
-            if ($s.type -eq 'REG_QWORD') { $value = [BitConverter]::ToInt64([BitConverter]::GetBytes([uint64]$s.data), 0) }
-            $null = Set-GPRegistryValue -Guid $gpo.Id -Key $keyPath -ValueName $s.valueName -Type $script:GpsTypeToKind[$s.type] -Value $value @common
-        }
+        catch { throw "Backup GPO-a '$GpoName' nije uspio, promjene nisu napravljene: $_" }
+        if (-not $backup) { throw "Backup GPO-a '$GpoName' nije vratio rezultat, promjene nisu napravljene." }
     }
 
-    if ($LinkTarget) {
-        $linked = (Get-GPInheritance -Target $LinkTarget @common).GpoLinks | Where-Object GpoId -eq $gpo.Id
-        if (-not $linked) { $null = New-GPLink -Guid $gpo.Id -Target $LinkTarget -LinkEnabled Yes @common }
-    }
-
-    if ($ApplyToGroup) {
-        $null = Set-GPPermission -Guid $gpo.Id -TargetName $ApplyToGroup -TargetType Group -PermissionLevel GpoApply @common
-        $null = Set-GPPermission -Guid $gpo.Id -TargetName 'Authenticated Users' -TargetType Group -PermissionLevel GpoRead -Replace @common
-    }
-
-    $hasSecurity = $PolicySet.PSObject.Properties['security'] -and $PolicySet.security -and @($PolicySet.security.Keys).Count -gt 0
-    $hasAudit = $PolicySet.PSObject.Properties['audit'] -and $PolicySet.audit -and @($PolicySet.audit.Keys).Count -gt 0
-    if ($hasSecurity -or $hasAudit) {
-        Write-Warning 'Sigurnosne postavke i revizija za domenske GPO-ove još nisu implementirane (faza 3, GptTmpl.inf/audit.csv u SYSVOL-u).'
-    }
-
-    Write-GpsAuditLog -Action 'Publish-GpsDomainPolicy' -Target "$($ctx.Domain)/$GpoName" -Details @{
-        gpoId     = "$($gpo.Id)"; server = $ctx.Server; policySet = $PolicySet.name; version = $PolicySet.version
+    $auditDetails = @{
+        server    = $ctx.Server; policySet = $PolicySet.name; version = $PolicySet.version
         link      = $LinkTarget; filter = $ApplyToGroup; backupId = if ($backup) { "$($backup.Id)" } else { $null }
         changes   = @($changes | ForEach-Object { "$($_.Status): $($_.Scope)\$($_.Key)\$($_.ValueName)" })
     }
+
+    try {
+        if (-not $gpo) {
+            $gpo = New-GPO -Name $GpoName -Comment "$($PolicySet.description) [GpoStudio $($PolicySet.name) $($PolicySet.version)]" @common -ErrorAction Stop
+        }
+        $auditDetails.gpoId = "$($gpo.Id)"
+
+        $wanted = @{}
+        foreach ($c in $changes) { $wanted[(Get-GpsHivePath ([pscustomobject]@{ scope = $c.Scope; key = $c.Key })) + '\' + $c.ValueName] = $true }
+
+        foreach ($s in $PolicySet.settings) {
+            $keyPath = Get-GpsHivePath $s
+            if (-not $wanted.ContainsKey("$keyPath\$($s.valueName)")) { continue }
+            if ($s.action -eq 'Delete') {
+                $null = Set-GPRegistryValue -Guid $gpo.Id -Key $keyPath -ValueName $s.valueName -Disable @common -ErrorAction Stop
+            }
+            else {
+                $value = $s.data
+                # Set-GPRegistryValue očekuje Int32 za DWord; vrijednosti iznad 2^31 prevodimo bit-po-bit.
+                if ($s.type -eq 'REG_DWORD') { $value = [BitConverter]::ToInt32([BitConverter]::GetBytes([uint32]$s.data), 0) }
+                if ($s.type -eq 'REG_QWORD') { $value = [BitConverter]::ToInt64([BitConverter]::GetBytes([uint64]$s.data), 0) }
+                $null = Set-GPRegistryValue -Guid $gpo.Id -Key $keyPath -ValueName $s.valueName -Type $script:GpsTypeToKind[$s.type] -Value $value @common -ErrorAction Stop
+            }
+        }
+
+        if ($LinkTarget) {
+            $linked = @((Get-GPInheritance -Target $LinkTarget @common -ErrorAction Stop).GpoLinks) | Where-Object { $_.GpoId -eq $gpo.Id }
+            if (-not $linked) { $null = New-GPLink -Guid $gpo.Id -Target $LinkTarget -LinkEnabled Yes @common -ErrorAction Stop }
+        }
+
+        if ($ApplyToGroup) {
+            # Naziv grupe S-1-5-11 je lokaliziran (npr. 'Provjereni korisnici'), pa ga dohvaćamo preko SID-a.
+            $authUsers = ([Security.Principal.SecurityIdentifier]'S-1-5-11').Translate([Security.Principal.NTAccount]).Value.Split('\')[-1]
+            $null = Set-GPPermission -Guid $gpo.Id -TargetName $ApplyToGroup -TargetType Group -PermissionLevel GpoApply @common -ErrorAction Stop
+            $null = Set-GPPermission -Guid $gpo.Id -TargetName $authUsers -TargetType Group -PermissionLevel GpoRead -Replace @common -ErrorAction Stop
+        }
+    }
+    catch {
+        $auditDetails.error = "$_"
+        Write-GpsAuditLog -Action 'Publish-GpsDomainPolicy' -Target "$($ctx.Domain)/$GpoName" -Result 'Error' -Details $auditDetails
+        throw "Objava GPO-a '$GpoName' nije dovršena$(if ($backup) { " (backup: $($backup.Id))" }): $_"
+    }
+
+    if ((Get-GpsSectionCount $PolicySet 'security') -gt 0 -or (Get-GpsSectionCount $PolicySet 'audit') -gt 0) {
+        Write-Warning 'Sigurnosne postavke i revizija za domenske GPO-ove još nisu implementirane (faza 3, GptTmpl.inf/audit.csv u SYSVOL-u).'
+    }
+
+    Write-GpsAuditLog -Action 'Publish-GpsDomainPolicy' -Target "$($ctx.Domain)/$GpoName" -Details $auditDetails
 
     [pscustomobject]@{ GpoName = $GpoName; GpoId = $gpo.Id; Server = $ctx.Server; Status = 'OK'; Diff = $diff; Backup = $backup }
 }

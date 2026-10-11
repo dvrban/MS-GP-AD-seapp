@@ -1,11 +1,11 @@
-function Get-GpsAdmxCatalog {
+﻿function Get-GpsAdmxCatalog {
     <#
     .SYNOPSIS
         Parsira ADMX/ADML predloške u katalog politika za GUI.
     .DESCRIPTION
         Za svaku politiku vraća: ime, prikazni naziv i opis (iz ADML-a), klasu (Machine/User/Both),
-        registry ključ, valueName, enabled/disabled vrijednosti i elemente (boolean, decimal, text,
-        enum, list, multiText) iz kojih GUI automatski gradi formu.
+        registry ključ, valueName, enabled/disabled vrijednosti i liste (enabledList/disabledList) te
+        elemente (boolean, decimal, text, enum, list, multiText) iz kojih GUI automatski gradi formu.
     .PARAMETER Path
         Mapa s *.admx datotekama. Zadano: Central Store u SYSVOL-u ako postoji, inače
         %windir%\PolicyDefinitions.
@@ -36,9 +36,27 @@ function Get-GpsAdmxCatalog {
         $v = $node.FirstChild
         switch ($v.LocalName) {
             'string' { $v.InnerText }
-            'decimal' { $v.GetAttribute('value') }
+            { $_ -in 'decimal', 'longDecimal' } { $v.GetAttribute('value') }
             default { $null } # <delete/> ili nepodržano
         }
+    }
+    $typeOf = {
+        param($node)
+        if ($node) { $node.FirstChild.LocalName } else { $null }
+    }
+    # enabledList / disabledList / trueList / falseList / valueList: popis dodatnih registry vrijednosti.
+    $listOf = {
+        param($node, [string]$fallbackKey)
+        if (-not $node) { return , @() }
+        $listKey = if ($node.GetAttribute('defaultKey')) { $node.GetAttribute('defaultKey') } else { $fallbackKey }
+        , @(foreach ($item in $node.item) {
+                [pscustomobject]@{
+                    Key       = if ($item.GetAttribute('key')) { $item.GetAttribute('key') } else { $listKey }
+                    ValueName = $item.GetAttribute('valueName')
+                    Type      = & $typeOf $item['value']
+                    Value     = & $valueOf $item['value']
+                }
+            })
     }
 
     foreach ($admxFile in Get-ChildItem -Path (Join-Path $Path '*') -Include $Filter -File) {
@@ -79,10 +97,12 @@ function Get-GpsAdmxCatalog {
             if ($p.elements) {
                 foreach ($el in $p.elements.ChildNodes) {
                     if ($el.NodeType -ne 'Element') { continue }
+                    $elKey = if ($el.key) { $el.key } else { $p.key }
+                    $isBool = $el.LocalName -eq 'boolean'
                     $elements += [pscustomobject]@{
                         Kind      = $el.LocalName
                         Id        = $el.id
-                        Key       = if ($el.key) { $el.key } else { $p.key }
+                        Key       = $elKey
                         ValueName = $el.valueName
                         Required  = $el.required -eq 'true'
                         Expandable = $el.expandable -eq 'true'
@@ -93,11 +113,19 @@ function Get-GpsAdmxCatalog {
                             @(foreach ($i in $el.item) {
                                     [pscustomobject]@{
                                         DisplayName = & $resolve $i.displayName
-                                        Type        = $i.value.FirstChild.LocalName
-                                        Value       = & $valueOf $i.value
+                                        Type        = & $typeOf $i['value']
+                                        Value       = & $valueOf $i['value']
+                                        ValueList   = & $listOf $i['valueList'] $elKey
                                     }
                                 })
                         } else { @() }
+                        # boolean: bez trueValue/falseValue vrijedi implicitni DWORD 1/0
+                        TrueType  = if ($isBool) { & $typeOf $el['trueValue'] } else { $null }
+                        TrueValue = if ($isBool) { & $valueOf $el['trueValue'] } else { $null }
+                        FalseType = if ($isBool) { & $typeOf $el['falseValue'] } else { $null }
+                        FalseValue = if ($isBool) { & $valueOf $el['falseValue'] } else { $null }
+                        TrueList  = if ($isBool) { & $listOf $el['trueList'] $elKey } else { @() }
+                        FalseList = if ($isBool) { & $listOf $el['falseList'] $elKey } else { @() }
                     }
                 }
             }
@@ -117,8 +145,10 @@ function Get-GpsAdmxCatalog {
                 ValueName     = $p.valueName
                 EnabledValue  = & $valueOf $p['enabledValue']
                 DisabledValue = & $valueOf $p['disabledValue']
-                EnabledType   = if ($p['enabledValue']) { $p['enabledValue'].FirstChild.LocalName } else { $null }
-                DisabledType  = if ($p['disabledValue']) { $p['disabledValue'].FirstChild.LocalName } else { $null }
+                EnabledType   = & $typeOf $p['enabledValue']
+                DisabledType  = & $typeOf $p['disabledValue']
+                EnabledList   = & $listOf $p['enabledList'] $p.key
+                DisabledList  = & $listOf $p['disabledList'] $p.key
                 Elements      = $elements
                 Source        = $admxFile.Name
             }

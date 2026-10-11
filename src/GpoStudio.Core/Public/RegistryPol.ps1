@@ -1,4 +1,4 @@
-<#
+﻿<#
     Čitač i pisač Registry.pol datoteka (PReg format, verzija 1).
 
     Format:
@@ -186,10 +186,21 @@ function Write-GpsRegistryPol {
     $null = ConvertFrom-GpsRegistryPolBytes -Bytes $bytes
 
     if ($PSCmdlet.ShouldProcess($Path, "Zapis $($Entry.Count) stavki u Registry.pol")) {
-        $dir = Split-Path -Parent $Path
+        # .NET metode rješavaju relativne putanje prema procesu, ne prema Set-Location.
+        $fullPath = $PSCmdlet.GetUnresolvedProviderPathFromPSPath($Path)
+        $dir = Split-Path -Parent $fullPath
         if ($dir -and -not (Test-Path -LiteralPath $dir)) { $null = New-Item -ItemType Directory -Path $dir -Force }
-        $tmp = "$Path.gps-tmp"
+        $tmp = "$fullPath.gps-tmp"
         [System.IO.File]::WriteAllBytes($tmp, $bytes)
-        Move-Item -LiteralPath $tmp -Destination $Path -Force
+        try {
+            # File.Replace je atomarna zamjena (ReplaceFile na NTFS-u, rename na Unixu);
+            # ako ne uspije, stara datoteka ostaje netaknuta.
+            if (Test-Path -LiteralPath $fullPath) { [System.IO.File]::Replace($tmp, $fullPath, [NullString]::Value) }
+            else { [System.IO.File]::Move($tmp, $fullPath) }
+        }
+        catch {
+            Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+            throw
+        }
     }
 }

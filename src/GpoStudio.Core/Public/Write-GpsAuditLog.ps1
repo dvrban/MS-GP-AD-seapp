@@ -1,4 +1,4 @@
-function Write-GpsAuditLog {
+﻿function Write-GpsAuditLog {
     <#
     .SYNOPSIS
         Upisuje revizijski zapis (JSON lines): tko, kada, što, na kojem cilju i s kojim rezultatom.
