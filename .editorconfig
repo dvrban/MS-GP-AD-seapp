@@ -1,0 +1,11 @@
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+
+# Windows PowerShell 5.1 čita skripte bez BOM-a kao ANSI, pa hrvatski znakovi razbiju parsiranje.
+[*.{ps1,psm1,psd1}]
+charset = utf-8-bom
+indent_style = space
+indent_size = 4

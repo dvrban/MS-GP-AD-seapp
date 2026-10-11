@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitions xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" revision="1.0" schemaVersion="1.0">
+  <policyNamespaces>
+    <target prefix="gpssample" namespace="GpoStudio.Policies.Sample" />
+    <using prefix="windows" namespace="Microsoft.Policies.Windows" />
+  </policyNamespaces>
+  <resources minRequiredRevision="1.0" />
+  <categories>
+    <category name="Cat_Store" displayName="$(string.Cat_Store)">
+      <parentCategory ref="windows:WindowsComponents" />
+    </category>
+  </categories>
+  <policies>
+    <policy name="RemoveStore" class="Machine" displayName="$(string.RemoveStore)" explainText="$(string.RemoveStore_Help)"
+            key="Software\Policies\Microsoft\WindowsStore" valueName="RemoveWindowsStore">
+      <parentCategory ref="Cat_Store" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+    <policy name="UpdateMode" class="Machine" displayName="$(string.UpdateMode)" explainText="$(string.UpdateMode_Help)"
+            key="Software\Policies\Microsoft\WindowsStore" presentation="$(presentation.UpdateMode)">
+      <parentCategory ref="Cat_Store" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <elements>
+        <enum id="Mode" valueName="AutoDownload" required="true">
+          <item displayName="$(string.Mode_Always)"><value><decimal value="4" /></value></item>
+          <item displayName="$(string.Mode_Never)"><value><decimal value="2" /></value></item>
+        </enum>
+        <decimal id="Delay" valueName="DelayDays" minValue="0" maxValue="30" />
+        <text id="Note" valueName="Note" />
+      </elements>
+    </policy>
+  </policies>
+</policyDefinitions>
