@@ -291,4 +291,14 @@ Describe 'Kodiranje datoteka' {
         }
         $missing | Should -BeNullOrEmpty
     }
+
+    It 'sve PowerShell datoteke (i lab skripte) parsiraju se bez sintaksnih grešaka' {
+        $root = Join-Path $PSScriptRoot '..'
+        $errors = foreach ($f in Get-ChildItem -Path $root -Recurse -File -Include '*.ps1', '*.psm1') {
+            $tokens = $null; $parseErrors = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$tokens, [ref]$parseErrors)
+            foreach ($e in $parseErrors) { "$($f.Name):$($e.Extent.StartLineNumber) $($e.Message)" }
+        }
+        $errors | Should -BeNullOrEmpty
+    }
 }
