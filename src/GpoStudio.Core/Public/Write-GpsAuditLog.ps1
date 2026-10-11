@@ -15,9 +15,6 @@
         )
     )
 
-    $dir = Split-Path -Parent $Path
-    if (-not (Test-Path -LiteralPath $dir)) { $null = New-Item -ItemType Directory -Path $dir -Force }
-
     $user = if ($env:USERDOMAIN) { "$env:USERDOMAIN\$env:USERNAME" } else { [Environment]::UserName }
     $record = [ordered]@{
         timestamp = (Get-Date).ToUniversalTime().ToString('o')
@@ -28,5 +25,15 @@
         result    = $Result
         details   = $Details
     }
-    Add-Content -LiteralPath $Path -Value ($record | ConvertTo-Json -Depth 6 -Compress) -Encoding UTF8
+
+    # Zapis se radi nakon što je promjena već napravljena, pa greška ovdje (npr. korisnik bez prava
+    # pisanja u C:\ProgramData\GpoStudio) ne smije srušiti operaciju; javlja se upozorenjem.
+    try {
+        $dir = Split-Path -Parent $Path
+        if (-not (Test-Path -LiteralPath $dir)) { $null = New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop }
+        Add-Content -LiteralPath $Path -Value ($record | ConvertTo-Json -Depth 6 -Compress) -Encoding UTF8 -ErrorAction Stop
+    }
+    catch {
+        Write-Warning "Revizijski zapis nije upisan u '$Path': $($_.Exception.Message)"
+    }
 }

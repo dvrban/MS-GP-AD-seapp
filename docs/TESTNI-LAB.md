@@ -61,7 +61,7 @@ ništa ne može utjecati na produkcijsko okruženje.
 | Stavka | Zahtjev |
 |---|---|
 | Host | Windows 10/11 Pro, Enterprise ili Education, ili Windows Server, s uključenim Hyper-V-om; CPU s virtualizacijom (VT-x/AMD-V, SLAT) |
-| RAM | najmanje 16 GB (bez DC02, uz dinamičku memoriju); preporučeno 32 GB |
+| RAM | najmanje 24 GB bez DC02 (oko 28 GB s DC02), jer Hyper-V za pokretanje VM-a traži punu početnu memoriju; preporučeno 32 GB. Za host sa 16 GB vidi napomenu u 3.2 |
 | Disk | SSD, oko 120 GB stvarno zauzeto (VHDX diskovi su dinamični, nazivno do ~400 GB) |
 | ISO | Windows Server 2025 (ili 2022) Evaluation, vrijedi 180 dana; Windows 11 Enterprise Evaluation, vrijedi 90 dana; oba s Microsoft Evaluation Centera |
 | Internet | potreban je VM-ovima (preko NAT-a) za RSAT (Features on Demand) i Pester |
@@ -76,8 +76,10 @@ Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
 Install-WindowsFeature Hyper-V -IncludeManagementTools
 ```
 
-Skripta 01 je specifična za Hyper-V. Skripte 02–05 i smoke test rade na bilo kojem hipervizoru
-(VMware, Proxmox, Azure); tamo VM-ove i mrežu napravite ručno prema tablici gore.
+Skripta 01 je specifična za Hyper-V. Skripte 02–05 i smoke test rade i na drugim hipervizorima
+(npr. VMware, Proxmox); tamo VM-ove i mrežu napravite ručno prema tablici gore. Na Azureu skripte
+02 i 04 nemojte koristiti: one unutar gosta postavljaju statičku IP adresu, što na Azureu prekida
+mrežu VM-a.
 
 ### Skripte
 
@@ -87,7 +89,7 @@ Skripta 01 je specifična za Hyper-V. Skripte 02–05 i smoke test rade na bilo 
 | `lab/02-Install-GpsLabDC.ps1` | DC01 (i DC02) | IP, ime, AD DS, nova šuma ili dodatni DC, DNS forwarderi |
 | `lab/03-Initialize-GpsLabAD.ps1` | DC01 | OU-ovi, grupe, korisnici, Central Store |
 | `lab/04-Join-GpsLabClient.ps1` | WS01, WS02, ADMIN01, STANDALONE01 | IP, ime, domena ili radna grupa, PowerShell Remoting |
-| `lab/05-Install-GpsLabAdmin.ps1` | ADMIN01 | RSAT, GPO Studio, Pester i testovi, TrustedHosts |
+| `lab/05-Install-GpsLabAdmin.ps1` | ADMIN01 | RSAT, GPO Studio, ExecutionPolicy, PowerShell 7, Pester i testovi, TrustedHosts |
 | `lab/Test-GpsLabSmoke.ps1` | ADMIN01 | automatizirani smoke test (poglavlje 4) |
 
 Sve skripte traže povišeni PowerShell (*Run as administrator*). Skripte koje se pokreću dvaput
@@ -130,6 +132,10 @@ cd D:\GpoStudio\lab
 
 Bez `-IncludeSecondDc` lab nema DC02, a test replikacije provjerava samo jedan DC.
 
+- ISO datoteke držite na lokalnom disku hosta: Hyper-V ih čita kao račun računala, pa mrežne
+  putanje (UNC, NAS) često ne rade.
+- Switch `GpsLab` nema DHCP: VM-ovi nemaju mrežu dok im skripte 02 i 04 ne postave statičke adrese.
+
 ### 3.2. Instalacija operacijskih sustava
 
 Za svaki VM:
@@ -138,11 +144,18 @@ Za svaki VM:
 2. Odmah pritisnite tipku kad se pojavi *Press any key to boot from CD or DVD*. Ako propustite,
    isključite VM (`Stop-VM -TurnOff`) i pokušajte ponovno.
 3. **Server:** odaberite izdanje *Desktop Experience*. Postavite lozinku ugrađenog Administratora.
-4. **Windows 11 Enterprise:** u OOBE-u odaberite *Sign-in options → Domain join instead* i stvorite
-   lokalni račun `labadmin`. Koristite istu lozinku na svim klijentima, jer smoke test na
-   STANDALONE01 traži lokalnog administratora.
+4. **Windows 11 Enterprise:** VM u ovoj fazi nema mrežu (switch nema DHCP). Na ekranu
+   *Let's connect you to a network* odaberite *I don't have internet* (ako se ponudi, i
+   *Continue with limited setup*) i stvorite lokalni račun `labadmin`. Ako VM ipak ima internet,
+   isti rezultat daje *Sign-in options → Domain join instead*. Koristite istu lozinku na svim
+   klijentima, jer smoke test na STANDALONE01 traži lokalnog administratora.
 5. Nakon instalacije postavite boot s diska, da VM više ne čeka DVD:
    `Set-VMFirmware -VMName GPS-DC01 -FirstBootDevice (Get-VMHardDiskDrive -VMName GPS-DC01)`
+
+**Host sa 16 GB RAM-a:** instalacija Windowsa 11 traži 4 GB, ali nakon nje klijentima (osim ADMIN01)
+možete smanjiti početnu memoriju dok su isključeni:
+`Set-VMMemory -VMName GPS-WS01, GPS-WS02, GPS-STANDALONE01 -StartupBytes 2GB`.
+VM-ove tada pokrećite postupno (poglavlje 8).
 
 ### 3.3. DC01: domain controller
 
@@ -175,6 +188,9 @@ OU-ova za sljedeći korak.
 
 ### 3.6. Klijenti
 
+Na Windows klijentima izvršavanje skripti je po zadanom isključeno, pa u svakoj povišenoj sesiji
+prvo pokrenite `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
+
 Svaku skriptu pokrenite dvaput: prvi put za IP i ime (uz restart), drugi put za pridruživanje
 domeni (uz restart). Kod pridruživanja unesite `GPSLAB\gps.admin`.
 
@@ -194,6 +210,15 @@ Nakon pridruživanja pokrenite skriptu još jednom na WS01 i WS02. Treće pokret
 da je PowerShell Remoting uključen i za domenski mrežni profil. GPO Studio do ciljanih računala
 dolazi preko WinRM-a, a na Windows klijentima on nije uključen po zadanom.
 
+Kad je WS01 u domeni, na DC01 ponovno pokrenite skriptu 03. Ona dodaje WS01 u grupu
+`GPS-Pilot-PC` (već postojeće objekte preskače i ne traži lozinku), zatim restartajte WS01 da
+računalo dobije novo članstvo:
+
+```powershell
+C:\Lab\03-Initialize-GpsLabAD.ps1        # na DC01
+Restart-Computer -ComputerName WS01 -Force
+```
+
 ### 3.7. Admin stanica
 
 Na ADMIN01 se prijavite kao `GPSLAB\gps.admin`, kopirajte ZIP repozitorija (ili ga klonirajte u
@@ -204,8 +229,10 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 C:\Lab\05-Install-GpsLabAdmin.ps1 -RepoZip C:\Users\gps.admin\Downloads\MS-GP-AD-seapp-main.zip
 ```
 
-Skripta instalira RSAT i Pester 5.7.1, pokreće Pester testove (moraju svi proći) i dodaje
-STANDALONE01 u WinRM TrustedHosts.
+Skripta instalira RSAT, postavlja ExecutionPolicy `RemoteSigned` za 64-bitni i 32-bitni Windows
+PowerShell (GUI testovi pokreću skripte u novim procesima), instalira PowerShell 7 i Pester 5.7.1,
+pokreće Pester testove (moraju svi proći) i dodaje STANDALONE01 u WinRM TrustedHosts. RSAT i
+PowerShell 7 preuzimaju se s interneta.
 
 ### 3.8. Checkpoint "Clean"
 
@@ -218,7 +245,8 @@ Get-VM GPS-* | Checkpoint-VM -SnapshotName Clean
 
 Checkpointe uvijek vraćajte **za sve VM-ove zajedno** (poglavlje 8). Ako vratite samo jedno
 računalo, njegova lozinka računa računala u AD-u može se razlikovati od one na DC-u, pa se
-izgubi povjerenje s domenom (*trust relationship failed*).
+izgubi povjerenje s domenom (*trust relationship failed*). S dva DC-a nakon vraćanja provjerite
+SYSVOL (poglavlje 8).
 
 ---
 
@@ -240,14 +268,15 @@ se sve vraća.
 
 | ID | Što se provjerava |
 |---|---|
-| **L1** | ADMX katalog se učitava iz Central Storea (više od 500 politika) |
+| **L1** | ADMX katalog se učitava (više od 500 politika); na računalu u domeni izvor mora biti Central Store |
 | **L2** | `-WhatIf` vraća diff i ništa ne mijenja |
 | **L3** | primjena na ADMIN01 vraća status OK, a backup s manifestom postoji |
-| **L4** | vrijednosti su u registryju nakon `gpupdate` |
+| **L4** | vrijednosti su u HKLM nakon `gpupdate`; korisnička postavka je u HKCU nakon `gpupdate /target:user`; User verzija u `gpt.ini` je porasla |
 | **L5** | ponovni diff: sve je `Unchanged` (idempotentnost) |
 | **L6** | revizijski zapis u `C:\ProgramData\GpoStudio\audit.jsonl` |
 | **L7** | vraćanje s pogrešnom putanjom vraća grešku i ne dira `GroupPolicy` mapu |
-| **L8** | vraćanje iz backupa uklanja testne vrijednosti |
+| **L7b** | akcija *Delete* upisuje `**del.TestDword` u `Registry.pol`, vrijednost nestaje iz registryja, a ponovni diff je `Unchanged` |
+| **L8** | vraćanje iz backupa uklanja testne vrijednosti (HKLM i HKCU) |
 | **R1** | WinRM do STANDALONE01; početno stanje lozinki i revizije (secedit, auditpol) |
 | **R2** | udaljena primjena registryja + `MinimumPasswordLength` + revizije Logon |
 | **R3** | na STANDALONE01 su stvarno postavljeni registry, duljina lozinke i revizija |
@@ -260,10 +289,14 @@ se sve vraća.
 | **D5** | AD i SYSVOL verzije su usklađene na svim DC-ovima (čeka do 3 minute) |
 | **D6** | nakon `gpupdate` WS01 ima testne vrijednosti, a WS02 nema (filtriranje radi) |
 | **D7** | ponovna objava s promjenom radi backup GPO-a; WS01 dobiva novu vrijednost |
+| **D7b** | akcija *Delete* u domenskom GPO-u: diff `Removed`, `Get-GPRegistryValue` vraća `PolicyState Delete`, ponovni `Compare` je `Unchanged`, a vrijednost nestaje s WS01 |
 | **D8** | objava na *Default Domain Policy* bez `-Force` se odbija |
 | **D9** | nepostojeća grupa za filtriranje: greška, a GPO se ne stvara |
-| **D10** | revizijski zapisi objave |
+| **D10** | revizijski zapisi objave (D2, D7, D7b) |
 | **D11** | brisanje testnog GPO-a uklanja vrijednosti s WS01 |
+
+Provjere na klijentu (D6, D7, D7b, D11) ponavljaju `gpupdate` do 3 minute, jer WS01 može čitati s
+DC02 prije nego što replikacija stigne.
 
 Rezultat je tablica PASS/FAIL/SKIP i JSON datoteka
 `C:\ProgramData\GpoStudio\lab-results-<vrijeme>.json`. Izlazni kod je 1 ako je ijedan korak pao.
@@ -275,8 +308,8 @@ Korisni parametri:
 .\lab\Test-GpsLabSmoke.ps1 -Area Domain -KeepArtifacts   # ostavlja GPO GPS-LAB-Smoke za ručni pregled u GPMC-u
 ```
 
-Smoke test pokrenite **dvaput zaredom**. Drugo pokretanje provjerava da je čišćenje nakon prvog
-bilo potpuno i da se ništa ne nakuplja.
+Smoke test pokrenite **dvaput zaredom**: drugo pokretanje provjerava da se test može ponoviti na
+istom labu. D0 prije domenskih koraka briše testne GPO-ove ostale od prekinutog pokretanja.
 
 ---
 
@@ -285,6 +318,14 @@ bilo potpuno i da se ništa ne nakuplja.
 Ovi slučajevi pokrivaju ono što smoke test ne može: GUI i rubne situacije. Testove radite od
 checkpointa *Clean*. U stupac *Rezultat* upišite ✅, ❌ ili ⚠️ i napomenu.
 
+Za slučajeve koji koriste cmdlete (5.2 i 5.3) prvo u Windows PowerShellu 5.1 na ADMIN01 pokrenite:
+
+```powershell
+cd C:\GpoStudio
+Import-Module .\src\GpoStudio.Local\GpoStudio.Local.psm1, .\src\GpoStudio.Domain\GpoStudio.Domain.psm1
+$set = Import-GpsPolicySet .\examples\radna-stanica-baseline.json
+```
+
 ### 5.1. GUI
 
 | ID | Koraci | Očekivano | Rezultat |
@@ -292,15 +333,16 @@ checkpointa *Clean*. U stupac *Rezultat* upišite ✅, ❌ ili ⚠️ i napomenu
 | G1 | `powershell.exe -File C:\GpoStudio\src\GpoStudio.Gui\Start-GpoStudio.ps1` (povišeno) | prozor se otvara, katalog se sam učitava, a status pokazuje *Učitavanje kataloga: gotovo* | |
 | G2 | isto iz `pwsh` (PowerShell 7) | `pwsh` se odmah vraća, a GUI se otvara u `powershell.exe` | |
 | G3 | isto iz `C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe` (32-bitni) | GUI se otvara u 64-bitnom procesu (Task Manager: bez oznake *32 bit*) | |
-| G4 | `Set-ExecutionPolicy Restricted -Scope LocalMachine` u `powershell.exe`, zatim pokretanje iz `pwsh` gdje je politika RemoteSigned | GUI se ipak otvara (politika se prosljeđuje); politiku zatim vratite | |
+| G4 | `Set-ExecutionPolicy Restricted -Scope LocalMachine` u `powershell.exe`, zatim pokretanje iz `pwsh` gdje je politika RemoteSigned | GUI se ipak otvara (politika se prosljeđuje); zatim vratite `Set-ExecutionPolicy RemoteSigned -Scope LocalMachine` | |
 | G5 | iz `pwsh`: `Start-GpoStudio.ps1 -AdmxPath C:\Windows\PolicyDefinitions\` (s `\` na kraju) | polje putanje je ispravno (bez navodnika), katalog se učitava | |
 | G6 | pretraga *Store*; odabir politike | stablo se filtrira; desno su opis, registry ključ, klasa i izvor | |
-| G7 | *Dodaj: Enabled* za politiku s elementima (npr. *Configure Automatic Updates*) | otvara se dijalog s padajućim izbornikom i poljima; vrijednost izvan raspona daje poruku | |
+| G7a | *Dodaj: Enabled* za politiku s elementima (npr. *Configure Automatic Updates*) | otvara se dijalog s padajućim izbornicima i kvačicama; nakon *U redu* postavke su u setu | |
+| G7b | GUI s `-AdmxPath C:\GpoStudio\tests\fixtures\PolicyDefinitions`, politika *Store update mode* (na hrvatskom sustavu *Način ažuriranja Trgovine*), *Delay* = 31 | poruka *Vrijednost 31 … nije u rasponu 0-30*; ništa se ne dodaje | |
 | G8 | istu politiku dodajte ponovno s drugom opcijom | nema duplikata; postavke iz prethodnog izbora zamijenjene su ili označene za brisanje | |
 | G9 | politika klase *Both* dodana i pod *Konfiguracija računala* i pod *Korisnička konfiguracija* | postoje obje varijante (Machine i User), jedna ne briše drugu | |
-| G10 | *Otvori JSON…* → `examples\radna-stanica-baseline.json`; *Spremi JSON…* u novu datoteku | 5 postavki; log pokazuje security 4 i audit 2; spremljena datoteka ima isti sadržaj | |
+| G10 | *Otvori JSON…* → `examples\radna-stanica-baseline.json`; *Spremi JSON…* u novu datoteku | 5 postavki; log pokazuje security 4 i audit 2; spremljena datoteka ima iste postavke, security, audit, opis i verziju (svakoj postavci dodano je polje `action`, a formatiranje JSON-a se razlikuje) | |
 | G11 | lokalno, prazno polje *Računala*: *Usporedi (diff)* | kartica *Diff* s bojama (zeleno *Added*), ništa se ne mijenja | |
-| G12 | *Primijeni* | potvrda navodi cilj (*ovo računalo*); log pokazuje status OK i putanju backupa; vrijednosti su u registryju | |
+| G12 | *Primijeni* | potvrda navodi cilj (*ovo računalo*); log pokazuje status OK i putanju backupa; postavke računala (HKLM) su odmah u registryju, a korisnička postavka (`NoDriveTypeAutoRun` u HKCU) tek nakon `gpupdate /target:user /force` ili nove prijave | |
 | G13 | *Backup*, zatim *Vrati iz backupa…* s pogrešnom putanjom | backup: putanja u logu; pogrešna putanja: status Error i poruka, ništa se ne mijenja | |
 | G14 | *Vrati iz backupa…* s ispravnom putanjom iz G12 | status OK; vrijednosti iz G12 nestaju nakon `gpupdate` | |
 | G15 | *Računala*: `WS01, WS02`, *Usporedi*, zatim *Primijeni* | rezultat po računalu u kartici *Diff* i logu; poruka da su računala u domeni | |
@@ -313,11 +355,22 @@ Nakon G17 obrišite GPO `GPS-LAB-GUI` u GPMC-u ili s `Remove-GPO -Name GPS-LAB-G
 
 ### 5.2. Domena: ovlasti i PowerShell 7
 
+Revizijski zapis i backupovi pišu se u `C:\ProgramData\GpoStudio`, gdje običan korisnik po zadanom
+nema pravo pisanja. Prije A1 i A2 jednom, kao `gps.admin` u povišenoj sesiji, dodijelite pravo
+grupi urednika:
+
+```powershell
+New-Item C:\ProgramData\GpoStudio -ItemType Directory -Force | Out-Null
+icacls C:\ProgramData\GpoStudio /grant "GPSLAB\GPS-GPO-Editors:(OI)(CI)M"
+```
+
+Bez toga operacija i dalje radi, ali revizijski zapis se ne upisuje (GPO Studio to javlja upozorenjem).
+
 | ID | Koraci | Očekivano | Rezultat |
 |---|---|---|---|
-| A1 | na ADMIN01 kao `GPSLAB\gps.editor` (Group Policy Creator Owners): `Publish-GpsDomainPolicy -GpoName GPS-LAB-Editor -LinkTarget 'OU=Pilot,...'` | GPO se stvara, link ne uspijeva (nema delegiranog prava *Link GPO*); greška *Objava GPO-a … nije dovršena*; u `audit.jsonl` je `result: Error`, `linked: false` | |
-| A2 | kao A1, nakon što u GPMC-u (*Pilot → Delegation*) dodate `GPS-GPO-Editors` s pravom *Link GPOs* | objava s linkom uspijeva | |
-| A3 | u `pwsh`: `Import-Module .\src\GpoStudio.Domain\GpoStudio.Domain.psm1; Get-GpsDomainContext` | jasna poruka da domenski dio traži Windows PowerShell 5.1 | |
+| A1 | na ADMIN01 kao `GPSLAB\gps.editor` (Group Policy Creator Owners), uz preambulu iz 5. poglavlja: `Publish-GpsDomainPolicy -PolicySet $set -GpoName GPS-LAB-Editor -LinkTarget 'OU=Pilot,OU=Racunala,OU=GpsLab,DC=gpslab,DC=test'` | GPO se stvara, link ne uspijeva (nema delegiranog prava *Link GPO*); greška *Objava GPO-a … nije dovršena*; u `audit.jsonl` je `result: Error`, `linked: false`. Upozorenje za security/audit je očekivano | |
+| A2 | kao A1 (uz `-BackupPath $env:USERPROFILE\GpoBackup`), nakon što u GPMC-u (*Pilot → Delegation*) dodate `GPS-GPO-Editors` s pravom *Link GPOs* | objava s linkom uspijeva | |
+| A3 | u `pwsh` (instalira ga skripta 05): `Import-Module .\src\GpoStudio.Domain\GpoStudio.Domain.psm1; Get-GpsDomainContext` | jasna poruka da domenski dio traži Windows PowerShell 5.1 | |
 
 ### 5.3. Otpornost i negativni slučajevi
 
@@ -325,8 +378,9 @@ Nakon G17 obrišite GPO `GPS-LAB-GUI` u GPMC-u ili s `Remove-GPO -Name GPS-LAB-G
 |---|---|---|---|
 | N1 | na WS02 `Stop-Service WinRM`; zatim `Set-GpsLocalPolicy -PolicySet $set -ComputerName WS01, WS02 -Confirm:$false` | WS01: status OK; WS02: greška veze; WS01 se ipak primijeni. Nakon testa `Start-Service WinRM` | |
 | N2 | na testnom računalu u `C:\Windows\System32\GroupPolicy\Machine\Registry.pol` upišite smeće; zatim primjena | status Error (*Neispravno zaglavlje*), datoteka se ne prepisuje; vratite checkpoint | |
-| N3 | `Set-GpsLocalPolicy` s Policy Setom bez `version`/`description` (vlastiti JSON s `name` i `settings`) | primjena uspijeva, revizijski zapis ima `version: 1.0.0` | |
-| N4 | ADMX politika s elementom tipa *list* (npr. *Allow installation of devices that match …*) | jasna poruka da politika nema podržanih vrijednosti ili upozorenje za *list* | |
+| N3 | `$min = Import-GpsPolicySet <vlastiti.json>` (JSON samo s `name` i `settings`); `Set-GpsLocalPolicy -PolicySet $min -Confirm:$false` | primjena uspijeva, revizijski zapis ima `version: 1.0.0` | |
+| N4 | u GUI-ju *Dodaj: Enabled* za politiku s elementom tipa *list* (npr. *Allow installation of devices that match any of these device IDs*) | dodaje se samo glavna vrijednost (npr. `AllowDeviceIDs = 1`), a log pokazuje *UPOZORENJE: Element tipa 'list' … nije podržan i izostavlja se* | |
+| N5 | na STANDALONE01 u `gpedit.msc` uključite jednu Administrative Templates postavku i zapišite redak `gPCMachineExtensionNames` iz `C:\Windows\System32\GroupPolicy\gpt.ini`; zatim `.\lab\Test-GpsLabSmoke.ps1 -Area Remote` | nakon primjene i nakon vraćanja u retku je točno jedna grupa koja počinje s `{35378EAC-683F-11D2-A89A-00C04FBBCFA2}`; postavka iz gpedita je i dalje u registryju i `gpedit.msc` je prikazuje kao *Enabled*; u *GroupPolicy/Operational* nema grešaka | |
 
 ---
 
@@ -356,8 +410,8 @@ Korisni prilozi:
 |---|---|
 | Revizijski zapis | `Get-Content C:\ProgramData\GpoStudio\audit.jsonl -Tail 20` |
 | Log iz GUI-a | kartica *Log*: označite sve i kopirajte |
-| Rezultat Group Policyja na klijentu | `gpresult /h C:\Temp\gpresult.html /f` (povišeno) |
-| Izvještaj GPO-a | `Get-GpsDomainGpoReport -GpoName <naziv> -Path C:\Temp\gpo.html` |
+| Rezultat Group Policyja na klijentu | `gpresult /h "$env:TEMP\gpresult.html" /f` (povišeno) |
+| Izvještaj GPO-a | `Get-GpsDomainGpoReport -GpoName <naziv> -Path "$env:TEMP\gpo.html"` |
 | Događaji Group Policyja | Event Viewer → *Applications and Services Logs → Microsoft → Windows → GroupPolicy → Operational* |
 | Verzije | `$PSVersionTable`, `winver`, `git rev-parse HEAD` |
 
@@ -371,7 +425,15 @@ Korisni prilozi:
   TrustedHosts u radnoj grupi). HTTPS (5986) i drugi portovi zasad nisu podržani.
 - **GUI nema polje za vjerodajnice:** prema udaljenim računalima radi s trenutnim korisnikom. Za
   STANDALONE01 koristite cmdlete s `-Credential` (kao smoke test).
-- **ADMX elementi tipa `list`** nisu podržani.
+- **ADMX elementi tipa `list`** nisu podržani: politika se dodaje bez njih, uz upozorenje. Ne koristite
+  takve politike za stvarne postavke.
+- **Korisničke postavke (User scope)** kod lokalne primjene: *Primijeni* i `Set-GpsLocalPolicy`
+  pokreću samo `gpupdate /target:computer`, pa se korisničke postavke primjenjuju pri sljedećoj
+  prijavi ili nakon `gpupdate /target:user /force`. U domeni, korisničke postavke u GPO-u povezanom
+  na OU s računalima (kao `OU=Pilot`) ne primjenjuju se na korisnike; to je standardno ponašanje
+  Group Policyja (bez loopbacka).
+- **Revizijski zapis** u `C:\ProgramData\GpoStudio` traži pravo pisanja; bez njega operacija radi,
+  ali se zapis ne upisuje (upozorenje). Vidi 5.2.
 - **Jezik kataloga:** Central Store kopiran s engleskog sustava ima samo `en-US` ADML, pa se
   politike prikazuju na engleskom i kad je odabran hrvatski.
 - **Domenski dio** radi samo u Windows PowerShellu 5.1.
@@ -387,10 +449,27 @@ Vraćanje svih VM-ova na *Clean* (uvijek zajedno, vidi 3.8):
 ```powershell
 Get-VM GPS-* | Stop-VM -TurnOff -Force
 Get-VM GPS-* | ForEach-Object { Restore-VMCheckpoint -VMName $_.Name -Name Clean -Confirm:$false }
-Get-VM GPS-DC* | Start-VM; Start-Sleep -Seconds 120; Get-VM GPS-* | Start-VM
+Get-VM GPS-DC* | Start-VM; Start-Sleep -Seconds 120
+foreach ($vm in 'GPS-ADMIN01', 'GPS-WS01', 'GPS-WS02', 'GPS-STANDALONE01') { Start-VM -Name $vm; Start-Sleep -Seconds 30 }
 ```
 
-DC-ovi se pokreću prvi, da klijenti pri pokretanju nađu domenu.
+DC-ovi se pokreću prvi, da klijenti pri pokretanju nađu domenu; klijenti se pokreću postupno, da
+host ne mora odjednom imati svu početnu memoriju.
+
+**S dva DC-a provjerite SYSVOL prije testiranja.** Vraćanje checkpointa mijenja VM-GenerationID, pa
+DC pokreće neautoritativnu sinkronizaciju SYSVOL-a. Ako se to dogodi na oba DC-a, nijedan nema
+autoritativnu kopiju i SYSVOL može ostati nedostupan. Oko 2 minute nakon pokretanja na DC01 i DC02:
+
+```powershell
+Get-SmbShare SYSVOL, NETLOGON                                                  # oba sharea moraju postojati
+(Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters).SysvolReady   # mora biti 1
+dcdiag /test:sysvolcheck /test:advertising
+```
+
+Ako SYSVOL nije spreman ni na jednom DC-u, napravite autoritativnu sinkronizaciju s DC01 prema
+Microsoftovom članku *How to force authoritative and non-authoritative synchronization for
+DFSR-replicated SYSVOL* (DC01 autoritativno, DC02 neautoritativno). Jednostavnija alternativa je
+izgraditi DC02 ponovno.
 
 Evaluacijske verzije: Windows 11 Enterprise vrijedi 90 dana, a Windows Server 180 dana. Preostalo
 vrijeme pokazuje `slmgr /dlv`. Kad istekne, lab izgradite ponovno.

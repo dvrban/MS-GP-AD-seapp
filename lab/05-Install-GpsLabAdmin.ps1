@@ -7,8 +7,11 @@
     Pokreće se na ADMIN01 u Windows PowerShellu 5.1, prijavljen kao GPSLAB\gps.admin.
       1. instalira RSAT GroupPolicy i ActiveDirectory (klijent: Features on Demand, Server: značajke),
       2. raspakira GPO Studio iz ZIP-a (ako je zadan) i uklanja oznaku "preuzeto s interneta" (Unblock-File),
-      3. instalira Pester 5.7.1 (isti kao u CI-ju) i pokreće testove,
-      4. dodaje samostalno računalo u WinRM TrustedHosts (izvan domene nema Kerberosa).
+      3. postavlja ExecutionPolicy RemoteSigned (LocalMachine) za 64-bitni i 32-bitni Windows PowerShell,
+         jer je na Windows klijentima zadano Restricted, a GUI testovi pokreću skripte u novim procesima,
+      4. instalira PowerShell 7 (MSI), potreban za GUI testove ponovnog pokretanja i provjeru u PS7,
+      5. instalira Pester 5.7.1 (isti kao u CI-ju) i pokreće testove,
+      6. dodaje samostalno računalo u WinRM TrustedHosts (izvan domene nema Kerberosa).
 .PARAMETER RepoZip
     ZIP s GitHuba (Code -> Download ZIP). Ako se repozitorij klonira gitom, izostavite ga i zadajte -RepoPath.
 .EXAMPLE
@@ -19,6 +22,8 @@ param(
     [string]$RepoZip,
     [string]$RepoPath = 'C:\GpoStudio',
     [string[]]$TrustedHost = @('STANDALONE01', '10.10.10.40'),
+    [string]$PwshVersion = '7.4.6',
+    [switch]$SkipPwsh,
     [switch]$SkipTests
 )
 
@@ -58,7 +63,29 @@ if (-not (Test-Path -LiteralPath (Join-Path $RepoPath 'src\GpoStudio.Core\GpoStu
 Get-ChildItem -LiteralPath $RepoPath -Recurse -File | Unblock-File
 Write-Host "GPO Studio: $RepoPath" -ForegroundColor Green
 
-# 3. Pester 5.7.1
+# 3. ExecutionPolicy za 64-bitni i 32-bitni Windows PowerShell. Dok je u ovoj sesiji aktivan
+#    Process Bypass, Set-ExecutionPolicy baca "overridden by a more specific scope" (vrijednost je
+#    ipak upisana), pa se greška hvata i rezultat provjerava.
+try { Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force } catch { }
+$wow = Join-Path $env:windir 'SysWOW64\WindowsPowerShell\v1.0\powershell.exe'
+if (Test-Path -LiteralPath $wow) {
+    & $wow -NoProfile -ExecutionPolicy Bypass -Command 'try { Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force } catch { }' 2>$null
+}
+if ((Get-ExecutionPolicy -Scope LocalMachine) -ne 'RemoteSigned') {
+    Write-Warning "ExecutionPolicy LocalMachine je $(Get-ExecutionPolicy -Scope LocalMachine) (možda ga nadjačava Group Policy)."
+}
+
+# 4. PowerShell 7
+if (-not $SkipPwsh -and -not (Test-Path -LiteralPath (Join-Path $env:ProgramFiles 'PowerShell\7\pwsh.exe'))) {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    $msi = Join-Path $env:TEMP "PowerShell-$PwshVersion-win-x64.msi"
+    Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/download/v$PwshVersion/PowerShell-$PwshVersion-win-x64.msi" -OutFile $msi -UseBasicParsing
+    $p = Start-Process msiexec.exe -ArgumentList '/i', "`"$msi`"", '/qn', 'ADD_PATH=1' -Wait -PassThru
+    if ($p.ExitCode -ne 0) { throw "Instalacija PowerShella 7 nije uspjela (msiexec $($p.ExitCode))." }
+    Write-Host "PowerShell $PwshVersion je instaliran." -ForegroundColor Green
+}
+
+# 5. Pester 5.7.1
 if (-not (Get-Module Pester -ListAvailable | Where-Object Version -eq '5.7.1')) {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     $null = Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
@@ -71,7 +98,7 @@ if (-not $SkipTests) {
     Write-Host "Pester: $($result.PassedCount) prošlo, $($result.FailedCount) palo." -ForegroundColor $color
 }
 
-# 4. TrustedHosts za samostalno računalo (izvan domene WinRM koristi NTLM)
+# 6. TrustedHosts za samostalno računalo (izvan domene WinRM koristi NTLM)
 if ($TrustedHost) {
     $current = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
     $missing = @($TrustedHost | Where-Object { ($current -split ',') -notcontains $_ })
@@ -82,4 +109,4 @@ if ($TrustedHost) {
 }
 
 Write-Host ''
-Write-Host 'Sljedeći korak: Checkpoint-VM na hostu ("Clean"), zatim lab\Test-GpsLabSmoke.ps1 (docs/TESTNI-LAB.md, korak 6).' -ForegroundColor Cyan
+Write-Host 'Sljedeći korak: checkpoint "Clean" na hostu (docs/TESTNI-LAB.md, 3.8), zatim lab\Test-GpsLabSmoke.ps1 (poglavlje 4).' -ForegroundColor Cyan

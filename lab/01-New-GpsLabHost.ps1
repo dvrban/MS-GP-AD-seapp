@@ -8,8 +8,12 @@
     Stvara:
       - interni switch 'GpsLab' s adresom hosta 10.10.10.1/24 i NAT-om prema internetu,
       - Gen2 virtualne mašine s DVD-om (ISO), Secure Bootom i vTPM-om (potreban za Windows 11).
-    Instalacija operacijskog sustava je ručna (vidi docs/TESTNI-LAB.md, korak 2).
-    Skripta je idempotentna: postojeće switcheve, NAT i VM-ove preskače.
+    Switch nema DHCP: IP adrese gosti dobivaju tek skriptama 02 i 04.
+    Instalacija operacijskog sustava je ručna (vidi docs/TESTNI-LAB.md, poglavlje 3.2).
+    Postojeće switcheve, NAT i VM-ove preskače (ne popravlja ih). VM čija konfiguracija ne uspije
+    uklanja se zajedno s diskom, pa ga ponovno pokretanje stvara iznova.
+    ISO datoteke držite na lokalnom disku hosta: Hyper-V ih čita kao račun računala, pa mrežne
+    putanje (UNC, NAS) često ne rade.
 .PARAMETER ServerIso
     Putanja do Windows Server 2022/2025 ISO-a (npr. Evaluation verzija).
 .PARAMETER ClientIso
@@ -78,21 +82,29 @@ foreach ($vm in $vms) {
     $vhd = Join-Path $VmPath "$($vm.Name).vhdx"
     $null = New-VM -Name $vm.Name -Generation 2 -MemoryStartupBytes $vm.Memory -NewVHDPath $vhd `
         -NewVHDSizeBytes $vm.Disk -SwitchName $SwitchName -Path $VmPath
-    Set-VMProcessor -VMName $vm.Name -Count 2
-    Set-VMMemory -VMName $vm.Name -DynamicMemoryEnabled $true -MinimumBytes 1GB -StartupBytes $vm.Memory -MaximumBytes ($vm.Memory * 2)
-    # Lab koristi ručne checkpointe ("Clean"), automatski bi samo trošili disk.
-    Set-VM -Name $vm.Name -AutomaticCheckpointsEnabled $false -CheckpointType Standard
+    try {
+        Set-VMProcessor -VMName $vm.Name -Count 2
+        Set-VMMemory -VMName $vm.Name -DynamicMemoryEnabled $true -MinimumBytes 1GB -StartupBytes $vm.Memory -MaximumBytes ($vm.Memory * 2)
+        # Lab koristi ručne checkpointe ("Clean"), automatski bi samo trošili disk.
+        Set-VM -Name $vm.Name -AutomaticCheckpointsEnabled $false -CheckpointType Standard
 
-    $dvd = Add-VMDvdDrive -VMName $vm.Name -Path $vm.Iso -Passthru
-    Set-VMFirmware -VMName $vm.Name -FirstBootDevice $dvd -EnableSecureBoot On -SecureBootTemplate 'MicrosoftWindows'
-    if ($vm.Tpm) {
-        # Windows 11 traži TPM 2.0; lokalni key protector je dovoljan za lab.
-        Set-VMKeyProtector -VMName $vm.Name -NewLocalKeyProtector
-        Enable-VMTPM -VMName $vm.Name
+        $dvd = Add-VMDvdDrive -VMName $vm.Name -Path $vm.Iso -Passthru
+        Set-VMFirmware -VMName $vm.Name -FirstBootDevice $dvd -EnableSecureBoot On -SecureBootTemplate 'MicrosoftWindows'
+        if ($vm.Tpm) {
+            # Windows 11 traži TPM 2.0; lokalni key protector je dovoljan za lab.
+            Set-VMKeyProtector -VMName $vm.Name -NewLocalKeyProtector
+            Enable-VMTPM -VMName $vm.Name
+        }
+    }
+    catch {
+        Write-Warning "Konfiguracija VM-a $($vm.Name) nije uspjela; uklanjam djelomično stvoreni VM i $vhd."
+        Remove-VM -Name $vm.Name -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $vhd -Force -ErrorAction SilentlyContinue
+        throw
     }
     Write-Host "Stvoren VM $($vm.Name)." -ForegroundColor Green
 }
 
 Write-Host ''
 Write-Host 'Sljedeći korak: pokrenite svaki VM, odmah pritisnite tipku za boot s DVD-a i instalirajte OS' -ForegroundColor Cyan
-Write-Host '(docs/TESTNI-LAB.md, korak 2). Prije instalacije: Start-VM -Name GPS-DC01; vmconnect localhost GPS-DC01' -ForegroundColor Cyan
+Write-Host '(docs/TESTNI-LAB.md, poglavlje 3.2). Prije instalacije: Start-VM -Name GPS-DC01; vmconnect localhost GPS-DC01' -ForegroundColor Cyan

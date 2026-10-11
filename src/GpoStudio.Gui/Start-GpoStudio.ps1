@@ -64,6 +64,8 @@ $script:State = @{
     Catalog  = @()
     Settings = [System.Collections.ObjectModel.ObservableCollection[object]]::new()
     Extra    = @{ security = [ordered]@{}; audit = [ordered]@{} }
+    # Opis i verzija učitanog seta; GUI ih ne uređuje, ali ih čuva pri spremanju.
+    Meta     = @{ description = ''; version = '1.0.0' }
     Job      = $null
 }
 $ui.dgSettings.ItemsSource = $script:State.Settings
@@ -92,7 +94,8 @@ function Get-UiComputers {
 }
 
 function Get-UiPolicySet {
-    $set = New-GpsPolicySet -Name $ui.txtSetName.Text -Setting @($script:State.Settings)
+    $set = New-GpsPolicySet -Name $ui.txtSetName.Text -Description $script:State.Meta.description `
+        -Version $script:State.Meta.version -Setting @($script:State.Settings)
     foreach ($section in 'security', 'audit') {
         foreach ($k in $script:State.Extra[$section].Keys) { $set.$section[$k] = $script:State.Extra[$section][$k] }
     }
@@ -290,8 +293,12 @@ function Add-SelectedPolicy([string]$State) {
         if ($null -eq $values) { return }
     }
 
-    try { $new = @(ConvertTo-GpsPolicySetting -Policy $policy -State $State -Scope $selected.Tag.Scope -ElementValues $values) }
+    try {
+        $new = @(ConvertTo-GpsPolicySetting -Policy $policy -State $State -Scope $selected.Tag.Scope -ElementValues $values `
+                -WarningVariable conversionWarnings -WarningAction SilentlyContinue)
+    }
     catch { Show-UiMessage "$_" 'Warning'; return }
+    foreach ($w in $conversionWarnings) { Write-UiLog "UPOZORENJE: $w" }
 
     # Prvo uklanjamo ranije postavke iste politike u istom scopeu (isti id ili id s istim prefiksom),
     # a zatim i postavke drugih politika koje pišu istu vrijednost.
@@ -466,6 +473,7 @@ $ui.btnOpen.Add_Click({
             $script:State.Settings.Clear()
             foreach ($s in $set.settings) { $script:State.Settings.Add($s) }
             $script:State.Extra = @{ security = $set.security; audit = $set.audit }
+            $script:State.Meta = @{ description = $set.description; version = $set.version }
             $ui.txtSetName.Text = $set.name
             Write-UiLog "Učitan Policy Set '$($set.name)' ($($set.settings.Count) postavki, security: $($set.security.Count), audit: $($set.audit.Count))."
         }

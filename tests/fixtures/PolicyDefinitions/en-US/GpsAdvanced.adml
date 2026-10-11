@@ -11,6 +11,7 @@
       <string id="Level_None">None</string>
       <string id="EnabledListOnly">Enabled list only</string>
       <string id="BigQuota">Big quota</string>
+      <string id="DeviceIdList">Allow devices by ID</string>
     </stringTable>
   </resources>
 </policyDefinitionResources>

@@ -13,10 +13,12 @@
     -KeepArtifacts.
 
     Područja:
-      Local  - lokalni GP na ADMIN01: diff, primjena, revizija, vraćanje (i s pogrešnom putanjom)
+      Local  - lokalni GP na ADMIN01: diff, primjena (HKLM i HKCU), akcija Delete, revizija,
+               vraćanje (i s pogrešnom putanjom)
       Remote - lokalni GP na STANDALONE01 (radna grupa, WinRM): registry + secedit + auditpol, vraćanje
       Domain - domenski GPO na Pilot OU s filtriranjem na GPS-Pilot-PC: WS01 ga dobiva, WS02 ne;
-               replikacija, ponovna objava s backupom, negativni slučajevi, uklanjanje
+               replikacija, ponovna objava s backupom, akcija Delete, negativni slučajevi, uklanjanje.
+               Provjere na klijentu čekaju replikaciju (do 3 min), jer klijent može koristiti bilo koji DC.
     Domain traži Windows PowerShell 5.1; u PowerShellu 7 ta se područja preskaču.
 .OUTPUTS
     Tablica rezultata (PASS/FAIL/SKIP) i JSON u C:\ProgramData\GpoStudio\lab-results-<vrijeme>.json.
@@ -88,6 +90,33 @@ function New-LabPolicySet([int]$Dword, [string]$Text) {
     )
 }
 
+function Get-LabGptUserVersion {
+    # Gornjih 16 bitova Version u gpt.ini lokalnog GPO-a je verzija User dijela.
+    $ini = Join-Path $env:windir 'System32\GroupPolicy\gpt.ini'
+    if (-not (Test-Path -LiteralPath $ini)) { return 0 }
+    $line = Get-Content -LiteralPath $ini | Where-Object { $_ -match '^\s*Version\s*=\s*(\d+)' } | Select-Object -First 1
+    if (-not $line) { return 0 }
+    $null = $line -match '(\d+)'
+    [uint32]$Matches[1] -shr 16
+}
+
+function Wait-LabClientState {
+    # Klijent može koristiti bilo koji DC, ne samo PDC na koji GPO Studio piše, pa se čeka da AD i
+    # SYSVOL (DFSR) repliciraju: gpupdate i provjera se ponavljaju dok uvjet ne vrijedi.
+    param([string]$Computer, [scriptblock]$Condition, [int]$TimeoutSec = 180)
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    $attempt = 0
+    $last = ''
+    do {
+        $attempt++
+        try { $state = Invoke-Command -ComputerName $Computer -ScriptBlock $refreshAndRead -ArgumentList $labKey -ErrorAction Stop }
+        catch { $state = $null; $last = " Zadnja greška: $_" }
+        if ($state -and (& $Condition $state)) { return "$Computer, $attempt. pokušaj" }
+        Start-Sleep -Seconds 15
+    } while ((Get-Date) -lt $deadline)
+    throw "$($Computer): očekivano stanje nije postignuto u $TimeoutSec s (TestDword=$($state.TestDword), TestString=$($state.TestString)).$last"
+}
+
 function Get-LabAuditEntry([string]$Action) {
     $path = Join-Path $env:ProgramData 'GpoStudio\audit.jsonl'
     if (-not (Test-Path -LiteralPath $path)) { return }
@@ -143,11 +172,17 @@ Write-Host "GPO Studio lab smoke test $runId (PowerShell $($PSVersionTable.PSVer
 if ('Local' -in $Area) {
     $text = "smoke-$runId"
     $set = New-LabPolicySet -Dword 1 -Text $text
+    # Jedna postavka u User scopeu: User\Registry.pol, gornja polovica verzije u gpt.ini i HKCU.
+    $set.settings.Add((New-GpsPolicySetting -Scope User -Key $labKey -ValueName 'TestUser' -Type REG_SZ -Data $text -DisplayName 'Lab: korisnik'))
+    $userVersionBefore = Get-LabGptUserVersion
 
     Invoke-LabStep 'L1' 'ADMX katalog (Central Store ili PolicyDefinitions)' {
         $catalog = @(Get-GpsAdmxCatalog)
         Assert-Lab ($catalog.Count -gt 500) "Katalog ima samo $($catalog.Count) politika."
-        $central = if ($env:USERDNSDOMAIN) { Test-Path "\\$env:USERDNSDOMAIN\SYSVOL\$env:USERDNSDOMAIN\Policies\PolicyDefinitions" } else { $false }
+        $centralPath = if ($env:USERDNSDOMAIN) { "\\$env:USERDNSDOMAIN\SYSVOL\$env:USERDNSDOMAIN\Policies\PolicyDefinitions" }
+        $central = [bool]($centralPath -and (Test-Path -LiteralPath $centralPath))
+        # Na računalu u domeni katalog mora doći iz Central Storea (Get-GpsAdmxCatalog inače tiho koristi lokalni).
+        Assert-Lab (-not $env:USERDNSDOMAIN -or $central) "Central Store nije dostupan ($centralPath): pokrenite lab/03 bez -SkipCentralStore ili pričekajte replikaciju SYSVOL-a."
         "$($catalog.Count) politika; Central Store: $central"
     }
 
@@ -170,10 +205,16 @@ if ('Local' -in $Area) {
         "Backup: $($r[0].BackupPath)"
     }
 
-    Invoke-LabStep 'L4' 'Vrijednosti su u registryju nakon gpupdate' {
+    Invoke-LabStep 'L4' 'Vrijednosti su u registryju nakon gpupdate (HKLM i HKCU)' {
         $p = Get-ItemProperty -Path $labRegPath -ErrorAction SilentlyContinue
         Assert-Lab ($p -and $p.TestDword -eq 1 -and $p.TestString -eq $text) "Registry: TestDword=$($p.TestDword), TestString=$($p.TestString)"
-        "TestDword=1, TestString=$text"
+        # Set-GpsLocalPolicy osvježava samo računalo; korisnički dio se primjenjuje pri prijavi ili ovako.
+        $null = gpupdate.exe /target:user /force
+        $u = Get-ItemProperty -Path "HKCU:\$labKey" -ErrorAction SilentlyContinue
+        Assert-Lab ($u -and $u.TestUser -eq $text) "HKCU: TestUser=$($u.TestUser)"
+        $userVersionAfter = Get-LabGptUserVersion
+        Assert-Lab ($userVersionAfter -gt $userVersionBefore) "User verzija u gpt.ini nije porasla ($userVersionBefore -> $userVersionAfter)."
+        "HKLM TestDword=1, TestString=$text; HKCU TestUser; gpt.ini User verzija $userVersionBefore -> $userVersionAfter"
     }
 
     Invoke-LabStep 'L5' 'Ponovni diff: sve Unchanged' {
@@ -199,12 +240,29 @@ if ('Local' -in $Area) {
         "Poruka: $($r[0].Messages -join ' | ')"
     }
 
-    Invoke-LabStep 'L8' 'Vraćanje iz backupa uklanja postavke' {
+    Invoke-LabStep 'L7b' 'Akcija Delete: **del. zapis i uklanjanje vrijednosti' {
+        $delete = New-GpsPolicySet -Name "GPS lab delete $runId" -Setting @(
+            New-GpsPolicySetting -Key $labKey -ValueName 'TestDword' -Action Delete
+        )
+        $r = @(Set-GpsLocalPolicy -PolicySet $delete -Confirm:$false)
+        Assert-Lab ($r[0].Status -eq 'OK') "Status $($r[0].Status): $($r[0].Messages -join ' | ')"
+        $pol = @(Read-GpsRegistryPol -Path (Join-Path $env:windir 'System32\GroupPolicy\Machine\Registry.pol'))
+        Assert-Lab ([bool]($pol | Where-Object { $_.ValueName -eq '**del.TestDword' -and $_.Type -eq 'REG_SZ' })) 'Registry.pol nema zapis **del.TestDword.'
+        $p = Get-ItemProperty -Path $labRegPath -ErrorAction SilentlyContinue
+        Assert-Lab ($null -eq $p.TestDword -and $p.TestString -eq $text) "Registry: TestDword=$($p.TestDword), TestString=$($p.TestString)"
+        $again = @(Set-GpsLocalPolicy -PolicySet $delete -WhatIf)
+        Assert-Lab (@($again[0].Diff | Where-Object Status -ne 'Unchanged').Count -eq 0) "Ponovni diff: $($again[0].Diff.Status -join ',')"
+        'TestDword uklonjen, TestString ostao, ponovni diff Unchanged'
+    }
+
+    Invoke-LabStep 'L8' 'Vraćanje iz backupa uklanja postavke (HKLM i HKCU)' {
         if (-not $script:localBackup) { return 'SKIP: nema backupa iz L3' }
         $r = @(Restore-GpsLocalPolicy -BackupPath $script:localBackup -Confirm:$false)
         Assert-Lab ($r[0].Status -eq 'OK') "Status $($r[0].Status): $($r[0].Messages -join ' | ')"
         $p = Get-ItemProperty -Path $labRegPath -ErrorAction SilentlyContinue
         Assert-Lab (-not $p -or $null -eq $p.TestString) "Vrijednost je ostala nakon vraćanja: TestString=$($p.TestString)"
+        $u = Get-ItemProperty -Path "HKCU:\$labKey" -ErrorAction SilentlyContinue
+        Assert-Lab (-not $u -or $null -eq $u.TestUser) "Korisnička vrijednost je ostala nakon vraćanja: TestUser=$($u.TestUser)"
     }
 }
 
@@ -352,11 +410,11 @@ if ('Domain' -in $Area) {
 
         Invoke-LabStep 'D6' "Filtriranje: $PilotComputer dobiva GPO, $OtherComputer ne" {
             if (-not $script:gpoId) { return 'SKIP: D2 nije prošao' }
-            $r = @(Invoke-Command -ComputerName $PilotComputer, $OtherComputer -ScriptBlock $refreshAndRead -ArgumentList $labKey)
-            $pilot = $r | Where-Object { $_.ComputerName -eq $PilotComputer }
-            $other = $r | Where-Object { $_.ComputerName -eq $OtherComputer }
-            Assert-Lab ($pilot.TestString -eq $text) "$($PilotComputer): TestString=$($pilot.TestString)"
+            $wait = Wait-LabClientState -Computer $PilotComputer -Condition { param($w) $w.TestString -eq $text }
+            # Kad je WS01 dobio GPO, replikacija je gotova; WS02 ga ne smije dobiti.
+            $other = Invoke-Command -ComputerName $OtherComputer -ScriptBlock $refreshAndRead -ArgumentList $labKey
             Assert-Lab ($null -eq $other.TestString) "$($OtherComputer) je dobio GPO: TestString=$($other.TestString)"
+            "$PilotComputer ima GPO ($wait), $OtherComputer nema"
         }
 
         Invoke-LabStep 'D7' 'Ponovna objava s promjenom radi backup postojećeg GPO-a' {
@@ -364,9 +422,27 @@ if ('Domain' -in $Area) {
             $r = & $publish (New-LabPolicySet -Dword 2 -Text $text)
             Assert-Lab ($r.Status -eq 'OK' -and $r.Backup -and $r.Backup.Id) "Status $($r.Status), backup: $($r.Backup.Id)"
             Assert-Lab (@($r.Diff | Where-Object Status -eq 'Changed').Count -eq 1) "Diff: $($r.Diff.Status -join ',')"
-            $w = Invoke-Command -ComputerName $PilotComputer -ScriptBlock $refreshAndRead -ArgumentList $labKey
-            Assert-Lab ($w.TestDword -eq 2) "$($PilotComputer): TestDword=$($w.TestDword)"
-            "Backup $($r.Backup.Id) u $($r.Backup.BackupDirectory)"
+            $wait = Wait-LabClientState -Computer $PilotComputer -Condition { param($w) $w.TestDword -eq 2 }
+            "Backup $($r.Backup.Id) u $($r.Backup.BackupDirectory); $wait"
+        }
+
+        Invoke-LabStep 'D7b' 'Akcija Delete u domenskom GPO-u (-Disable, PolicyState Delete)' {
+            if (-not $script:gpoId) { return 'SKIP: D2 nije prošao' }
+            $c = & $gpoCommon
+            $delete = New-GpsPolicySet -Name "GPS lab smoke $runId" -Setting @(
+                New-GpsPolicySetting -Key $labKey -ValueName 'TestDword' -Action Delete
+                New-GpsPolicySetting -Key $labKey -ValueName 'TestString' -Type REG_SZ -Data $text
+            )
+            $r = & $publish $delete
+            Assert-Lab ($r.Status -eq 'OK') "Status $($r.Status)"
+            $removed = @($r.Diff | Where-Object Status -eq 'Removed')
+            Assert-Lab ($removed.Count -eq 1 -and $removed[0].ValueName -eq 'TestDword') "Diff: $(($r.Diff | ForEach-Object { "$($_.ValueName)=$($_.Status)" }) -join ', ')"
+            $v = Get-GPRegistryValue -Guid $script:gpoId -Key "HKLM\$labKey" -ValueName 'TestDword' @c
+            Assert-Lab ("$($v.PolicyState)" -eq 'Delete') "Get-GPRegistryValue: PolicyState=$($v.PolicyState)"
+            $d = @(Compare-GpsDomainPolicy -PolicySet $delete -GpoName $GpoName)
+            Assert-Lab (@($d | Where-Object Status -ne 'Unchanged').Count -eq 0) "Compare nakon objave: $(($d | ForEach-Object { "$($_.ValueName)=$($_.Status)" }) -join ', ')"
+            $wait = Wait-LabClientState -Computer $PilotComputer -Condition { param($w) $null -eq $w.TestDword -and $w.TestString -eq $text }
+            "PolicyState Delete; Compare Unchanged; $wait"
         }
 
         Invoke-LabStep 'D8' 'Default Domain Policy bez -Force se odbija' {
@@ -396,7 +472,7 @@ if ('Domain' -in $Area) {
 
         Invoke-LabStep 'D10' 'Revizijski zapisi objave' {
             $ok = @(Get-LabAuditEntry 'Publish-GpsDomainPolicy' | Where-Object result -eq 'OK')
-            Assert-Lab ($ok.Count -ge 2) "Očekivana barem 2 uspješna zapisa (D2, D7), pronađeno $($ok.Count)."
+            Assert-Lab ($ok.Count -ge 3) "Očekivana barem 3 uspješna zapisa (D2, D7, D7b), pronađeno $($ok.Count)."
             "$($ok.Count) zapis(a)"
         }
 
@@ -405,9 +481,7 @@ if ('Domain' -in $Area) {
                 if (-not $script:gpoId) { return 'SKIP: D2 nije prošao' }
                 $c = & $gpoCommon
                 Remove-GPO -Guid $script:gpoId @c
-                Start-Sleep -Seconds 15
-                $w = Invoke-Command -ComputerName $PilotComputer -ScriptBlock $refreshAndRead -ArgumentList $labKey
-                Assert-Lab ($null -eq $w.TestString) "$($PilotComputer) još ima TestString=$($w.TestString)"
+                Wait-LabClientState -Computer $PilotComputer -Condition { param($w) $null -eq $w.TestString }
             }
         }
     }

@@ -272,11 +272,38 @@ Describe 'ConvertTo-GpsPolicySetting: liste i posebni tipovi' {
         ($pol | Where-Object ValueName -eq 'Restricted').Data | Should -Be 0
     }
 
+    It 'element tipa list se izostavlja uz upozorenje' {
+        $policy = $catalog | Where-Object Name -eq 'DeviceIdList'
+        $s = @(ConvertTo-GpsPolicySetting -Policy $policy -WarningVariable w -WarningAction SilentlyContinue)
+        $s.Count | Should -Be 1
+        $s[0].valueName | Should -Be 'AllowDeviceIDs'
+        "$w" | Should -BeLike "*list*DeviceIds*"
+    }
+
     It 'longDecimal postaje REG_QWORD, a klasa User određuje scope' {
         $s = ConvertTo-GpsPolicySetting -Policy $quota
         $s.type | Should -Be 'REG_QWORD'
         $s.data | Should -Be 5000000000
         $s.scope | Should -Be 'User'
+    }
+}
+
+Describe 'Write-GpsAuditLog' {
+    It 'upisuje zapis u JSON lines' {
+        $path = Join-Path $TestDrive 'audit.jsonl'
+        Write-GpsAuditLog -Action 'Test' -Target 'PC' -Details @{ a = 1 } -Path $path
+        $e = Get-Content $path | ConvertFrom-Json
+        $e.action | Should -Be 'Test'
+        $e.details.a | Should -Be 1
+    }
+
+    It 'ne ruši operaciju kad zapis ne uspije, nego upozorava' {
+        $file = Join-Path $TestDrive 'nije-mapa.txt'
+        Set-Content -Path $file -Value 'x'
+        { Write-GpsAuditLog -Action 'Test' -Target 'PC' -Path (Join-Path $file 'audit.jsonl') -WarningVariable w -WarningAction SilentlyContinue } |
+            Should -Not -Throw
+        Write-GpsAuditLog -Action 'Test' -Target 'PC' -Path (Join-Path $file 'audit.jsonl') -WarningVariable w2 -WarningAction SilentlyContinue
+        "$w2" | Should -BeLike '*nije upisan*'
     }
 }
 

@@ -76,7 +76,12 @@
         else { & $emitList $Policy.EnabledList "$idBase/enabledList" -AsDelete }
 
         foreach ($el in @($Policy.Elements)) {
-            if (-not $el -or -not $el.ValueName) { continue } # npr. 'list' bez valueName (faza 2)
+            if (-not $el) { continue }
+            if (-not $el.ValueName) {
+                # npr. 'list' (popis vrijednosti pod ključem) još nije podržan
+                Write-Warning "Element tipa '$($el.Kind)' ($($el.Id)) politike '$($Policy.DisplayName)' nije podržan i izostavlja se."
+                continue
+            }
             $id = "$idBase/$($el.Id)"
 
             if ($State -eq 'Disabled') {

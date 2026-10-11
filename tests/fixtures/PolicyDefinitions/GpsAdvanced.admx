@@ -45,6 +45,16 @@
         <item key="Software\Policies\Gps\Lists" valueName="A"><value><decimal value="1" /></value></item>
       </enabledList>
     </policy>
+    <policy name="DeviceIdList" class="Machine" displayName="$(string.DeviceIdList)" key="Software\Policies\Gps\Devices"
+            valueName="AllowDeviceIDs" presentation="$(presentation.DeviceIdList)">
+      <parentCategory ref="Cat_Adv" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+      <elements>
+        <list id="DeviceIds" key="Software\Policies\Gps\Devices\AllowDeviceIDs" valuePrefix="" />
+      </elements>
+    </policy>
     <policy name="BigQuota" class="User" displayName="$(string.BigQuota)" key="Software\Policies\Gps\Quota" valueName="Quota">
       <parentCategory ref="Cat_Adv" />
       <supportedOn ref="windows:SUPPORTED_Windows10" />

@@ -16,12 +16,16 @@
       Korisnici: gps.admin (Domain Admins, za rad s GPO Studijem), gps.editor (Group Policy Creator Owners
                  + GPS-GPO-Editors, za test delegacije), gps.user (običan korisnik)
       Central Store: kopija %windir%\PolicyDefinitions u SYSVOL.
+      Članstvo:  WS01 u GPS-Pilot-PC, ako je WS01 već pridružen domeni.
 .EXAMPLE
     .\03-Initialize-GpsLabAD.ps1
 #>
 [CmdletBinding()]
 param(
-    [switch]$SkipCentralStore
+    [switch]$SkipCentralStore,
+    # Računala koja ulaze u GPS-Pilot-PC; dodaju se ako već postoje u AD-u (skriptu pokrenite
+    # ponovno nakon pridruživanja WS01, vidi docs/TESTNI-LAB.md 3.6).
+    [string[]]$PilotMember = @('WS01')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -56,16 +60,47 @@ foreach ($g in @(
     }
 }
 
-$password = Read-Host -AsSecureString 'Lozinka za lab korisnike (gps.admin, gps.editor, gps.user)'
-foreach ($u in @(
-        @{ Sam = 'gps.admin'; Name = 'GPS Admin'; Groups = @('Domain Admins') }
-        @{ Sam = 'gps.editor'; Name = 'GPS Editor'; Groups = @('Group Policy Creator Owners', 'GPS-GPO-Editors') }
-        @{ Sam = 'gps.user'; Name = 'GPS User'; Groups = @() }
-    )) {
-    if (-not (Get-ADUser -Filter "SamAccountName -eq '$($u.Sam)'" -ErrorAction SilentlyContinue)) {
-        New-ADUser -Name $u.Name -SamAccountName $u.Sam -UserPrincipalName "$($u.Sam)@$($domain.DNSRoot)" `
-            -Path $usersOu -AccountPassword $password -Enabled $true -PasswordNeverExpires $true
+$labUsers = @(
+    @{ Sam = 'gps.admin'; Name = 'GPS Admin'; Groups = @('Domain Admins') }
+    @{ Sam = 'gps.editor'; Name = 'GPS Editor'; Groups = @('Group Policy Creator Owners', 'GPS-GPO-Editors') }
+    @{ Sam = 'gps.user'; Name = 'GPS User'; Groups = @() }
+)
+
+# Lozinka se traži samo ako neki korisnik nedostaje ili je onemogućen, i unosi se dvaput.
+# Mora zadovoljiti politiku domene (zadano: barem 7 znakova i 3 vrste znakova).
+$needPassword = @($labUsers | Where-Object {
+        $existing = Get-ADUser -Filter "SamAccountName -eq '$($_.Sam)'" -Properties Enabled -ErrorAction SilentlyContinue
+        -not $existing -or -not $existing.Enabled
+    }).Count -gt 0
+if ($needPassword) {
+    $plain = { param($secure) [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)) }
+    do {
+        $password = Read-Host -AsSecureString 'Lozinka za lab korisnike (gps.admin, gps.editor, gps.user)'
+        $again = Read-Host -AsSecureString 'Ponovite lozinku'
+        $match = (& $plain $password) -ceq (& $plain $again)
+        if (-not $match) { Write-Host 'Lozinke se ne podudaraju, pokušajte ponovno.' -ForegroundColor Yellow }
+    } until ($match)
+}
+
+foreach ($u in $labUsers) {
+    $user = Get-ADUser -Filter "SamAccountName -eq '$($u.Sam)'" -Properties Enabled -ErrorAction SilentlyContinue
+    if (-not $user) {
+        try {
+            New-ADUser -Name $u.Name -SamAccountName $u.Sam -UserPrincipalName "$($u.Sam)@$($domain.DNSRoot)" `
+                -Path $usersOu -AccountPassword $password -Enabled $true -PasswordNeverExpires $true
+        }
+        catch {
+            # New-ADUser stvori račun i kad lozinka ne prođe politiku (ostaje onemogućen); uklanjamo ga.
+            Get-ADUser -Filter "SamAccountName -eq '$($u.Sam)'" | Remove-ADUser -Confirm:$false
+            throw "Korisnik $($u.Sam) nije stvoren (lozinka možda ne zadovoljava politiku domene): $_"
+        }
         Write-Host "Korisnik $($u.Sam)" -ForegroundColor Green
+    }
+    elseif (-not $user.Enabled) {
+        # Ponovno pokretanje popravlja račun ostao onemogućen nakon ranije neuspjele lozinke.
+        Set-ADAccountPassword -Identity $u.Sam -Reset -NewPassword $password
+        Enable-ADAccount -Identity $u.Sam
+        Write-Host "Korisnik $($u.Sam): lozinka postavljena i račun omogućen" -ForegroundColor Green
     }
     foreach ($group in $u.Groups) {
         $user = Get-ADUser -Identity $u.Sam
@@ -84,6 +119,15 @@ if (-not $SkipCentralStore) {
     }
     else {
         Write-Host "Central Store već postoji: $central" -ForegroundColor Yellow
+    }
+}
+
+foreach ($name in $PilotMember) {
+    $computer = Get-ADComputer -Filter "Name -eq '$name'" -ErrorAction SilentlyContinue
+    if (-not $computer) { Write-Host "$name još nije u domeni; GPS-Pilot-PC ćete popuniti ponovnim pokretanjem nakon pridruživanja." -ForegroundColor Yellow; continue }
+    if (@(Get-ADGroupMember -Identity 'GPS-Pilot-PC' | ForEach-Object DistinguishedName) -notcontains $computer.DistinguishedName) {
+        Add-ADGroupMember -Identity 'GPS-Pilot-PC' -Members $computer
+        Write-Host "$name dodan u GPS-Pilot-PC (članstvo računalo vidi nakon restarta)." -ForegroundColor Green
     }
 }
 
