@@ -42,10 +42,15 @@ Describe 'Payload za udaljena računala' {
                     $merged = Merge-GpsPolicySet -Existing @() -Setting $settings
                     Write-GpsRegistryPol -Path $pol -Entry $merged
                     $read = @(Read-GpsRegistryPol -Path $pol)
+                    # auditpol zamijenjen funkcijom: provjerava se da Set-GpsAuditPolicyCore radi s OrderedDictionary iz payloada.
+                    $global:auditCalls = @()
+                    function auditpol.exe { $global:auditCalls += , $args; $global:LASTEXITCODE = 0 }
+                    Set-GpsAuditPolicyCore -Audit ([ordered]@{ Logon = 'Success,Failure' })
                     [pscustomobject]@{
                         Data   = $read[0].Data
                         Diff   = (Compare-GpsPolicySet -Current $read -Setting $settings).Status
                         Audit  = $script:GpsAuditGuids['Logon']
+                        AuditArgs = $global:auditCalls[0] -join ' '
                     }
                 }).AddArgument($payload).AddArgument($pol)
             $result = $ps.Invoke()
@@ -56,6 +61,7 @@ Describe 'Payload za udaljena računala' {
         $result[0].Data | Should -Be 7
         $result[0].Diff | Should -Be 'Unchanged'
         $result[0].Audit | Should -Be '{0CCE9215-69AE-11D9-BED3-505054503030}'
+        $result[0].AuditArgs | Should -Be '/set /subcategory:{0CCE9215-69AE-11D9-BED3-505054503030} /success:enable /failure:enable'
     }
 }
 
@@ -85,6 +91,34 @@ Describe 'Invoke-GpsLocalApplyCore' {
     }
 }
 
+Describe 'Set-GpsLocalPolicy' {
+    BeforeAll {
+        if (-not (Get-Command Get-CimInstance -ErrorAction SilentlyContinue)) {
+            function global:Get-CimInstance { param($ClassName) }
+            $script:cimStub2 = $true
+        }
+    }
+    AfterAll { if ($script:cimStub2) { Remove-Item function:global:Get-CimInstance } }
+
+    It 'primjenjuje set bez version i upisuje revizijski zapis' {
+        Mock -ModuleName GpoStudio.Local Get-CimInstance { [pscustomobject]@{ PartOfDomain = $false } }
+        Mock -ModuleName GpoStudio.Local Get-GpsLocalGpRoot { Join-Path $TestDrive 'GP' }
+        Mock -ModuleName GpoStudio.Local Backup-GpsLocalPolicyCore { [pscustomobject]@{ ComputerName = 'PC'; BackupPath = 'C:\b' } }
+        Mock -ModuleName GpoStudio.Local Write-GpsAuditLog {}
+
+        $set = [pscustomobject]@{
+            name     = 'Bez verzije'
+            settings = @([pscustomobject]@{ key = 'Software\Policies\X'; valueName = 'V'; type = 'REG_DWORD'; data = 3 })
+        }
+        $r = Set-GpsLocalPolicy -PolicySet $set -NoGpUpdate -Confirm:$false
+        $r.Status | Should -Be 'OK'
+        (Read-GpsRegistryPol -Path (Join-Path $TestDrive 'GP/Machine/Registry.pol')).Data | Should -Be 3
+        Should -Invoke -ModuleName GpoStudio.Local Write-GpsAuditLog -Times 1 -ParameterFilter {
+            $Details.policySet -eq 'Bez verzije' -and $Details.version -eq '1.0.0' -and $Details.backup -eq 'C:\b'
+        }
+    }
+}
+
 Describe 'Restore-GpsLocalPolicyCore' {
     It 'ne dira GroupPolicy mapu kad putanja nije backup' {
         InModuleScope GpoStudio.Local {
@@ -110,6 +144,8 @@ Describe 'Prepoznavanje lokalnog računala' {
         InModuleScope GpoStudio.Local {
             Test-GpsIsLocalComputer ([System.Net.Dns]::GetHostName()) | Should -BeTrue
             Test-GpsIsLocalComputer 'LOCALHOST' | Should -BeTrue
+            Test-GpsIsLocalComputer '.' | Should -BeTrue
+            Test-GpsIsLocalComputer "$([System.Net.Dns]::GetHostName())." | Should -BeTrue
             Test-GpsIsLocalComputer 'neko-drugo-racunalo.example.invalid' | Should -BeFalse
         }
     }

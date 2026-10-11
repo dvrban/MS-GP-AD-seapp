@@ -122,6 +122,18 @@ Describe 'Policy Set' {
         $set.settings.Count | Should -Be 1
     }
 
+    It 'ConvertTo-GpsPolicySet normalizira hashtable i objekt bez opcionalnih polja' {
+        $fromHash = ConvertTo-GpsPolicySet @{ name = 'H'; settings = @(@{ key = 'Software\X'; valueName = 'V'; data = 1 }); audit = @{ Logon = 'Success' } }
+        $fromHash.version | Should -Be '1.0.0'
+        $fromHash.settings[0].type | Should -Be 'REG_DWORD'
+        $fromHash.audit['Logon'] | Should -Be 'Success'
+
+        $fromObject = ConvertTo-GpsPolicySet ([pscustomobject]@{ name = 'O'; settings = @() })
+        $fromObject.description | Should -Be ''
+        $fromObject.security.Count | Should -Be 0
+        { ConvertTo-GpsPolicySet @{ settings = @() } } | Should -Throw '*name*'
+    }
+
     It 'JSON export i import čuvaju postavke' {
         $example = Join-Path $PSScriptRoot '..\examples\radna-stanica-baseline.json'
         $set = Import-GpsPolicySet -Path $example
@@ -247,6 +259,17 @@ Describe 'ConvertTo-GpsPolicySetting: liste i posebni tipovi' {
 
         $none = @(ConvertTo-GpsPolicySetting -Policy $printers -ElementValues @{ Level = 'None' })
         ($none | Where-Object valueName -eq 'Level').action | Should -Be 'Delete'
+    }
+
+    It 'promjena opcije ili stanja briše vrijednosti iz ranijeg izbora (kao gpedit)' {
+        $low = @(ConvertTo-GpsPolicySetting -Policy $printers -ElementValues @{ Level = 'Low' })
+        $none = @(ConvertTo-GpsPolicySetting -Policy $printers -ElementValues @{ Level = 'None' })
+        ($none | Where-Object valueName -eq 'LowExtra').action | Should -Be 'Delete'
+
+        $pol = Merge-GpsPolicySet -Existing @() -Setting $low
+        $pol = Merge-GpsPolicySet -Existing $pol -Setting @(ConvertTo-GpsPolicySetting -Policy $printers -State Disabled)
+        @($pol | Where-Object { $_.ValueName -in 'Mode', 'LowExtra' }).Count | Should -Be 0
+        ($pol | Where-Object ValueName -eq 'Restricted').Data | Should -Be 0
     }
 
     It 'longDecimal postaje REG_QWORD, a klasa User određuje scope' {

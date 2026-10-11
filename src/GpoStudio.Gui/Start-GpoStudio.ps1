@@ -23,9 +23,15 @@ if ($PSVersionTable.PSEdition -eq 'Core' -or $is32on64 -or
     [Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') {
     $folder = if ($is32on64) { 'Sysnative' } else { 'System32' }
     $exe = Join-Path $env:windir "$folder\WindowsPowerShell\v1.0\powershell.exe"
-    $argList = @('-NoProfile', '-STA', '-File', "`"$PSCommandPath`"")
-    if ($AdmxPath) { $argList += @('-AdmxPath', "`"$AdmxPath`"") }
-    Start-Process -FilePath $exe -ArgumentList $argList
+    # powershell.exe ima vlastiti ExecutionPolicy (zadano Restricted na klijentima); prosljeđujemo
+    # efektivnu politiku roditelja (Process scope, Group Policy i dalje ima prednost).
+    $argList = @('-NoProfile', '-STA', '-ExecutionPolicy', (Get-ExecutionPolicy).ToString(), '-File', "`"$PSCommandPath`"")
+    # Kosa crta prije zatvarajućeg navodnika bi ga escapeala (pravila CommandLineToArgvW), pa je udvostručujemo.
+    if ($AdmxPath) { $argList += @('-AdmxPath', ('"{0}"' -f ($AdmxPath -replace '(\\+)$', '$1$1'))) }
+    $child = Start-Process -FilePath $exe -ArgumentList $argList -PassThru
+    if ($child.WaitForExit(3000) -and $child.ExitCode -ne 0) {
+        Write-Error "Windows PowerShell 5.1 nije pokrenuo GPO Studio (izlazni kod $($child.ExitCode)). Pokrenite skriptu izravno iz powershell.exe da vidite grešku."
+    }
     return
 }
 
@@ -287,11 +293,19 @@ function Add-SelectedPolicy([string]$State) {
     try { $new = @(ConvertTo-GpsPolicySetting -Policy $policy -State $State -Scope $selected.Tag.Scope -ElementValues $values) }
     catch { Show-UiMessage "$_" 'Warning'; return }
 
+    # Prvo uklanjamo ranije postavke iste politike u istom scopeu (isti id ili id s istim prefiksom),
+    # a zatim i postavke drugih politika koje pišu istu vrijednost.
+    $idBase = "$($policy.Source)/$($policy.Name)"
+    $idPattern = "$([WildcardPattern]::Escape($idBase))/*"
+    $scope = $selected.Tag.Scope
     foreach ($s in $new) {
-        $existing = @($script:State.Settings | Where-Object { $_.scope -eq $s.scope -and $_.key -eq $s.key -and $_.valueName -eq $s.valueName })
+        $existing = @($script:State.Settings | Where-Object {
+                ($_.scope -eq $scope -and ($_.id -eq $idBase -or $_.id -like $idPattern)) -or
+                ($_.scope -eq $s.scope -and $_.key -eq $s.key -and $_.valueName -eq $s.valueName)
+            })
         foreach ($e in $existing) { $null = $script:State.Settings.Remove($e) }
-        $script:State.Settings.Add($s)
     }
+    foreach ($s in $new) { $script:State.Settings.Add($s) }
     Write-UiLog "Dodano ($State): $($policy.DisplayName), $($new.Count) vrijednosti."
 }
 

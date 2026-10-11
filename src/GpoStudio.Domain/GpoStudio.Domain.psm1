@@ -146,6 +146,7 @@ function Compare-GpsDomainPolicy {
         [Parameter(Mandatory)][string]$GpoName,
         [string]$Domain
     )
+    $PolicySet = ConvertTo-GpsPolicySet -InputObject $PolicySet
     $ctx = Get-GpsDomainContext -Domain $Domain
     $gpo = Get-GPO -Name $GpoName -Domain $ctx.Domain -Server $ctx.Server -ErrorAction SilentlyContinue
     Get-GpsDomainDiff -PolicySet $PolicySet -Gpo $gpo -Context $ctx
@@ -175,6 +176,7 @@ function Publish-GpsDomainPolicy {
         [string]$BackupPath = $(Join-Path $(if ($env:ProgramData) { $env:ProgramData } else { [IO.Path]::GetTempPath() }) 'GpoStudio\GpoBackup'),
         [switch]$Force
     )
+    $PolicySet = ConvertTo-GpsPolicySet -InputObject $PolicySet
     $ctx = Get-GpsDomainContext -Domain $Domain
     $common = @{ Domain = $ctx.Domain; Server = $ctx.Server }
 
@@ -191,6 +193,12 @@ function Publish-GpsDomainPolicy {
         return [pscustomobject]@{ GpoName = $GpoName; Server = $ctx.Server; Status = 'WhatIf'; Diff = $diff; Backup = $null }
     }
 
+    # Grupa za filtriranje mora postojati prije bilo kakve promjene (tipfeler inače ostavi GPO otvoren svima).
+    if ($ApplyToGroup) {
+        try { $null = Get-ADGroup -Identity $ApplyToGroup -Server $ctx.Server -ErrorAction Stop }
+        catch { throw "Grupa '$ApplyToGroup' ne postoji ili nije dostupna, promjene nisu napravljene: $_" }
+    }
+
     # Backup je obavezan: bez njega se postojeći GPO ne mijenja.
     $backup = $null
     if ($gpo) {
@@ -205,6 +213,7 @@ function Publish-GpsDomainPolicy {
     $auditDetails = @{
         server    = $ctx.Server; policySet = $PolicySet.name; version = $PolicySet.version
         link      = $LinkTarget; filter = $ApplyToGroup; backupId = if ($backup) { "$($backup.Id)" } else { $null }
+        linked    = $false; filtered = $false
         changes   = @($changes | ForEach-Object { "$($_.Status): $($_.Scope)\$($_.Key)\$($_.ValueName)" })
     }
 
@@ -232,16 +241,19 @@ function Publish-GpsDomainPolicy {
             }
         }
 
-        if ($LinkTarget) {
-            $linked = @((Get-GPInheritance -Target $LinkTarget @common -ErrorAction Stop).GpoLinks) | Where-Object { $_.GpoId -eq $gpo.Id }
-            if (-not $linked) { $null = New-GPLink -Guid $gpo.Id -Target $LinkTarget -LinkEnabled Yes @common -ErrorAction Stop }
-        }
-
+        # Filtriranje prije povezivanja: ako ne uspije, novi GPO ostaje nepovezan i ne primjenjuje se nikome.
         if ($ApplyToGroup) {
             # Naziv grupe S-1-5-11 je lokaliziran (npr. 'Provjereni korisnici'), pa ga dohvaćamo preko SID-a.
             $authUsers = ([Security.Principal.SecurityIdentifier]'S-1-5-11').Translate([Security.Principal.NTAccount]).Value.Split('\')[-1]
             $null = Set-GPPermission -Guid $gpo.Id -TargetName $ApplyToGroup -TargetType Group -PermissionLevel GpoApply @common -ErrorAction Stop
             $null = Set-GPPermission -Guid $gpo.Id -TargetName $authUsers -TargetType Group -PermissionLevel GpoRead -Replace @common -ErrorAction Stop
+            $auditDetails.filtered = $true
+        }
+
+        if ($LinkTarget) {
+            $linked = @((Get-GPInheritance -Target $LinkTarget @common -ErrorAction Stop).GpoLinks) | Where-Object { $_.GpoId -eq $gpo.Id }
+            if (-not $linked) { $null = New-GPLink -Guid $gpo.Id -Target $LinkTarget -LinkEnabled Yes @common -ErrorAction Stop }
+            $auditDetails.linked = $true
         }
     }
     catch {

@@ -9,6 +9,7 @@
         Disabled: valueName dobiva disabledValue, a ako ga nema, vrijednost se briše (**del.);
                   upisuje se disabledList (ako je nema, brišu se vrijednosti iz enabledList);
                   boolean s eksplicitnom falseValue/falseList dobiva tu vrijednost, ostali elementi se brišu.
+        U oba stanja brišu se sve ostale vrijednosti koje politika referencira (kao gpedit).
     .EXAMPLE
         $p = Get-GpsAdmxCatalog | Where-Object Name -eq 'RemoveWindowsStore_2'
         ConvertTo-GpsPolicySetting -Policy $p -State Enabled
@@ -134,5 +135,25 @@
     if ($result.Count -eq 0) {
         throw "Politika '$($Policy.DisplayName)' nema registry vrijednosti koje GPO Studio zasad podržava."
     }
-    $result
+
+    # Kao gpedit (ForgetPolicy pa SetPolicyState): sve vrijednosti koje politika referencira, a odabrano
+    # stanje ih ne postavlja (druga lista, neodabrane enum stavke, prazni elementi), brišu se, da ne
+    # ostanu vrijednosti iz ranijeg izbora.
+    $present = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($r in $result) { $null = $present.Add("$($r.key)\$($r.valueName)") }
+    $referenced = [System.Collections.Generic.List[object]]::new()
+    if ($Policy.ValueName) { $referenced.Add(@($Policy.Key, $Policy.ValueName)) }
+    foreach ($i in @($Policy.EnabledList) + @($Policy.DisabledList)) { if ($i) { $referenced.Add(@($i.Key, $i.ValueName)) } }
+    foreach ($el in @($Policy.Elements)) {
+        if (-not $el -or -not $el.ValueName) { continue }
+        $referenced.Add(@($el.Key, $el.ValueName))
+        foreach ($i in @($el.TrueList) + @($el.FalseList)) { if ($i) { $referenced.Add(@($i.Key, $i.ValueName)) } }
+        foreach ($item in @($el.Items)) { foreach ($i in @($item.ValueList)) { if ($i) { $referenced.Add(@($i.Key, $i.ValueName)) } } }
+    }
+    $forget = foreach ($ref in $referenced) {
+        $key = ([string]$ref[0]).TrimEnd('\')
+        if (-not $ref[1] -or -not $present.Add("$key\$($ref[1])")) { continue }
+        New-GpsPolicySetting @common -Id "$idBase/forget/$($ref[1])" -Key $key -ValueName $ref[1] -Action Delete
+    }
+    @($result) + @($forget)
 }

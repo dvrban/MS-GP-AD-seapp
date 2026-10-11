@@ -1,7 +1,7 @@
 ﻿BeforeAll {
     # Zamjenske funkcije za RSAT cmdlete, da se modul može testirati bez domene.
     foreach ($name in 'Get-ADDomain', 'Get-GPO', 'New-GPO', 'Backup-GPO', 'Get-GPRegistryValue', 'Set-GPRegistryValue',
-        'Get-GPInheritance', 'New-GPLink', 'Set-GPPermission') {
+        'Get-GPInheritance', 'New-GPLink', 'Set-GPPermission', 'Get-ADGroup') {
         Set-Item -Path "function:global:$name" -Value {
             [CmdletBinding()]
             param($Identity, $Name, $Guid, $Domain, $Server, $Key, $ValueName, $Type, $Value, [switch]$Disable,
@@ -19,7 +19,7 @@
 
 AfterAll {
     foreach ($name in 'Get-ADDomain', 'Get-GPO', 'New-GPO', 'Backup-GPO', 'Get-GPRegistryValue', 'Set-GPRegistryValue',
-        'Get-GPInheritance', 'New-GPLink', 'Set-GPPermission') { Remove-Item "function:global:$name" -ErrorAction SilentlyContinue }
+        'Get-GPInheritance', 'New-GPLink', 'Set-GPPermission', 'Get-ADGroup') { Remove-Item "function:global:$name" -ErrorAction SilentlyContinue }
 }
 
 Describe 'Publish-GpsDomainPolicy' {
@@ -86,6 +86,23 @@ Describe 'Publish-GpsDomainPolicy' {
         Mock -ModuleName GpoStudio.Domain Backup-GPO { throw 'Pristup odbijen' }
         { Publish-GpsDomainPolicy -PolicySet $set -GpoName 'WS' -Confirm:$false } | Should -Throw '*Backup*'
         Should -Invoke -ModuleName GpoStudio.Domain Set-GPRegistryValue -Times 0
+    }
+
+    It 'ne radi ništa kad grupa za filtriranje ne postoji' {
+        Mock -ModuleName GpoStudio.Domain Get-ADGroup { throw 'Cannot find an object with identity' }
+        { Publish-GpsDomainPolicy -PolicySet $set -GpoName 'WS' -ApplyToGroup 'GPS-Pilt' -LinkTarget 'OU=PC,DC=firma,DC=local' -Confirm:$false } |
+            Should -Throw '*GPS-Pilt*'
+        Should -Invoke -ModuleName GpoStudio.Domain New-GPO -Times 0
+        Should -Invoke -ModuleName GpoStudio.Domain New-GPLink -Times 0
+    }
+
+    It 'ne povezuje GPO kad sigurnosno filtriranje ne uspije' {
+        Mock -ModuleName GpoStudio.Domain Get-ADGroup { [pscustomobject]@{ Name = 'GPS-Pilot' } }
+        Mock -ModuleName GpoStudio.Domain Set-GPPermission { throw 'trustee not found' }
+        { Publish-GpsDomainPolicy -PolicySet $set -GpoName 'WS' -ApplyToGroup 'GPS-Pilot' -LinkTarget 'OU=PC,DC=firma,DC=local' -Confirm:$false } |
+            Should -Throw
+        Should -Invoke -ModuleName GpoStudio.Domain New-GPLink -Times 0
+        Should -Invoke -ModuleName GpoStudio.Domain Write-GpsAuditLog -Times 1 -ParameterFilter { $Result -eq 'Error' -and -not $Details.linked }
     }
 
     It 'odbija zadani domenski GPO bez -Force' {

@@ -122,13 +122,16 @@ LGPO.exe ostaje kao opcionalna rezerva za uvoz Microsoft Security Baseline paket
 
 ### 4.2. Tijek primjene lokalnog Policy Seta
 
-1. **Backup**: kopija cijelog `%windir%\System32\GroupPolicy` i `secedit /export` u spremište.
+1. **Backup**: kopija cijelog `%windir%\System32\GroupPolicy`, `secedit /export` i `auditpol /backup /file:audit.csv`
+   u spremište, uz manifest `gpostudio-backup.json` (vraćanje bez manifesta se odbija).
 2. **Čitanje** postojećeg `Registry.pol`, zatim **spajanje** (merge) s Policy Setom.
    Brisanje vrijednosti radi se zapisom `**del.<ValueName>`, kao što radi i GPMC.
 3. **Zapis** novog `Registry.pol`.
 4. **Povećanje verzije u `gpt.ini`** i upis CSE GUID-ova u `gPCMachineExtensionNames` /
    `gPCUserExtensionNames`. Bez toga klijent može ignorirati promjenu.
-5. Sigurnosne postavke: generiraj `.inf`, zatim `secedit /configure /db secedit.sdb /cfg x.inf /areas SECURITYPOLICY`.
+5. Sigurnosne postavke: generiraj `.inf`, zatim `secedit /configure /db <nova-baza>.sdb /cfg x.inf /overwrite /areas SECURITYPOLICY /quiet`.
+   Za svako pokretanje koristi se nova baza koja se nakon primjene briše; inače secedit iznova primjenjuje
+   i predloške iz ranijih pokretanja. Napredna revizija: `auditpol /set /subcategory:{GUID} ...`.
 6. `gpupdate /target:computer /force`.
 7. **Provjera**: ponovno pročitaj registry i usporedi s ciljem; rezultat prikaži u GUI-u.
 

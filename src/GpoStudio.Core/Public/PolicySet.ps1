@@ -89,6 +89,54 @@ function New-GpsPolicySet {
     }
 }
 
+function ConvertTo-GpsPolicySet {
+    <#
+    .SYNOPSIS
+        Normalizira Policy Set iz bilo kojeg izvora (JSON objekt, hashtable, postojeći set) i validira postavke.
+    .DESCRIPTION
+        Nedostajući opcionalni dijelovi dobivaju zadane vrijednosti (description '', version '1.0.0',
+        prazni security/audit), pa ih cmdleti mogu čitati i pod Set-StrictMode -Version Latest.
+    #>
+    [CmdletBinding()]
+    param([Parameter(Mandatory, ValueFromPipeline)]$InputObject)
+
+    process {
+        $get = {
+            param($o, [string]$n)
+            if ($null -eq $o) { return }
+            if ($o -is [System.Collections.IDictionary]) { if ($o.Contains($n)) { $o[$n] } }
+            elseif ($o.PSObject.Properties[$n]) { $o.PSObject.Properties[$n].Value }
+        }
+
+        $name = & $get $InputObject 'name'
+        if (-not $name) { throw 'Policy Set nema naziv (name).' }
+        $settings = foreach ($s in @(& $get $InputObject 'settings')) {
+            if ($null -eq $s) { continue }
+            if (-not (& $get $s 'key')) { throw "Postavka u Policy Setu '$name' nema registry ključ (key)." }
+            $p = @{
+                Key       = & $get $s 'key'
+                ValueName = [string](& $get $s 'valueName')
+            }
+            foreach ($field in 'scope', 'type', 'data', 'action', 'id', 'displayName') {
+                $value = & $get $s $field
+                if ($null -ne $value) { $p[$field] = $value }
+            }
+            New-GpsPolicySetting @p
+        }
+
+        $version = & $get $InputObject 'version'
+        $set = New-GpsPolicySet -Name $name -Description ([string](& $get $InputObject 'description')) `
+            -Version $(if ($version) { [string]$version } else { '1.0.0' }) -Setting @($settings)
+        foreach ($section in 'security', 'audit') {
+            $source = & $get $InputObject $section
+            if ($null -eq $source) { continue }
+            if ($source -is [System.Collections.IDictionary]) { foreach ($k in $source.Keys) { $set.$section[$k] = $source[$k] } }
+            else { foreach ($prop in $source.PSObject.Properties) { $set.$section[$prop.Name] = $prop.Value } }
+        }
+        $set
+    }
+}
+
 function Import-GpsPolicySet {
     <#
     .SYNOPSIS
@@ -98,30 +146,8 @@ function Import-GpsPolicySet {
     param([Parameter(Mandatory)][string]$Path)
 
     $json = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
-    $prop = { param($o, $n) if ($o.PSObject.Properties[$n]) { $o.PSObject.Properties[$n].Value } }
-
-    if (-not (& $prop $json 'name')) { throw "Policy Set '$Path' nema naziv (name)." }
-    $settings = foreach ($s in @(& $prop $json 'settings')) {
-        if ($null -eq $s) { continue }
-        if (-not (& $prop $s 'key')) { throw "Postavka u '$Path' nema registry ključ (key)." }
-        $p = @{
-            Key       = $s.key
-            ValueName = [string](& $prop $s 'valueName')
-        }
-        foreach ($name in 'scope', 'type', 'data', 'action', 'id', 'displayName') {
-            if ($s.PSObject.Properties[$name] -and $null -ne $s.$name) { $p[$name] = $s.$name }
-        }
-        New-GpsPolicySetting @p
-    }
-
-    $version = if (& $prop $json 'version') { [string]$json.version } else { '1.0.0' }
-    $set = New-GpsPolicySet -Name $json.name -Description ([string](& $prop $json 'description')) -Version $version -Setting @($settings)
-    foreach ($section in 'security', 'audit') {
-        if ($json.PSObject.Properties[$section] -and $json.$section) {
-            foreach ($prop in $json.$section.PSObject.Properties) { $set.$section[$prop.Name] = $prop.Value }
-        }
-    }
-    $set
+    try { ConvertTo-GpsPolicySet -InputObject $json }
+    catch { throw "Neispravan Policy Set '$Path': $($_.Exception.Message)" }
 }
 
 function Export-GpsPolicySet {

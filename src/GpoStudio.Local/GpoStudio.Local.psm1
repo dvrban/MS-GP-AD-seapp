@@ -89,7 +89,7 @@ function Get-GpsLocalPolicyCore {
     param([string[]]$Scope)
     foreach ($s in $Scope) {
         foreach ($e in @(Read-GpsRegistryPol -Path (Join-Path (Get-GpsLocalGpRoot) "$s\Registry.pol"))) {
-            [pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Scope = $s; Key = $e.Key; ValueName = $e.ValueName; Type = $e.Type; Data = $e.Data }
+            [pscustomobject]@{ ComputerName = [Environment]::MachineName; Scope = $s; Key = $e.Key; ValueName = $e.ValueName; Type = $e.Type; Data = $e.Data }
         }
     }
 }
@@ -112,9 +112,9 @@ function Backup-GpsLocalPolicyCore {
     $output = & auditpol.exe /backup "/file:$auditCsv" 2>&1
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $auditCsv)) { throw "auditpol /backup nije uspio ($LASTEXITCODE): $output" }
 
-    [ordered]@{ computerName = $env:COMPUTERNAME; created = (Get-Date).ToString('o'); gpRootExisted = $gpExisted } |
+    [ordered]@{ computerName = [Environment]::MachineName; created = (Get-Date).ToString('o'); gpRootExisted = $gpExisted } |
         ConvertTo-Json | Set-Content -LiteralPath (Join-Path $Destination 'gpostudio-backup.json') -Encoding UTF8
-    [pscustomobject]@{ ComputerName = $env:COMPUTERNAME; BackupPath = $Destination }
+    [pscustomobject]@{ ComputerName = [Environment]::MachineName; BackupPath = $Destination }
 }
 
 function Restore-GpsLocalPolicyCore {
@@ -168,7 +168,7 @@ function Restore-GpsLocalPolicyCore {
         $messages.Add("Greška: $_")
         $status = 'Error'
     }
-    [pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Status = $status; BackupPath = $BackupPath; Messages = $messages }
+    [pscustomobject]@{ ComputerName = [Environment]::MachineName; Status = $status; BackupPath = $BackupPath; Messages = $messages }
 }
 
 function Set-GpsSecurityPolicyCore {
@@ -197,7 +197,8 @@ function Set-GpsAuditPolicyCore {
     if (-not $Audit) { return }
     foreach ($name in $Audit.Keys) {
         $flags = [string]$Audit[$name]
-        $sub = if ($script:GpsAuditGuids.ContainsKey($name)) { $script:GpsAuditGuids[$name] } else { $name }
+        # Contains, ne ContainsKey: na udaljenom računalu ovo je OrderedDictionary iz payloada.
+        $sub = if ($script:GpsAuditGuids.Contains($name)) { $script:GpsAuditGuids[$name] } else { $name }
         $success = if ($flags -match 'Success') { 'enable' } else { 'disable' }
         $failure = if ($flags -match 'Failure') { 'enable' } else { 'disable' }
         $output = & auditpol.exe /set "/subcategory:$sub" "/success:$success" "/failure:$failure" 2>&1
@@ -238,7 +239,7 @@ function Invoke-GpsLocalApplyCore {
         $audit = ConvertTo-GpsHashtable $(if ($auditProp) { $auditProp.Value })
 
         if ($WhatIfMode) {
-            return [pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Status = 'WhatIf'; Diff = $diff; BackupPath = $null; Messages = $messages }
+            return [pscustomobject]@{ ComputerName = [Environment]::MachineName; Status = 'WhatIf'; Diff = $diff; BackupPath = $null; Messages = $messages }
         }
 
         $backup = (Backup-GpsLocalPolicyCore).BackupPath
@@ -259,7 +260,7 @@ function Invoke-GpsLocalApplyCore {
         $messages.Add("Greška: $_")
         $status = 'Error'
     }
-    [pscustomobject]@{ ComputerName = $env:COMPUTERNAME; Status = $status; Diff = $diff; BackupPath = $backup; Messages = $messages }
+    [pscustomobject]@{ ComputerName = [Environment]::MachineName; Status = $status; Diff = $diff; BackupPath = $backup; Messages = $messages }
 }
 
 #endregion
@@ -320,7 +321,9 @@ function Get-GpsLocalNameSet {
 function Test-GpsIsLocalComputer([string]$ComputerName) {
     if (-not $ComputerName) { return $true }
     if (-not $script:GpsLocalNames) { $script:GpsLocalNames = Get-GpsLocalNameSet }
-    $script:GpsLocalNames.Contains($ComputerName.TrimEnd('.'))
+    $name = $ComputerName.Trim()
+    # '.' je lokalno računalo; točka na kraju FQDN-a (ADMIN01.firma.local.) se ignorira.
+    $script:GpsLocalNames.Contains($name) -or $script:GpsLocalNames.Contains($name.TrimEnd('.'))
 }
 
 function Invoke-GpsOnTarget {
@@ -382,7 +385,9 @@ function Set-GpsLocalPolicy {
         [switch]$NoGpUpdate,
         [int]$ThrottleLimit = 16
     )
-    $targets = if ($ComputerName) { $ComputerName -join ', ' } else { $env:COMPUTERNAME }
+    # Normalizacija prije bilo kakve promjene: kasnije čitanje name/version ne smije pasti pod StrictMode.
+    $PolicySet = ConvertTo-GpsPolicySet -InputObject $PolicySet
+    $targets = if ($ComputerName) { $ComputerName -join ', ' } else { [Environment]::MachineName }
     $json = $PolicySet | ConvertTo-Json -Depth 10 -Compress
     $whatIfMode = -not $PSCmdlet.ShouldProcess($targets, "Primjena Policy Seta '$($PolicySet.name)' na lokalni GP")
 
@@ -423,7 +428,7 @@ function Restore-GpsLocalPolicy {
         [string]$ComputerName,
         [pscredential]$Credential
     )
-    $target = if ($ComputerName) { $ComputerName } else { $env:COMPUTERNAME }
+    $target = if ($ComputerName) { $ComputerName } else { [Environment]::MachineName }
     if ($PSCmdlet.ShouldProcess($target, "Vraćanje lokalnog GP-a iz $BackupPath")) {
         $results = @(Invoke-GpsOnTarget -ComputerName $ComputerName -Function 'Restore-GpsLocalPolicyCore' -ArgumentList @($BackupPath) -Credential $Credential)
         foreach ($r in $results) {

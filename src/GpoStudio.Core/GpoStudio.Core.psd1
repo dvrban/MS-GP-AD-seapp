@@ -7,7 +7,7 @@
     PowerShellVersion = '5.1'
     FunctionsToExport = @(
         'Read-GpsRegistryPol', 'Write-GpsRegistryPol',
-        'New-GpsPolicySet', 'New-GpsPolicySetting', 'Import-GpsPolicySet', 'Export-GpsPolicySet',
+        'New-GpsPolicySet', 'New-GpsPolicySetting', 'ConvertTo-GpsPolicySet', 'Import-GpsPolicySet', 'Export-GpsPolicySet',
         'Merge-GpsPolicySet', 'Compare-GpsPolicySet',
         'Get-GpsAdmxCatalog', 'ConvertTo-GpsPolicySetting', 'Write-GpsAuditLog'
     )
