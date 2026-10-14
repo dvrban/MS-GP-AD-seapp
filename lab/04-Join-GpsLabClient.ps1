@@ -52,9 +52,11 @@ if ($env:COMPUTERNAME -ne $ComputerName) {
 # pa ovo računalo ne dolazi ni do koga u mreži.
 $dup = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object AddressState -eq 'Duplicate')
 if ($dup) {
-    throw ("Adresa {0} je u sukobu s drugim računalom u mreži i Windows je ne koristi. Na hostu pronađite VM s istom adresom " +
-        "(Get-VMNetworkAdapter -VMName * | Select-Object VMName, IPAddresses) i uklonite je ondje. Zatim ovdje pokrenite " +
-        "Restart-NetAdapter -Name '{1}' i ponovno ovu skriptu.") -f $dup[0].IPAddress, $dup[0].InterfaceAlias
+    throw ("Adresa {0} je u sukobu s drugim računalom u mreži i Windows je ne koristi. U tablici adresa (docs/TESTNI-LAB.md, " +
+        "poglavlje 1) provjerite kojem računalu pripada. Ako pripada ovom računalu, uklonite je na drugom VM-u (na hostu: " +
+        "Get-VMNetworkAdapter -VMName * | Select-Object VMName, IPAddresses). Ako pripada drugom, ovom je računalu zadana pogrešna " +
+        "adresa: zamijenite je ovdje (Remove-NetIPAddress -IPAddress {0}, zatim New-NetIPAddress s ispravnom adresom). " +
+        "Na kraju ovdje pokrenite Restart-NetAdapter -Name '{1}' i ponovno ovu skriptu.") -f $dup[0].IPAddress, $dup[0].InterfaceAlias
 }
 
 $cs = Get-CimInstance Win32_ComputerSystem

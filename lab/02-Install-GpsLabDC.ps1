@@ -21,8 +21,9 @@
 [CmdletBinding()]
 param(
     [ValidateSet('Forest', 'AdditionalDC')][string]$Role = 'Forest',
-    [string]$ComputerName = 'DC01',
-    [string]$IPAddress = '10.10.10.10',
+    # Zadano: DC01 / 10.10.10.10 za Forest, DC02 / 10.10.10.11 za AdditionalDC.
+    [string]$ComputerName,
+    [string]$IPAddress,
     [string]$Gateway = '10.10.10.1',
     # Za Forest: DNS je on sam (127.0.0.1). Za AdditionalDC: adresa DC01.
     [string]$DnsServer,
@@ -32,6 +33,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not $ComputerName) { $ComputerName = if ($Role -eq 'Forest') { 'DC01' } else { 'DC02' } }
+if (-not $IPAddress) { $IPAddress = if ($Role -eq 'Forest') { '10.10.10.10' } else { '10.10.10.11' } }
 if (-not $DnsServer) { $DnsServer = if ($Role -eq 'Forest') { '127.0.0.1' } else { '10.10.10.10' } }
 
 # Faza 1: mreža i ime
@@ -66,9 +69,11 @@ if ($isDc) {
 # pa ovo računalo ne dolazi ni do koga u mreži.
 $dup = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object AddressState -eq 'Duplicate')
 if ($dup) {
-    throw ("Adresa {0} je u sukobu s drugim računalom u mreži i Windows je ne koristi. Na hostu pronađite VM s istom adresom " +
-        "(Get-VMNetworkAdapter -VMName * | Select-Object VMName, IPAddresses) i uklonite je ondje. Zatim ovdje pokrenite " +
-        "Restart-NetAdapter -Name '{1}' i ponovno ovu skriptu.") -f $dup[0].IPAddress, $dup[0].InterfaceAlias
+    throw ("Adresa {0} je u sukobu s drugim računalom u mreži i Windows je ne koristi. U tablici adresa (docs/TESTNI-LAB.md, " +
+        "poglavlje 1) provjerite kojem računalu pripada. Ako pripada ovom računalu, uklonite je na drugom VM-u (na hostu: " +
+        "Get-VMNetworkAdapter -VMName * | Select-Object VMName, IPAddresses). Ako pripada drugom, ovom je računalu zadana pogrešna " +
+        "adresa: zamijenite je ovdje (Remove-NetIPAddress -IPAddress {0}, zatim New-NetIPAddress s ispravnom adresom). " +
+        "Na kraju ovdje pokrenite Restart-NetAdapter -Name '{1}' i ponovno ovu skriptu.") -f $dup[0].IPAddress, $dup[0].InterfaceAlias
 }
 
 if ($Role -eq 'AdditionalDC') {
