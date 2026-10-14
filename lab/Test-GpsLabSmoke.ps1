@@ -471,6 +471,7 @@ if ('Domain' -in $Area) {
         }
 
         Invoke-LabStep 'D10' 'Revizijski zapisi objave' {
+            if (-not $script:gpoId) { return 'SKIP: D2 nije prošao' }
             $ok = @(Get-LabAuditEntry 'Publish-GpsDomainPolicy' | Where-Object result -eq 'OK')
             Assert-Lab ($ok.Count -ge 3) "Očekivana barem 3 uspješna zapisa (D2, D7, D7b), pronađeno $($ok.Count)."
             "$($ok.Count) zapis(a)"

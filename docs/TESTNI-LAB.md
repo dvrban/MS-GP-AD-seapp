@@ -172,8 +172,13 @@ C:\Lab\02-Install-GpsLabDC.ps1 -Role Forest     # 3. pokretanje (prijava kao GPS
 
 ```powershell
 C:\Lab\02-Install-GpsLabDC.ps1 -Role AdditionalDC -ComputerName DC02 -IPAddress 10.10.10.11 -DnsServer 10.10.10.10   # IP, ime, restart
-C:\Lab\02-Install-GpsLabDC.ps1 -Role AdditionalDC -ComputerName DC02 -IPAddress 10.10.10.11 -DnsServer 10.10.10.10   # dodatni DC, traži GPSLAB\Administrator
+C:\Lab\02-Install-GpsLabDC.ps1 -Role AdditionalDC -ComputerName DC02 -IPAddress 10.10.10.11 -DnsServer 10.10.10.10   # dodatni DC: DSRM lozinka, zatim gpslab.test\Administrator
 ```
+
+Adresu 10.10.10.11 ne smije imati nijedno drugo računalo; klijenti adrese dobivaju tek skriptom 04.
+Prije promocije skripta provjerava sukob adresa i dohvaća SRV zapis domene s DNS-a na DC01, pa
+nedostupan DC01 javi odmah, a ne kao grešku o vjerodajnicama (*Verification of user credential
+permissions failed … could not be contacted*).
 
 ### 3.5. Active Directory za testove
 

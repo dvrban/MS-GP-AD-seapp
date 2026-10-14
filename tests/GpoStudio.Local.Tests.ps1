@@ -97,7 +97,7 @@ Describe 'Invoke-GpsLocalApplyCore' {
             $script:cimStub = $true
         }
     }
-    AfterAll { if ($script:cimStub) { Remove-Item function:global:Get-CimInstance } }
+    AfterAll { if ($script:cimStub) { Remove-Item Function:\Get-CimInstance } }
 
     It 'diff radi i kad Policy Set nema security ni audit (StrictMode)' {
         InModuleScope GpoStudio.Local {
@@ -122,7 +122,7 @@ Describe 'Set-GpsLocalPolicy' {
             $script:cimStub2 = $true
         }
     }
-    AfterAll { if ($script:cimStub2) { Remove-Item function:global:Get-CimInstance } }
+    AfterAll { if ($script:cimStub2) { Remove-Item Function:\Get-CimInstance } }
 
     It 'primjenjuje set bez version i upisuje revizijski zapis' {
         Mock -ModuleName GpoStudio.Local Get-CimInstance { [pscustomobject]@{ PartOfDomain = $false } }

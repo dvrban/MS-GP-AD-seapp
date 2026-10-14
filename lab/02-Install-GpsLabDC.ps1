@@ -62,6 +62,26 @@ if ($isDc) {
     return
 }
 
+# Sukob adresa: adresu koju već koristi drugo računalo Windows označi kao Duplicate i ne koristi je,
+# pa ovo računalo ne dolazi ni do koga u mreži.
+$dup = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object AddressState -eq 'Duplicate')
+if ($dup) {
+    throw ("Adresa {0} je u sukobu s drugim računalom u mreži i Windows je ne koristi. Na hostu pronađite VM s istom adresom " +
+        "(Get-VMNetworkAdapter -VMName * | Select-Object VMName, IPAddresses) i uklonite je ondje. Zatim ovdje pokrenite " +
+        "Restart-NetAdapter -Name '{1}' i ponovno ovu skriptu.") -f $dup[0].IPAddress, $dup[0].InterfaceAlias
+}
+
+if ($Role -eq 'AdditionalDC') {
+    # Bez DNS-a na DC01 Install-ADDSDomainController javlja nejasnu grešku o vjerodajnicama ("could not be contacted").
+    $srvName = "_ldap._tcp.dc._msdcs.$DomainName"
+    try { $null = Resolve-DnsName -Name $srvName -Type SRV -Server $DnsServer -DnsOnly -ErrorAction Stop }
+    catch {
+        throw ("DNS server {0} ne vraća zapis {1} ({2}). Je li GPS-DC01 upaljen i spojen na switch GpsLab? Na hostu: " +
+            "Get-VMNetworkAdapter -VMName GPS-DC01, GPS-DC02 | Select-Object VMName, SwitchName, IPAddresses") -f $DnsServer, $srvName, $_.Exception.Message
+    }
+    Write-Host "DC za $DomainName je dostupan preko DNS-a $DnsServer." -ForegroundColor Green
+}
+
 $null = Install-WindowsFeature AD-Domain-Services, GPMC -IncludeManagementTools
 $dsrm = Read-Host -AsSecureString 'Lozinka za DSRM (Directory Services Restore Mode)'
 if ($Role -eq 'Forest') {
@@ -69,7 +89,8 @@ if ($Role -eq 'Forest') {
         -SafeModeAdministratorPassword $dsrm -Force
 }
 else {
-    $cred = Get-Credential -Message "Domain Admin za $DomainName (npr. $NetbiosName\Administrator)"
+    $cred = Get-Credential -UserName "$DomainName\Administrator" -Message "Domain Admin za $DomainName (lozinka Administratora s DC01)"
+    if (-not $cred) { throw 'Unos korisničkog imena i lozinke je otkazan.' }
     Install-ADDSDomainController -DomainName $DomainName -InstallDns -Credential $cred `
         -SafeModeAdministratorPassword $dsrm -Force
 }

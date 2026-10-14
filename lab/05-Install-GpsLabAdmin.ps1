@@ -92,10 +92,18 @@ if (-not (Get-Module Pester -ListAvailable | Where-Object Version -eq '5.7.1')) 
     Install-Module Pester -RequiredVersion 5.7.1 -Scope CurrentUser -Force -SkipPublisherCheck
 }
 if (-not $SkipTests) {
-    Import-Module Pester -RequiredVersion 5.7.1
-    $result = Invoke-Pester -Path (Join-Path $RepoPath 'tests') -PassThru -Output Normal
-    $color = if ($result.FailedCount -eq 0) { 'Green' } else { 'Red' }
-    Write-Host "Pester: $($result.PassedCount) prošlo, $($result.FailedCount) palo." -ForegroundColor $color
+    # Testovi rade u zasebnom procesu: zamjenske funkcije i mockovi iz testova ne smiju ostati u ovoj sesiji,
+    # u kojoj se poslije pokreću smoke test i GUI.
+    $pesterRun = @'
+Import-Module Pester -RequiredVersion 5.7.1
+$result = Invoke-Pester -Path $env:GPS_TESTS_PATH -PassThru -Output Normal
+$color = if ($result.FailedCount -eq 0) { 'Green' } else { 'Red' }
+Write-Host "Pester: $($result.PassedCount) prošlo, $($result.FailedCount) palo." -ForegroundColor $color
+'@
+    $env:GPS_TESTS_PATH = Join-Path $RepoPath 'tests'
+    & (Join-Path $PSHOME 'powershell.exe') -NoProfile -ExecutionPolicy Bypass -OutputFormat Text `
+        -EncodedCommand ([Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($pesterRun)))
+    Remove-Item Env:\GPS_TESTS_PATH
 }
 
 # 6. TrustedHosts za samostalno računalo (izvan domene WinRM koristi NTLM)

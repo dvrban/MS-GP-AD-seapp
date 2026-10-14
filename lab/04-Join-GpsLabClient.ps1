@@ -48,6 +48,15 @@ if ($env:COMPUTERNAME -ne $ComputerName) {
     return
 }
 
+# Sukob adresa: adresu koju već koristi drugo računalo Windows označi kao Duplicate i ne koristi je,
+# pa ovo računalo ne dolazi ni do koga u mreži.
+$dup = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object AddressState -eq 'Duplicate')
+if ($dup) {
+    throw ("Adresa {0} je u sukobu s drugim računalom u mreži i Windows je ne koristi. Na hostu pronađite VM s istom adresom " +
+        "(Get-VMNetworkAdapter -VMName * | Select-Object VMName, IPAddresses) i uklonite je ondje. Zatim ovdje pokrenite " +
+        "Restart-NetAdapter -Name '{1}' i ponovno ovu skriptu.") -f $dup[0].IPAddress, $dup[0].InterfaceAlias
+}
+
 $cs = Get-CimInstance Win32_ComputerSystem
 
 if ($Workgroup) {
