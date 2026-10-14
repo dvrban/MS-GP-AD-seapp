@@ -59,6 +59,11 @@
             })
     }
 
+    # Politika često pripada kategoriji iz druge ADMX datoteke (npr. windows:System iz windows.admx), pa se
+    # kategorije skupljaju iz svih datoteka i povezuju tek na kraju. Ključ je "<namespace>|<ime kategorije>".
+    $categoryNames = @{}
+    $policies = [System.Collections.Generic.List[object]]::new()
+
     foreach ($admxFile in Get-ChildItem -Path (Join-Path $Path '*') -Include $Filter -File) {
         try { [xml]$admx = Get-Content -LiteralPath $admxFile.FullName -Raw -Encoding UTF8 }
         catch { Write-Warning "Ne mogu pročitati $($admxFile.Name): $_"; continue }
@@ -80,15 +85,18 @@
         }
 
         $root = $admx.policyDefinitions
-        $categories = @{}
-        if ($root.categories) {
-            foreach ($c in $root.categories.category) {
-                $categories[$c.name] = [pscustomobject]@{
-                    Name        = $c.name
-                    DisplayName = & $resolve $c.displayName
-                    Parent      = if ($c.parentCategory) { $c.parentCategory.ref } else { $null }
-                }
+        # Prefiks u ref atributu (npr. "windows:") vodi na namespace iz <using>; bez prefiksa vrijedi <target>.
+        $namespaces = @{}
+        $targetNamespace = $null
+        if ($root.policyNamespaces) {
+            if ($root.policyNamespaces.target) {
+                $targetNamespace = $root.policyNamespaces.target.namespace
+                $namespaces[$root.policyNamespaces.target.prefix] = $targetNamespace
             }
+            foreach ($u in $root.policyNamespaces.using) { $namespaces[$u.prefix] = $u.namespace }
+        }
+        if ($root.categories) {
+            foreach ($c in $root.categories.category) { $categoryNames["$targetNamespace|$($c.name)"] = & $resolve $c.displayName }
         }
         if (-not $root.policies) { continue }
 
@@ -131,15 +139,20 @@
             }
 
             $categoryRef = if ($p.parentCategory) { $p.parentCategory.ref } else { $null }
-            $categoryName = if ($categoryRef -and $categories.ContainsKey($categoryRef)) { $categories[$categoryRef].DisplayName } else { $categoryRef }
+            $categoryKey = $null
+            if ($categoryRef) {
+                $prefix, $categoryId = if ($categoryRef.Contains(':')) { $categoryRef -split ':', 2 } else { $null, $categoryRef }
+                $namespace = if ($prefix) { $namespaces[$prefix] } else { $targetNamespace }
+                $categoryKey = "$namespace|$categoryId"
+            }
 
-            [pscustomobject]@{
+            $policy = [pscustomobject]@{
                 PSTypeName    = 'GpoStudio.AdmxPolicy'
                 Name          = $p.name
                 DisplayName   = & $resolve $p.displayName
                 Explain       = & $resolve $p.explainText
                 Class         = $p.class
-                Category      = $categoryName
+                Category      = $null
                 CategoryRef   = $categoryRef
                 Key           = $p.key
                 ValueName     = $p.valueName
@@ -152,6 +165,17 @@
                 Elements      = $elements
                 Source        = $admxFile.Name
             }
+            $policies.Add([pscustomobject]@{ Policy = $policy; CategoryKey = $categoryKey })
         }
+    }
+
+    foreach ($entry in $policies) {
+        $policy = $entry.Policy
+        if ($policy.CategoryRef) {
+            # Kategorija iz datoteke koja nije učitana (npr. zbog -Filter): ime bez prefiksa umjesto "windows:System".
+            $policy.Category = if ($categoryNames.ContainsKey($entry.CategoryKey)) { $categoryNames[$entry.CategoryKey] }
+            else { ($policy.CategoryRef -split ':')[-1] }
+        }
+        $policy
     }
 }

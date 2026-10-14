@@ -164,6 +164,15 @@ Describe 'ADMX katalog' {
         ($catalog | Where-Object Name -eq 'RemoveStore').DisplayName | Should -Be 'Turn off the Store application'
     }
 
+    It 'povezuje kategoriju iz druge ADMX datoteke preko namespacea, a nepoznatu prikazuje bez prefiksa' {
+        $catalog = @(Get-GpsAdmxCatalog -Path (Join-Path $fixtures 'PolicyDefinitions') -Language 'en-US')
+        $cross = $catalog | Where-Object Name -eq 'CrossRefPolicy'
+        $cross.CategoryRef | Should -Be 'sample:Cat_Store'
+        $cross.Category | Should -Be 'Store'
+        ($catalog | Where-Object Name -eq 'MissingCategoryPolicy').Category | Should -Be 'System'
+        ($catalog | Where-Object Name -eq 'RemoveStore').Category | Should -Be 'Store'
+    }
+
     It 'čita elemente politike (enum, decimal, text)' {
         $policy = Get-GpsAdmxCatalog -Path (Join-Path $fixtures 'PolicyDefinitions') -Language 'en-US' |
             Where-Object Name -eq 'UpdateMode'
