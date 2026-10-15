@@ -15,16 +15,43 @@ $script:GpsAdmCse = @{
     User    = '[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F73-3407-48AE-BA88-E8213C6761F1}]'
 }
 
-# Nazivi podkategorija u auditpol-u su lokalizirani, pa ih mapiramo na GUID-ove.
-$script:GpsAuditGuids = @{
-    'Credential Validation'     = '{0CCE923F-69AE-11D9-BED3-505054503030}'
-    'Logon'                     = '{0CCE9215-69AE-11D9-BED3-505054503030}'
-    'Logoff'                    = '{0CCE9216-69AE-11D9-BED3-505054503030}'
-    'Account Lockout'           = '{0CCE9217-69AE-11D9-BED3-505054503030}'
-    'Special Logon'             = '{0CCE921B-69AE-11D9-BED3-505054503030}'
-    'Process Creation'          = '{0CCE922B-69AE-11D9-BED3-505054503030}'
-    'User Account Management'   = '{0CCE9235-69AE-11D9-BED3-505054503030}'
-    'Security Group Management' = '{0CCE9237-69AE-11D9-BED3-505054503030}'
+# Nazivi podkategorija u auditpol-u su lokalizirani, pa ih mapiramo na GUID-ove (auditpol /list /subcategory:* /v).
+$script:GpsAuditGuids = [ordered]@{
+    'Security State Change'                  = '{0CCE9210-69AE-11D9-BED3-505054503030}'
+    'Security System Extension'              = '{0CCE9211-69AE-11D9-BED3-505054503030}'
+    'System Integrity'                       = '{0CCE9212-69AE-11D9-BED3-505054503030}'
+    'IPsec Driver'                           = '{0CCE9213-69AE-11D9-BED3-505054503030}'
+    'Other System Events'                    = '{0CCE9214-69AE-11D9-BED3-505054503030}'
+    'Logon'                                  = '{0CCE9215-69AE-11D9-BED3-505054503030}'
+    'Logoff'                                 = '{0CCE9216-69AE-11D9-BED3-505054503030}'
+    'Account Lockout'                        = '{0CCE9217-69AE-11D9-BED3-505054503030}'
+    'Special Logon'                          = '{0CCE921B-69AE-11D9-BED3-505054503030}'
+    'Other Logon/Logoff Events'              = '{0CCE921C-69AE-11D9-BED3-505054503030}'
+    'Group Membership'                       = '{0CCE9249-69AE-11D9-BED3-505054503030}'
+    'File System'                            = '{0CCE921D-69AE-11D9-BED3-505054503030}'
+    'Registry'                               = '{0CCE921E-69AE-11D9-BED3-505054503030}'
+    'File Share'                             = '{0CCE9224-69AE-11D9-BED3-505054503030}'
+    'Detailed File Share'                    = '{0CCE9244-69AE-11D9-BED3-505054503030}'
+    'Other Object Access Events'             = '{0CCE9227-69AE-11D9-BED3-505054503030}'
+    'Removable Storage'                      = '{0CCE9245-69AE-11D9-BED3-505054503030}'
+    'Sensitive Privilege Use'                = '{0CCE9228-69AE-11D9-BED3-505054503030}'
+    'Process Creation'                       = '{0CCE922B-69AE-11D9-BED3-505054503030}'
+    'Plug and Play Events'                   = '{0CCE9248-69AE-11D9-BED3-505054503030}'
+    'Audit Policy Change'                    = '{0CCE922F-69AE-11D9-BED3-505054503030}'
+    'Authentication Policy Change'           = '{0CCE9230-69AE-11D9-BED3-505054503030}'
+    'Authorization Policy Change'            = '{0CCE9231-69AE-11D9-BED3-505054503030}'
+    'MPSSVC Rule-Level Policy Change'        = '{0CCE9232-69AE-11D9-BED3-505054503030}'
+    'Other Policy Change Events'             = '{0CCE9234-69AE-11D9-BED3-505054503030}'
+    'User Account Management'                = '{0CCE9235-69AE-11D9-BED3-505054503030}'
+    'Computer Account Management'            = '{0CCE9236-69AE-11D9-BED3-505054503030}'
+    'Security Group Management'              = '{0CCE9237-69AE-11D9-BED3-505054503030}'
+    'Distribution Group Management'          = '{0CCE9238-69AE-11D9-BED3-505054503030}'
+    'Application Group Management'           = '{0CCE9239-69AE-11D9-BED3-505054503030}'
+    'Other Account Management Events'        = '{0CCE923A-69AE-11D9-BED3-505054503030}'
+    'Credential Validation'                  = '{0CCE923F-69AE-11D9-BED3-505054503030}'
+    'Kerberos Service Ticket Operations'     = '{0CCE9240-69AE-11D9-BED3-505054503030}'
+    'Other Account Logon Events'             = '{0CCE9241-69AE-11D9-BED3-505054503030}'
+    'Kerberos Authentication Service'        = '{0CCE9242-69AE-11D9-BED3-505054503030}'
 }
 
 #region Funkcije koje se izvršavaju NA CILJANOM računalu
@@ -275,6 +302,114 @@ function Invoke-GpsLocalApplyCore {
     [pscustomobject]@{ ComputerName = [Environment]::MachineName; Status = $status; Diff = $diff; BackupPath = $backup; Messages = $messages }
 }
 
+function Get-GpsControlStateCore {
+    <#
+        Čita stvarno stanje za sigurnosne kontrole: registry vrijednosti, [System Access] (secedit)
+        i naprednu reviziju (auditpol /backup daje brojčanu vrijednost neovisnu o jeziku sustava).
+        Korisnički dio (HKCU) čita se samo lokalno: na udaljenom računalu to bi bio profil WinRM korisnika.
+    #>
+    param([Parameter(Mandatory)][string]$QueryJson, [bool]$IncludeUser)
+    $query = $QueryJson | ConvertFrom-Json
+    $kinds = @{ String = 'REG_SZ'; ExpandString = 'REG_EXPAND_SZ'; DWord = 'REG_DWORD'; QWord = 'REG_QWORD'; MultiString = 'REG_MULTI_SZ'; Binary = 'REG_BINARY' }
+    $view = [Microsoft.Win32.RegistryView]::Registry64
+    if (-not [Environment]::Is64BitOperatingSystem) { $view = [Microsoft.Win32.RegistryView]::Default }
+    $hives = @{
+        Machine = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, $view)
+        User    = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::CurrentUser, $view)
+    }
+    $registry = @{}
+    $messages = [System.Collections.Generic.List[string]]::new()
+    try {
+        foreach ($r in @($query.registry)) {
+            if ($r.scope -eq 'User' -and -not $IncludeUser) { continue }
+            $entry = [pscustomobject]@{ Exists = $false; Type = $null; Data = $null }
+            $key = $hives[[string]$r.scope].OpenSubKey([string]$r.key)
+            if ($key) {
+                try {
+                    if (@($key.GetValueNames()) -contains [string]$r.valueName) {
+                        $kind = $key.GetValueKind([string]$r.valueName)
+                        $data = $key.GetValue([string]$r.valueName, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+                        # .NET vraća DWORD kao Int32 s predznakom; Registry.pol i Policy Set koriste UInt32.
+                        if ($kind -eq [Microsoft.Win32.RegistryValueKind]::DWord) { $data = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$data), 0) }
+                        $entry = [pscustomobject]@{ Exists = $true; Type = $kinds[[string]$kind]; Data = $data }
+                    }
+                }
+                finally { $key.Close() }
+            }
+            $registry[("{0}\{1}\{2}" -f $r.scope, $r.key, $r.valueName).ToLowerInvariant()] = $entry
+        }
+    }
+    finally { foreach ($h in $hives.Values) { $h.Close() } }
+
+    $security = @{}
+    if (@($query.security).Count -gt 0) {
+        $inf = Join-Path $env:TEMP ("gpostudio-state-{0}.inf" -f [guid]::NewGuid().ToString('N'))
+        try {
+            $output = & secedit.exe /export /cfg $inf /areas SECURITYPOLICY /quiet 2>&1
+            if ($LASTEXITCODE -ne 0) { $messages.Add("secedit /export nije uspio ($LASTEXITCODE): $output") }
+            else {
+                $inSection = $false
+                foreach ($line in Get-Content -LiteralPath $inf -Encoding Unicode) {
+                    if ($line -match '^\s*\[(.+)\]\s*$') { $inSection = $Matches[1] -eq 'System Access'; continue }
+                    if ($inSection -and $line -match '^\s*([^=]+?)\s*=\s*(.*?)\s*$') { $security[$Matches[1]] = $Matches[2] }
+                }
+            }
+        }
+        finally { Remove-Item -LiteralPath $inf -Force -ErrorAction SilentlyContinue }
+    }
+
+    $audit = @{}
+    if (@($query.audit).Count -gt 0) {
+        $csv = Join-Path $env:TEMP ("gpostudio-state-{0}.csv" -f [guid]::NewGuid().ToString('N'))
+        try {
+            $output = & auditpol.exe /backup "/file:$csv" 2>&1
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $csv)) { $messages.Add("auditpol /backup nije uspio ($LASTEXITCODE): $output") }
+            else {
+                $byGuid = @{}
+                foreach ($row in Import-Csv -LiteralPath $csv) {
+                    $guid = [string]$row.'Subcategory GUID'
+                    if ($guid) { $byGuid[$guid.ToUpperInvariant()] = [string]$row.'Setting Value' }
+                }
+                foreach ($name in @($query.audit)) {
+                    $guid = if ($script:GpsAuditGuids.Contains([string]$name)) { $script:GpsAuditGuids[[string]$name] } else { $null }
+                    # Podkategorija koje nema u backupu nije postavljena (No Auditing).
+                    $value = if ($guid -and $byGuid.ContainsKey($guid.ToUpperInvariant())) { $byGuid[$guid.ToUpperInvariant()] } elseif ($guid) { '0' } else { $null }
+                    if ($null -eq $value) { $messages.Add("Nepoznata podkategorija revizije: $name"); continue }
+                    $audit[[string]$name] = switch ($value) { '1' { 'Success' } '2' { 'Failure' } '3' { 'Success,Failure' } default { 'None' } }
+                }
+            }
+        }
+        finally { Remove-Item -LiteralPath $csv -Force -ErrorAction SilentlyContinue }
+    }
+
+    [pscustomobject]@{
+        ComputerName = [Environment]::MachineName
+        Registry     = $registry
+        Security     = $security
+        Audit        = $audit
+        UserIncluded = $IncludeUser
+        Messages     = $messages
+    }
+}
+
+function Get-GpsLocalBackupCore {
+    <# Popis backupa GPO Studija na ovom računalu, najnoviji prvi. #>
+    $root = Join-Path $env:ProgramData 'GpoStudio\Backup'
+    if (-not (Test-Path -LiteralPath $root)) { return }
+    $backups = foreach ($dir in Get-ChildItem -LiteralPath $root -Directory) {
+        $manifest = Join-Path $dir.FullName 'gpostudio-backup.json'
+        if (-not (Test-Path -LiteralPath $manifest)) { continue }
+        $created = $dir.CreationTime
+        try {
+            $m = Get-Content -LiteralPath $manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($m.created) { $created = [datetime]::Parse([string]$m.created, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind) }
+        }
+        catch { }
+        [pscustomobject]@{ ComputerName = [Environment]::MachineName; BackupPath = $dir.FullName; Created = $created }
+    }
+    $backups | Sort-Object Created -Descending
+}
+
 #endregion
 
 #region Javni cmdleti (izvršavaju se na admin stanici)
@@ -284,7 +419,8 @@ $script:GpsRemoteFunctions = @(
     'Read-GpsRegistryPol', 'Write-GpsRegistryPol', 'Merge-GpsPolicySet', 'Compare-GpsPolicySet',
     'ConvertTo-GpsComparable', 'Get-GpsSettingKey',
     'ConvertTo-GpsHashtable', 'Get-GpsLocalGpRoot', 'Update-GpsGptIni', 'Get-GpsLocalPolicyCore', 'Backup-GpsLocalPolicyCore',
-    'Restore-GpsLocalPolicyCore', 'Set-GpsSecurityPolicyCore', 'Set-GpsAuditPolicyCore', 'Invoke-GpsLocalApplyCore'
+    'Restore-GpsLocalPolicyCore', 'Set-GpsSecurityPolicyCore', 'Set-GpsAuditPolicyCore', 'Invoke-GpsLocalApplyCore',
+    'Get-GpsControlStateCore', 'Get-GpsLocalBackupCore'
 )
 
 function Get-GpsRemotePayload {
@@ -450,6 +586,54 @@ function Restore-GpsLocalPolicy {
     }
 }
 
+function Get-GpsLocalBackup {
+    <#
+    .SYNOPSIS
+        Popis backupa koje je GPO Studio napravio na jednom ili više računala (najnoviji prvi).
+    #>
+    [CmdletBinding()]
+    param([string[]]$ComputerName, [pscredential]$Credential)
+    Invoke-GpsOnTarget -ComputerName $ComputerName -Function 'Get-GpsLocalBackupCore' -ArgumentList @() -Credential $Credential
+}
+
+function Get-GpsControlState {
+    <#
+    .SYNOPSIS
+        Čita stvarno stanje sigurnosnih kontrola na računalima i određuje koja je opcija na snazi.
+    .DESCRIPTION
+        Stanje uključuje i domenske GPO-ove (čita se ono što računalo stvarno koristi). Korisnički
+        dio (HKCU) provjerava se samo na lokalnom računalu, za korisnika koji pokreće provjeru.
+    .EXAMPLE
+        $catalog = Get-GpsControlCatalog
+        $state = Get-GpsControlState -Catalog $catalog -ComputerName PC01
+        Get-GpsControlCompliance -Catalog $catalog -Selection $state.Selection
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Catalog,
+        [string[]]$ComputerName,
+        [pscredential]$Credential
+    )
+    $queryJson = Get-GpsControlStateQuery -Catalog $Catalog | ConvertTo-Json -Depth 5 -Compress
+    $targets = if ($ComputerName) { $ComputerName } else { @($null) }
+    foreach ($computer in $targets) {
+        $isLocal = Test-GpsIsLocalComputer $computer
+        $raw = @(Invoke-GpsOnTarget -ComputerName $(if ($computer) { @($computer) } else { $null }) -Function 'Get-GpsControlStateCore' `
+                -ArgumentList @($queryJson, $isLocal) -Credential $Credential)
+        foreach ($r in $raw) {
+            if (-not $r) { continue }
+            $resolved = Resolve-GpsControlState -Catalog $Catalog -State $r
+            [pscustomobject]@{
+                ComputerName = $r.ComputerName
+                Selection    = $resolved.Selection
+                Details      = $resolved.Details
+                UserIncluded = $r.UserIncluded
+                Messages     = @($r.Messages)
+            }
+        }
+    }
+}
+
 #endregion
 
-Export-ModuleMember -Function Get-GpsLocalPolicy, Set-GpsLocalPolicy, Backup-GpsLocalPolicy, Restore-GpsLocalPolicy
+Export-ModuleMember -Function Get-GpsLocalPolicy, Set-GpsLocalPolicy, Backup-GpsLocalPolicy, Restore-GpsLocalPolicy, Get-GpsLocalBackup, Get-GpsControlState

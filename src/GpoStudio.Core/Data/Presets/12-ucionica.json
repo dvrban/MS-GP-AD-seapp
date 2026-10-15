@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "name": "Učionica",
+  "description": "Za računala u učionici ili edukacijskom centru: bez pokretanja programa s USB-a, bez Trgovine i reklamiranih aplikacija, revizija prijava.",
+  "level": 2,
+  "changes": {
+    "usb.storage": "noexec",
+    "apps.store": "off",
+    "accounts.last-username": "on"
+  }
+}

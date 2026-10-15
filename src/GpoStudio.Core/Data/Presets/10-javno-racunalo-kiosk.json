@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "name": "Javno računalo / kiosk",
+  "description": "Za računala koja koriste gosti ili više osoba: USB zabranjen, bez Trgovine i skripti, brzo zaključavanje zaslona, bez udaljenog pristupa.",
+  "level": 2,
+  "changes": {
+    "usb.storage": "blocked",
+    "accounts.last-username": "on",
+    "accounts.screen-lock": "300",
+    "apps.store": "off",
+    "apps.wsh": "off",
+    "network.rdp": "off",
+    "privacy.location": "off",
+    "apps.office-macros": "signed"
+  }
+}

@@ -1,0 +1,3325 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": "2026.10-nacrt",
+  "standards": [
+    {
+      "id": "CIS-L1",
+      "title": "CIS Windows 11 Enterprise, razina 1",
+      "source": "CIS Microsoft Windows 11 Enterprise Benchmark",
+      "url": "https://www.cisecurity.org/benchmark/microsoft_windows_desktop"
+    },
+    {
+      "id": "CIS-L2",
+      "title": "CIS Windows 11 Enterprise, razina 2",
+      "includes": [
+        "CIS-L1"
+      ],
+      "source": "CIS Microsoft Windows 11 Enterprise Benchmark",
+      "url": "https://www.cisecurity.org/benchmark/microsoft_windows_desktop"
+    },
+    {
+      "id": "MSB",
+      "title": "Microsoft Security Baseline",
+      "source": "Microsoft Security Baseline za Windows 11, Edge i Microsoft 365 Apps",
+      "url": "https://learn.microsoft.com/windows/security/operating-system-security/device-management/windows-security-configuration-framework/windows-security-baselines"
+    }
+  ],
+  "levels": [
+    {
+      "id": 1,
+      "title": "Osnovno"
+    },
+    {
+      "id": 2,
+      "title": "Preporučeno"
+    },
+    {
+      "id": 3,
+      "title": "Strogo"
+    }
+  ],
+  "categories": [
+    {
+      "id": "accounts",
+      "title": "Lozinke i prijava",
+      "glyph": "LZ",
+      "description": "Pravila za lozinke, zaključavanje računa nakon pogrešnih pokušaja i zaključavanje zaslona. Vrijede za lokalne račune na računalu."
+    },
+    {
+      "id": "updates",
+      "title": "Ažuriranja",
+      "glyph": "AZ",
+      "description": "Kako i kada Windows instalira sigurnosne zakrpe i nove verzije."
+    },
+    {
+      "id": "usb",
+      "title": "USB i prijenosni mediji",
+      "glyph": "US",
+      "description": "USB diskovi, automatsko pokretanje i šifriranje prijenosnih diskova."
+    },
+    {
+      "id": "defender",
+      "title": "Zaštita od zlonamjernog softvera",
+      "glyph": "ZA",
+      "description": "Microsoft Defender, SmartScreen i pravila protiv tipičnih napada."
+    },
+    {
+      "id": "network",
+      "title": "Mreža i vatrozid",
+      "glyph": "MR",
+      "description": "Vatrozid, zastarjeli mrežni protokoli i udaljeni pristup računalu."
+    },
+    {
+      "id": "apps",
+      "title": "Preglednik i aplikacije",
+      "glyph": "AP",
+      "description": "Microsoft Edge, Office makronaredbe, Trgovina i skripte."
+    },
+    {
+      "id": "privacy",
+      "title": "Privatnost",
+      "glyph": "PV",
+      "description": "Dijagnostički podaci, oglasi i značajke koje šalju podatke Microsoftu."
+    },
+    {
+      "id": "system",
+      "title": "Sustav",
+      "glyph": "SU",
+      "description": "Kontrola korisničkog računa (UAC), zaštita lozinki u memoriji i instalacija programa."
+    },
+    {
+      "id": "audit",
+      "title": "Revizija i zapisi",
+      "glyph": "RV",
+      "description": "Bilježenje sigurnosnih događaja, da se napad ili greška mogu istražiti."
+    }
+  ],
+  "controls": [
+    {
+      "id": "accounts.password-length",
+      "category": "accounts",
+      "title": "Minimalna duljina lozinke",
+      "description": "Duže lozinke se puno teže pogađaju i probijaju. Vrijedi za lokalne račune na računalu.",
+      "impact": "Korisnici pri sljedećoj promjeni lozinke moraju odabrati dužu lozinku.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "8",
+          "title": "8 znakova",
+          "matchMode": "atLeast",
+          "security": {
+            "MinimumPasswordLength": 8
+          }
+        },
+        {
+          "id": "12",
+          "title": "12 znakova",
+          "matchMode": "atLeast",
+          "security": {
+            "MinimumPasswordLength": 12
+          }
+        },
+        {
+          "id": "14",
+          "title": "14 znakova",
+          "matchMode": "atLeast",
+          "security": {
+            "MinimumPasswordLength": 14
+          }
+        }
+      ],
+      "levels": {
+        "1": "8",
+        "2": "14",
+        "3": "14"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "14 ili više znakova",
+          "satisfiedBy": [
+            "14"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "14 znakova",
+          "satisfiedBy": [
+            "14"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "accounts.password-complexity",
+      "category": "accounts",
+      "title": "Složene lozinke",
+      "description": "Lozinka mora sadržavati velika i mala slova, brojke ili znakove i ne smije sadržavati korisničko ime.",
+      "impact": "Jednostavne lozinke poput \"ljeto2024\" više neće biti prihvaćene.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "security": {
+            "PasswordComplexity": 1
+          }
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno",
+          "satisfiedBy": [
+            "on"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Uključeno",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "accounts.password-history",
+      "category": "accounts",
+      "title": "Zabrana ponavljanja starih lozinki",
+      "description": "Windows pamti zadnje lozinke korisnika, pa se stara lozinka ne može odmah ponovno koristiti.",
+      "impact": "Korisnik pri promjeni ne može vratiti neku od zadnjih 24 lozinki.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "24",
+          "title": "Zadnje 24",
+          "matchMode": "atLeast",
+          "security": {
+            "PasswordHistorySize": 24
+          }
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "24",
+        "3": "24"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "24 ili više zapamćenih lozinki",
+          "satisfiedBy": [
+            "24"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "24",
+          "satisfiedBy": [
+            "24"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "accounts.password-max-age",
+      "category": "accounts",
+      "title": "Istek lozinke",
+      "description": "Određuje nakon koliko dana korisnik mora promijeniti lozinku. Prečesto mijenjanje potiče slabe lozinke, pa je preporuka jednom godišnje.",
+      "impact": "Windows će korisnika zamoliti da promijeni lozinku kad istekne.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "365",
+          "title": "Jednom godišnje",
+          "matchMode": "atMost",
+          "security": {
+            "MaximumPasswordAge": 365
+          }
+        },
+        {
+          "id": "90",
+          "title": "Svaka 3 mjeseca",
+          "matchMode": "atMost",
+          "security": {
+            "MaximumPasswordAge": 90
+          }
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "365",
+        "3": "365"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "365 dana ili manje, ali ne 0 (bez isteka)",
+          "satisfiedBy": [
+            "365",
+            "90"
+          ]
+        }
+      ],
+      "notes": "Microsoft baseline does not configure maximum password age (removed in 2019); NIST 800-63B discourages periodic expiry."
+    },
+    {
+      "id": "accounts.password-min-age",
+      "category": "accounts",
+      "title": "Minimalna starost lozinke",
+      "description": "Lozinka se ne može promijeniti ponovno unutar jednog dana, da korisnik ne bi brzim promjenama zaobišao zabranu starih lozinki.",
+      "impact": "Nakon promjene lozinke sljedeća promjena moguća je tek sutradan.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "1",
+          "title": "1 dan",
+          "matchMode": "atLeast",
+          "security": {
+            "MinimumPasswordAge": 1
+          }
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "1",
+        "3": "1"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "1 dan ili više",
+          "satisfiedBy": [
+            "1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "accounts.lockout",
+      "category": "accounts",
+      "title": "Zaključavanje računa nakon pogrešnih lozinki",
+      "description": "Nakon nekoliko pogrešnih lozinki račun se privremeno zaključava. Tako napadač ne može isprobavati tisuće lozinki.",
+      "impact": "Korisnik koji više puta pogriješi lozinku mora pričekati da se račun otključa.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "10",
+          "title": "10 pokušaja, 10 min",
+          "security": {
+            "LockoutBadCount": 10,
+            "LockoutDuration": 10,
+            "ResetLockoutCount": 10
+          }
+        },
+        {
+          "id": "5",
+          "title": "5 pokušaja, 15 min",
+          "security": {
+            "LockoutBadCount": 5,
+            "LockoutDuration": 15,
+            "ResetLockoutCount": 15
+          }
+        }
+      ],
+      "levels": {
+        "1": "10",
+        "2": "10",
+        "3": "5"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Najviše 5 pokušaja (ne 0), zaključavanje i brojač 15 minuta ili više",
+          "satisfiedBy": [
+            "5"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "10 pokušaja, 10 minuta",
+          "satisfiedBy": [
+            "10",
+            "5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "accounts.guest",
+      "category": "accounts",
+      "title": "Isključen račun Gost",
+      "description": "Ugrađeni račun Gost omogućuje prijavu bez lozinke. Treba biti isključen.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključen",
+          "security": {
+            "EnableGuestAccount": 0
+          }
+        }
+      ],
+      "levels": {
+        "1": "off",
+        "2": "off",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Isključen",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "accounts.screen-lock",
+      "category": "accounts",
+      "title": "Automatsko zaključavanje zaslona",
+      "description": "Računalo se samo zaključa kad se neko vrijeme ne koristi, pa nitko ne može sjesti za tuđe nezaključano računalo.",
+      "impact": "Nakon odabranog vremena bez rada korisnik se mora ponovno prijaviti.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "900",
+          "title": "15 minuta",
+          "matchMode": "atMost",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "InactivityTimeoutSecs",
+              "type": "REG_DWORD",
+              "data": 900
+            }
+          ]
+        },
+        {
+          "id": "600",
+          "title": "10 minuta",
+          "matchMode": "atMost",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "InactivityTimeoutSecs",
+              "type": "REG_DWORD",
+              "data": 600
+            }
+          ]
+        },
+        {
+          "id": "300",
+          "title": "5 minuta",
+          "matchMode": "atMost",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "InactivityTimeoutSecs",
+              "type": "REG_DWORD",
+              "data": 300
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "900",
+        "2": "900",
+        "3": "300"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "900 sekundi ili manje, ali ne 0",
+          "satisfiedBy": [
+            "900",
+            "600",
+            "300"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "900 sekundi",
+          "satisfiedBy": [
+            "900",
+            "600",
+            "300"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "accounts.last-username",
+      "category": "accounts",
+      "title": "Ne prikazuj zadnjeg korisnika",
+      "description": "Zaslon za prijavu ne prikazuje ime zadnjeg korisnika, pa napadač ne dobiva pola podataka za prijavu.",
+      "impact": "Korisnik pri svakoj prijavi upisuje i korisničko ime.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "DontDisplayLastUserName",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": null,
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "accounts.ctrl-alt-del",
+      "category": "accounts",
+      "title": "Prijava uz Ctrl+Alt+Del",
+      "description": "Prije prijave treba pritisnuti Ctrl+Alt+Del. To jamči da lozinku upisujete u pravi Windows, a ne u lažni prozor.",
+      "impact": "Korisnik pritišće Ctrl+Alt+Del prije upisa lozinke.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "DisableCAD",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno (DisableCAD = 0)",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "updates.automatic",
+      "category": "updates",
+      "title": "Automatska ažuriranja",
+      "description": "Windows sam preuzima i instalira sigurnosne zakrpe. Većina napada koristi propuste za koje zakrpa već postoji.",
+      "impact": "Ažuriranja se instaliraju automatski; povremeno je potreban ponovni pokretanje računala.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "notify",
+          "title": "Preuzmi i obavijesti",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+              "valueName": "NoAutoUpdate",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+              "valueName": "AUOptions",
+              "type": "REG_DWORD",
+              "data": 3
+            }
+          ]
+        },
+        {
+          "id": "auto",
+          "title": "Instaliraj automatski",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+              "valueName": "NoAutoUpdate",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+              "valueName": "AUOptions",
+              "type": "REG_DWORD",
+              "data": 4
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+              "valueName": "ScheduledInstallDay",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+              "valueName": "ScheduledInstallTime",
+              "type": "REG_DWORD",
+              "data": 3
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "auto",
+        "2": "auto",
+        "3": "auto"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno, instalacija svaki dan",
+          "satisfiedBy": [
+            "auto"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "updates.deadlines",
+      "category": "updates",
+      "title": "Rok za instalaciju ažuriranja",
+      "description": "Ako korisnik odgađa ažuriranja, nakon roka se instaliraju i računalo se ponovno pokreće.",
+      "impact": "Nakon isteka roka računalo se samo ponovno pokreće ako korisnik to nije napravio.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "7",
+          "title": "7 dana",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "SetComplianceDeadline",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ConfigureDeadlineForQualityUpdates",
+              "type": "REG_DWORD",
+              "data": 7
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ConfigureDeadlineForFeatureUpdates",
+              "type": "REG_DWORD",
+              "data": 7
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ConfigureDeadlineGracePeriod",
+              "type": "REG_DWORD",
+              "data": 2
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ConfigureDeadlineGracePeriodForFeatureUpdates",
+              "type": "REG_DWORD",
+              "data": 2
+            }
+          ]
+        },
+        {
+          "id": "3",
+          "title": "3 dana",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "SetComplianceDeadline",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ConfigureDeadlineForQualityUpdates",
+              "type": "REG_DWORD",
+              "data": 3
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ConfigureDeadlineForFeatureUpdates",
+              "type": "REG_DWORD",
+              "data": 3
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ConfigureDeadlineGracePeriod",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ConfigureDeadlineGracePeriodForFeatureUpdates",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "7",
+        "3": "3"
+      },
+      "benchmarks": []
+    },
+    {
+      "id": "updates.defer-feature",
+      "category": "updates",
+      "title": "Odgoda velikih nadogradnji",
+      "description": "Velike godišnje nadogradnje Windowsa instaliraju se tek kad su provjerene kod drugih, a sigurnosne zakrpe stižu bez odgode.",
+      "impact": "Nova verzija Windowsa dolazi nekoliko mjeseci kasnije.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "180",
+          "title": "180 dana",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "DeferFeatureUpdates",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "DeferFeatureUpdatesPeriodInDays",
+              "type": "REG_DWORD",
+              "data": 180
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "180",
+        "3": "180"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno, 180 dana ili više",
+          "satisfiedBy": [
+            "180"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "updates.quality-now",
+      "category": "updates",
+      "title": "Sigurnosne zakrpe bez odgode",
+      "description": "Mjesečne sigurnosne zakrpe instaliraju se čim izađu.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "0",
+          "title": "Bez odgode",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "DeferQualityUpdates",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "DeferQualityUpdatesPeriodInDays",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "0",
+        "2": "0",
+        "3": "0"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno, 0 dana",
+          "satisfiedBy": [
+            "0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "updates.preview-builds",
+      "category": "updates",
+      "title": "Bez probnih verzija Windowsa",
+      "description": "Računalo ne može ući u program Windows Insider s nedovršenim verzijama sustava.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ManagePreviewBuilds",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ManagePreviewBuildsPolicyValue",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "off",
+        "2": "off",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Isključene probne verzije",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "usb.storage",
+      "category": "usb",
+      "title": "USB diskovi i memorijske kartice",
+      "description": "Određuje što korisnici smiju raditi s USB diskovima. Zabrana pokretanja programa sprječava da se zlonamjerni program pokrene s USB-a.",
+      "impact": "Ovisno o izboru: programi se ne pokreću s USB-a, USB je samo za čitanje ili potpuno zabranjen.",
+      "impactLevel": "high",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "allowed",
+          "title": "Dozvoljeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices",
+              "valueName": "Deny_All",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Delete"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices\\{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}",
+              "valueName": "Deny_Execute",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Delete"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices\\{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}",
+              "valueName": "Deny_Write",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Delete"
+            }
+          ]
+        },
+        {
+          "id": "noexec",
+          "title": "Bez pokretanja programa",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices\\{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}",
+              "valueName": "Deny_Execute",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        },
+        {
+          "id": "readonly",
+          "title": "Samo čitanje",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices\\{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}",
+              "valueName": "Deny_Execute",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices\\{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}",
+              "valueName": "Deny_Write",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        },
+        {
+          "id": "blocked",
+          "title": "Zabranjeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices",
+              "valueName": "Deny_All",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "noexec",
+        "3": "readonly"
+      },
+      "benchmarks": []
+    },
+    {
+      "id": "usb.autoplay",
+      "category": "usb",
+      "title": "Bez automatskog pokretanja (AutoPlay)",
+      "description": "Kad se umetne USB ili disk, ništa se ne pokreće samo. Stari virusi su se širili upravo tako.",
+      "impact": "Pri umetanju USB-a ne otvara se prozor s ponudom radnji.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer",
+              "valueName": "NoDriveTypeAutoRun",
+              "type": "REG_DWORD",
+              "data": 255
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer",
+              "valueName": "NoAutorun",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Explorer",
+              "valueName": "NoAutoplayfornonVolume",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "off",
+        "2": "off",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "AutoPlay isključen za sve pogone, AutoRun bez naredbi",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "usb.bitlocker-write",
+      "category": "usb",
+      "title": "Upis samo na šifrirane USB diskove",
+      "description": "Na USB disk se može pisati samo ako je šifriran BitLockerom, pa podaci ostaju zaštićeni ako se disk izgubi.",
+      "impact": "Nešifrirani USB diskovi rade samo za čitanje; korisnik ih može šifrirati iz Windowsa.",
+      "impactLevel": "high",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "SYSTEM\\CurrentControlSet\\Policies\\Microsoft\\FVE",
+              "valueName": "RDVDenyWriteAccess",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": null,
+        "3": null
+      },
+      "benchmarks": []
+    },
+    {
+      "id": "defender.realtime",
+      "category": "defender",
+      "title": "Zaštita u stvarnom vremenu",
+      "description": "Microsoft Defender stalno provjerava datoteke, preuzimanja i skripte. Ova postavka sprječava da itko isključi zaštitu.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection",
+              "valueName": "DisableRealtimeMonitoring",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection",
+              "valueName": "DisableBehaviorMonitoring",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection",
+              "valueName": "DisableIOAVProtection",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection",
+              "valueName": "DisableScriptScanning",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključena zaštita, nadzor ponašanja, provjera preuzimanja i skripti",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "defender.removable-scan",
+      "category": "defender",
+      "title": "Provjera USB diskova",
+      "description": "Defender pri skeniranju provjerava i USB diskove.",
+      "impact": "Skeniranje traje malo duže kad je umetnut USB disk.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Scan",
+              "valueName": "DisableRemovableDriveScanning",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "defender.pua",
+      "category": "defender",
+      "title": "Blokiranje neželjenih programa",
+      "description": "Blokira programe koji nisu virusi, ali su nepoželjni: alatne trake, rudare kriptovaluta, agresivne oglase.",
+      "impact": "Instalacija takvih programa se blokira.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Blokiraj",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender",
+              "valueName": "PUAProtection",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno: blokiraj",
+          "satisfiedBy": [
+            "on"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Uključeno: blokiraj",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "defender.cloud",
+      "category": "defender",
+      "title": "Zaštita iz oblaka",
+      "description": "Defender šalje podatke o sumnjivim datotekama Microsoftu i dobiva odgovor u sekundi. Novi virusi se tako prepoznaju puno brže.",
+      "impact": "Korisnici ništa ne primjećuju; sumnjive datoteke mogu se poslati na analizu.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Spynet",
+              "valueName": "SpynetReporting",
+              "type": "REG_DWORD",
+              "data": 2
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Spynet",
+              "valueName": "SubmitSamplesConsent",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        },
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Spynet",
+              "valueName": "SpynetReporting",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "MSB",
+          "recommendation": "Napredno članstvo (MAPS), šalji sigurne uzorke",
+          "satisfiedBy": [
+            "on"
+          ]
+        },
+        {
+          "standard": "CIS-L2",
+          "recommendation": "Isključeno (zbog privatnosti)",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ],
+      "notes": "CIS L2 disables MAPS for privacy; Microsoft baseline enables it. Deliberate conflict shown in the comparison."
+    },
+    {
+      "id": "defender.network-protection",
+      "category": "defender",
+      "title": "Zaštita od opasnih web stranica",
+      "description": "Blokira spajanje bilo kojeg programa na poznate zlonamjerne i phishing stranice.",
+      "impact": "Pristup opasnim stranicama se blokira uz obavijest.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "audit",
+          "title": "Samo bilježi",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\Network Protection",
+              "valueName": "EnableNetworkProtection",
+              "type": "REG_DWORD",
+              "data": 2
+            }
+          ]
+        },
+        {
+          "id": "block",
+          "title": "Blokiraj",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\Network Protection",
+              "valueName": "EnableNetworkProtection",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "block",
+        "3": "block"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno: blokiraj",
+          "satisfiedBy": [
+            "block"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Uključeno: blokiraj",
+          "satisfiedBy": [
+            "block"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "defender.asr",
+      "category": "defender",
+      "title": "Pravila protiv tipičnih napada (ASR)",
+      "description": "Zaustavlja trikove koje koriste napadači: makronaredbe koje pokreću programe, sumnjive skripte, krađu lozinki iz memorije i slično.",
+      "impact": "Rijetko, stariji Office dodaci ili skripte mogu biti blokirani; zato se pravila mogu prvo samo bilježiti.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "audit",
+          "title": "Samo bilježi",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR",
+              "valueName": "ExploitGuard_ASR_Rules",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "be9ba2d9-53ea-4cdc-84e5-9b1eeee46550",
+              "type": "REG_SZ",
+              "data": "2"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "d4f940ab-401b-4efc-aadc-ad5f3c50688a",
+              "type": "REG_SZ",
+              "data": "2"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "3b576869-a4ec-4529-8536-b80a7769e899",
+              "type": "REG_SZ",
+              "data": "2"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84",
+              "type": "REG_SZ",
+              "data": "2"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "d3e037e1-3eb8-44c8-a917-57927947596d",
+              "type": "REG_SZ",
+              "data": "2"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "5beb7efe-fd9a-4556-801d-275e5ffc04cc",
+              "type": "REG_SZ",
+              "data": "2"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "92e97fa1-2edf-4476-bdd6-9dd0b4dddc7b",
+              "type": "REG_SZ",
+              "data": "2"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2",
+              "type": "REG_SZ",
+              "data": "2"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4",
+              "type": "REG_SZ",
+              "data": "2"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "e6db77e5-3df2-4cf1-b95a-636979351e5b",
+              "type": "REG_SZ",
+              "data": "2"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "26190899-1602-49e8-8b27-eb1d0a1ce869",
+              "type": "REG_SZ",
+              "data": "2"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c",
+              "type": "REG_SZ",
+              "data": "2"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "56a863a9-875e-4185-98a7-b882c64b5ce5",
+              "type": "REG_SZ",
+              "data": "2"
+            }
+          ]
+        },
+        {
+          "id": "block",
+          "title": "Blokiraj",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR",
+              "valueName": "ExploitGuard_ASR_Rules",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "be9ba2d9-53ea-4cdc-84e5-9b1eeee46550",
+              "type": "REG_SZ",
+              "data": "1"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "d4f940ab-401b-4efc-aadc-ad5f3c50688a",
+              "type": "REG_SZ",
+              "data": "1"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "3b576869-a4ec-4529-8536-b80a7769e899",
+              "type": "REG_SZ",
+              "data": "1"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84",
+              "type": "REG_SZ",
+              "data": "1"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "d3e037e1-3eb8-44c8-a917-57927947596d",
+              "type": "REG_SZ",
+              "data": "1"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "5beb7efe-fd9a-4556-801d-275e5ffc04cc",
+              "type": "REG_SZ",
+              "data": "1"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "92e97fa1-2edf-4476-bdd6-9dd0b4dddc7b",
+              "type": "REG_SZ",
+              "data": "1"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2",
+              "type": "REG_SZ",
+              "data": "1"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4",
+              "type": "REG_SZ",
+              "data": "1"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "e6db77e5-3df2-4cf1-b95a-636979351e5b",
+              "type": "REG_SZ",
+              "data": "1"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "26190899-1602-49e8-8b27-eb1d0a1ce869",
+              "type": "REG_SZ",
+              "data": "1"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c",
+              "type": "REG_SZ",
+              "data": "1"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules",
+              "valueName": "56a863a9-875e-4185-98a7-b882c64b5ce5",
+              "type": "REG_SZ",
+              "data": "1"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "audit",
+        "3": "block"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Pravila uključena u načinu blokiranja",
+          "satisfiedBy": [
+            "block"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Pravila uključena u načinu blokiranja",
+          "satisfiedBy": [
+            "block"
+          ]
+        }
+      ],
+      "notes": "Rules: BE9BA2D9-53EA-4CDC-84E5-9B1EEEE46550 izvršne datoteke iz e-pošte; D4F940AB-401B-4EFC-AADC-AD5F3C50688A Office pokreće druge programe; 3B576869-A4EC-4529-8536-B80A7769E899 Office stvara izvršne datoteke; 75668C1F-73B5-4CF0-BB93-3ECF5CB7CC84 Office ubacuje kod u druge procese; D3E037E1-3EB8-44C8-A917-57927947596D JavaScript/VBScript pokreće preuzeto; 5BEB7EFE-FD9A-4556-801D-275E5FFC04CC prikrivene skripte; 92E97FA1-2EDF-4476-BDD6-9DD0B4DDDC7B Win32 pozivi iz Office makronaredbi; 9E6C4E1F-7D60-472F-BA1A-A39EF669E4B2 krađa lozinki iz LSASS-a; B2B3F03D-6A65-4F7B-A9C7-1C7EF74A9BA4 nepotpisani programi s USB-a; E6DB77E5-3DF2-4CF1-B95A-636979351E5B trajnost preko WMI-ja; 26190899-1602-49E8-8B27-EB1D0A1CE869 Outlook pokreće druge programe; 7674BA52-37EB-4A4F-A9A1-F0F9A1619A2C Adobe Reader pokreće druge programe; 56A863A9-875E-4185-98A7-B882C64B5CE5 ranjivi potpisani upravljački programi"
+    },
+    {
+      "id": "defender.smartscreen",
+      "category": "defender",
+      "title": "SmartScreen za preuzete programe",
+      "description": "Windows upozorava i blokira nepoznate ili zlonamjerne programe preuzete s interneta.",
+      "impact": "Pri pokretanju nepoznatog programa pojavljuje se upozorenje koje se ne može zaobići.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Upozori i blokiraj",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\System",
+              "valueName": "EnableSmartScreen",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\System",
+              "valueName": "ShellSmartScreenLevel",
+              "type": "REG_SZ",
+              "data": "Block"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno: upozori i spriječi zaobilaženje",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "network.firewall",
+      "category": "network",
+      "title": "Vatrozid uključen",
+      "description": "Windows vatrozid je uključen na svim mrežama i blokira neželjene dolazne veze.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile",
+              "valueName": "EnableFirewall",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile",
+              "valueName": "DefaultInboundAction",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile",
+              "valueName": "DefaultOutboundAction",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile",
+              "valueName": "EnableFirewall",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile",
+              "valueName": "DefaultInboundAction",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile",
+              "valueName": "DefaultOutboundAction",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile",
+              "valueName": "EnableFirewall",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile",
+              "valueName": "DefaultInboundAction",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile",
+              "valueName": "DefaultOutboundAction",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključen za sve profile; dolazno blokiraj, odlazno dopusti",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "network.firewall-log",
+      "category": "network",
+      "title": "Zapis vatrozida",
+      "description": "Vatrozid bilježi blokirane i dopuštene veze, što pomaže pri istrazi incidenta.",
+      "impact": "Korisnici ništa ne primjećuju; zapis zauzima do 16 MB po mrežnom profilu.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "matchMode": "atLeast",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile\\Logging",
+              "valueName": "LogFileSize",
+              "type": "REG_DWORD",
+              "data": 16384
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile\\Logging",
+              "valueName": "LogDroppedPackets",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile\\Logging",
+              "valueName": "LogSuccessfulConnections",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging",
+              "valueName": "LogFileSize",
+              "type": "REG_DWORD",
+              "data": 16384
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging",
+              "valueName": "LogDroppedPackets",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging",
+              "valueName": "LogSuccessfulConnections",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\\Logging",
+              "valueName": "LogFileSize",
+              "type": "REG_DWORD",
+              "data": 16384
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\\Logging",
+              "valueName": "LogDroppedPackets",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\\Logging",
+              "valueName": "LogSuccessfulConnections",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": null,
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Veličina 16384 KB ili više, bilježi odbačene i uspješne veze",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "network.smb1",
+      "category": "network",
+      "title": "Isključen zastarjeli SMBv1",
+      "description": "SMB verzije 1 je star protokol za dijeljenje datoteka koji su iskoristili ransomware napadi poput WannaCry.",
+      "impact": "Vrlo stari NAS uređaji i pisači koji znaju samo SMBv1 neće raditi.",
+      "impactLevel": "low",
+      "requiresRestart": true,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters",
+              "valueName": "SMB1",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "SYSTEM\\CurrentControlSet\\Services\\mrxsmb10",
+              "valueName": "Start",
+              "type": "REG_DWORD",
+              "data": 4
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "off",
+        "2": "off",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "SMBv1 klijent i poslužitelj isključeni",
+          "satisfiedBy": [
+            "off"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "SMBv1 klijent i poslužitelj isključeni",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "network.smb-signing",
+      "category": "network",
+      "title": "Potpisivanje SMB prometa",
+      "description": "Promet prema dijeljenim mapama se digitalno potpisuje, pa ga nitko na mreži ne može neopaženo mijenjati.",
+      "impact": "Stari NAS uređaji bez podrške za potpisivanje mogu prestati raditi.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Obavezno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters",
+              "valueName": "RequireSecuritySignature",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters",
+              "valueName": "RequireSecuritySignature",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uvijek potpisuj (klijent i poslužitelj)",
+          "satisfiedBy": [
+            "on"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Uvijek potpisuj (klijent i poslužitelj)",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "network.llmnr",
+      "category": "network",
+      "title": "Isključen LLMNR",
+      "description": "LLMNR je stari način pronalaska računala u mreži koji napadači koriste za krađu lozinki.",
+      "impact": "Korisnici ništa ne primjećuju u mreži s DNS-om.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\DNSClient",
+              "valueName": "EnableMulticast",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "off",
+        "2": "off",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Isključeno",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "network.netbios",
+      "category": "network",
+      "title": "NetBIOS samo preko poslužitelja",
+      "description": "Računalo ne odgovara na NetBIOS upite cijeloj mreži (P-node), što zatvara još jedan put za krađu lozinki.",
+      "impact": "U mreži bez WINS poslužitelja ne radi pronalaženje računala po starom NetBIOS imenu.",
+      "impactLevel": "low",
+      "requiresRestart": true,
+      "options": [
+        {
+          "id": "pnode",
+          "title": "P-node",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters",
+              "valueName": "NodeType",
+              "type": "REG_DWORD",
+              "data": 2
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "pnode",
+        "3": "pnode"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "P-node (NodeType = 2)",
+          "satisfiedBy": [
+            "pnode"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "network.anonymous",
+      "category": "network",
+      "title": "Zabrana anonimnog popisivanja",
+      "description": "Anonimni korisnik iz mreže ne može dobiti popis korisničkih računa i dijeljenih mapa.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "SYSTEM\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "RestrictAnonymousSAM",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "SYSTEM\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "RestrictAnonymous",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno za račune i dijeljene mape",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "network.ntlm",
+      "category": "network",
+      "title": "Samo NTLMv2 prijava",
+      "description": "Računalo odbija stare, slabe načine prijave (LM i NTLMv1) i ne sprema lozinke u starom LM obliku.",
+      "impact": "Vrlo stari uređaji i sustavi (prije Windowsa Vista) se ne mogu prijaviti.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "SYSTEM\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "LmCompatibilityLevel",
+              "type": "REG_DWORD",
+              "data": 5
+            },
+            {
+              "scope": "Machine",
+              "key": "SYSTEM\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "NoLMHash",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Samo NTLMv2, odbij LM i NTLM; ne spremaj LM hash",
+          "satisfiedBy": [
+            "on"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Samo NTLMv2, odbij LM i NTLM",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "network.rdp",
+      "category": "network",
+      "title": "Udaljena radna površina (RDP)",
+      "description": "Udaljeno spajanje na računalo. Ako se koristi, mora biti zaštićeno provjerom prije spajanja (NLA) i šifriranjem.",
+      "impact": "Ako se zabrani, nitko se ne može spojiti na računalo preko udaljene radne površine.",
+      "impactLevel": "high",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "secure",
+          "title": "Zaštićeno (NLA)",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "UserAuthentication",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "MinEncryptionLevel",
+              "type": "REG_DWORD",
+              "data": 3
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "fPromptForPassword",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "fEncryptRPCTraffic",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "SecurityLayer",
+              "type": "REG_DWORD",
+              "data": 2
+            }
+          ]
+        },
+        {
+          "id": "off",
+          "title": "Zabranjeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "fDenyTSConnections",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "secure",
+        "2": "secure",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "NLA, visoko šifriranje, lozinka pri spajanju",
+          "satisfiedBy": [
+            "secure"
+          ]
+        },
+        {
+          "standard": "CIS-L2",
+          "recommendation": "Zabranjeno",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "network.remote-assistance",
+      "category": "network",
+      "title": "Isključena udaljena pomoć",
+      "description": "Windows udaljena pomoć (Remote Assistance) je isključena. Za podršku koristite alat koji odobri IT.",
+      "impact": "Korisnik ne može pozvati pomoć preko ugrađene Windows udaljene pomoći.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "fAllowToGetHelp",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "fAllowUnsolicited",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "off",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Isključena traženja i nuđenja pomoći",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "apps.edge-smartscreen",
+      "category": "apps",
+      "title": "Edge: zaštita od phishinga",
+      "description": "Microsoft Edge blokira poznate phishing i zlonamjerne stranice i preuzimanja, bez mogućnosti zaobilaženja.",
+      "impact": "Korisnik ne može otvoriti stranicu ili datoteku koju SmartScreen označi opasnom.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "SmartScreenEnabled",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "PreventSmartScreenPromptOverride",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "PreventSmartScreenPromptOverrideForFiles",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "MSB",
+          "recommendation": "Edge baseline: SmartScreen uključen, bez zaobilaženja",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "apps.office-internet-macros",
+      "category": "apps",
+      "title": "Office: blokiraj makronaredbe s interneta",
+      "description": "Makronaredbe u Word, Excel i PowerPoint datotekama preuzetim s interneta ili iz e-pošte ne mogu se pokrenuti.",
+      "impact": "Datoteke s makronaredbama iz interneta otvaraju se bez makronaredbi.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Blokiraj",
+          "settings": [
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\word\\Security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\excel\\Security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\powerpoint\\Security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "MSB",
+          "recommendation": "Microsoft 365 Apps baseline: blokirano",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "apps.office-macros",
+      "category": "apps",
+      "title": "Office: makronaredbe općenito",
+      "description": "Određuje smiju li se makronaredbe pokretati u Office datotekama.",
+      "impact": "Ovisno o izboru korisnik vidi upozorenje ili se pokreću samo potpisane makronaredbe.",
+      "impactLevel": "high",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "notify",
+          "title": "Isključene uz obavijest",
+          "settings": [
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\word\\Security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 2
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\excel\\Security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 2
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\powerpoint\\Security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 2
+            }
+          ]
+        },
+        {
+          "id": "signed",
+          "title": "Samo potpisane",
+          "settings": [
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\word\\Security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 3
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\excel\\Security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 3
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\powerpoint\\Security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 3
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": null,
+        "3": "signed"
+      },
+      "benchmarks": [
+        {
+          "standard": "MSB",
+          "recommendation": "Microsoft 365 Apps baseline: samo potpisane",
+          "satisfiedBy": [
+            "signed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "apps.store",
+      "category": "apps",
+      "title": "Isključena Microsoft Trgovina",
+      "description": "Korisnici ne mogu instalirati aplikacije iz Microsoft Trgovine. Korisno za javna računala i kioske.",
+      "impact": "Trgovina se ne otvara (samo Windows Enterprise i Education).",
+      "impactLevel": "high",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsStore",
+              "valueName": "RemoveWindowsStore",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": null,
+        "3": null
+      },
+      "benchmarks": []
+    },
+    {
+      "id": "apps.wsh",
+      "category": "apps",
+      "title": "Isključen Windows Script Host",
+      "description": "Zabranjuje pokretanje .vbs i .js skripti koje napadači često šalju e-poštom.",
+      "impact": "Stare prijavne skripte u .vbs obliku prestaju raditi.",
+      "impactLevel": "high",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows Script Host\\Settings",
+              "valueName": "Enabled",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": null,
+        "3": null
+      },
+      "benchmarks": []
+    },
+    {
+      "id": "privacy.telemetry",
+      "category": "privacy",
+      "title": "Dijagnostički podaci",
+      "description": "Koliko podataka o radu sustava Windows šalje Microsoftu.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "required",
+          "title": "Samo obavezni",
+          "matchMode": "atMost",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\DataCollection",
+              "valueName": "AllowTelemetry",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        },
+        {
+          "id": "off",
+          "title": "Isključeni",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\DataCollection",
+              "valueName": "AllowTelemetry",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "required",
+        "3": "required"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Obavezni podaci ili isključeno",
+          "satisfiedBy": [
+            "required",
+            "off"
+          ]
+        }
+      ],
+      "notes": "AllowTelemetry=0 is honoured only on Enterprise/Education; Pro treats it as 1. State check: 0 matches \"off\", 1 matches \"required\"."
+    },
+    {
+      "id": "privacy.advertising",
+      "category": "privacy",
+      "title": "Bez ID-a za oglašavanje",
+      "description": "Aplikacije ne mogu pratiti korisnika preko jedinstvenog ID-a za oglase.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AdvertisingInfo",
+              "valueName": "DisabledByGroupPolicy",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "off",
+        "2": "off",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L2",
+          "recommendation": "Isključeno",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "privacy.consumer",
+      "category": "privacy",
+      "title": "Bez reklamiranih aplikacija",
+      "description": "Windows ne instalira sam preporučene aplikacije i igre iz Trgovine.",
+      "impact": "Izbornik Start ne prikazuje ponude aplikacija.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+              "valueName": "DisableWindowsConsumerFeatures",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "off",
+        "2": "off",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Isključeno",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "privacy.lockscreen",
+      "category": "privacy",
+      "title": "Zaključani zaslon bez kamere i prezentacije",
+      "description": "Na zaključanom zaslonu nije dostupna kamera ni prikaz slika.",
+      "impact": "Kamera se ne može otvoriti sa zaključanog zaslona.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Personalization",
+              "valueName": "NoLockScreenCamera",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Personalization",
+              "valueName": "NoLockScreenSlideshow",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Kamera i prezentacija isključeni",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "privacy.location",
+      "category": "privacy",
+      "title": "Isključena lokacija",
+      "description": "Windows i aplikacije ne mogu koristiti lokaciju računala.",
+      "impact": "Karte i vremenska prognoza ne znaju gdje se računalo nalazi.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\LocationAndSensors",
+              "valueName": "DisableLocation",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": null,
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L2",
+          "recommendation": "Isključeno",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "privacy.activity",
+      "category": "privacy",
+      "title": "Bez povijesti aktivnosti",
+      "description": "Windows ne bilježi i ne šalje Microsoftu popis otvorenih dokumenata i aplikacija.",
+      "impact": "Vremenska crta aktivnosti nije dostupna.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\System",
+              "valueName": "EnableActivityFeed",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\System",
+              "valueName": "PublishUserActivities",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\System",
+              "valueName": "UploadUserActivities",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "off",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Slanje aktivnosti isključeno",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "privacy.search",
+      "category": "privacy",
+      "title": "Pretraživanje bez Cortane i lokacije",
+      "description": "Pretraživanje u Windowsu ne koristi Cortanu ni lokaciju računala.",
+      "impact": "Cortana nije dostupna.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Windows Search",
+              "valueName": "AllowCortana",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Windows Search",
+              "valueName": "AllowSearchToUseLocation",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "off",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Cortana i lokacija u pretraživanju isključeni",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "privacy.recall",
+      "category": "privacy",
+      "title": "Bez snimki zaslona za Recall",
+      "description": "Windows ne sprema snimke zaslona za značajku Recall (Copilot+ računala).",
+      "impact": "Recall nije dostupan.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsAI",
+              "valueName": "DisableAIDataAnalysis",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "off",
+        "3": "off"
+      },
+      "benchmarks": []
+    },
+    {
+      "id": "system.uac",
+      "category": "system",
+      "title": "Kontrola korisničkog računa (UAC)",
+      "description": "Prije promjena koje traže administratorska prava Windows traži potvrdu na zaštićenom zaslonu. Zlonamjerni program tako ne može tiho dobiti prava.",
+      "impact": "Ovisno o razini: potvrda ili upis lozinke administratora; standardni korisnici ne mogu sami pokretati programe kao administrator.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "standard",
+          "title": "Standardno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableLUA",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "ConsentPromptBehaviorAdmin",
+              "type": "REG_DWORD",
+              "data": 5
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "ConsentPromptBehaviorUser",
+              "type": "REG_DWORD",
+              "data": 3
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "PromptOnSecureDesktop",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "FilterAdministratorToken",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableInstallerDetection",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableVirtualization",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableSecureUIAPaths",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        },
+        {
+          "id": "recommended",
+          "title": "Preporučeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableLUA",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "ConsentPromptBehaviorAdmin",
+              "type": "REG_DWORD",
+              "data": 2
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "ConsentPromptBehaviorUser",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "PromptOnSecureDesktop",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "FilterAdministratorToken",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableInstallerDetection",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableVirtualization",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableSecureUIAPaths",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        },
+        {
+          "id": "strict",
+          "title": "Strogo",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableLUA",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "ConsentPromptBehaviorAdmin",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "ConsentPromptBehaviorUser",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "PromptOnSecureDesktop",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "FilterAdministratorToken",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableInstallerDetection",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableVirtualization",
+              "type": "REG_DWORD",
+              "data": 1
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableSecureUIAPaths",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "standard",
+        "2": "recommended",
+        "3": "strict"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Potvrda na zaštićenom zaslonu, odbij za standardne korisnike, Admin Approval Mode",
+          "satisfiedBy": [
+            "recommended",
+            "strict"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Potvrda na zaštićenom zaslonu, odbij za standardne korisnike",
+          "satisfiedBy": [
+            "recommended",
+            "strict"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "system.installer-elevated",
+      "category": "system",
+      "title": "Instalacije bez skrivenih administratorskih prava",
+      "description": "Isključuje opasnu postavku kojom bi svaki korisnik mogao instalirati programe s administratorskim pravima.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Installer",
+              "valueName": "AlwaysInstallElevated",
+              "type": "REG_DWORD",
+              "data": 0
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Installer",
+              "valueName": "AlwaysInstallElevated",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "off",
+        "2": "off",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Isključeno",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "system.lsa-protection",
+      "category": "system",
+      "title": "Zaštita lozinki u memoriji (LSA)",
+      "description": "Proces koji čuva lozinke prijavljenih korisnika radi kao zaštićeni proces, pa ga alati za krađu lozinki ne mogu čitati.",
+      "impact": "Rijetko, stari dodaci za prijavu (npr. čitači kartica) mogu prestati raditi.",
+      "impactLevel": "low",
+      "requiresRestart": true,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "SYSTEM\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "RunAsPPL",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno s UEFI zaključavanjem",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "system.wdigest",
+      "category": "system",
+      "title": "Bez lozinki u čitljivom obliku (WDigest)",
+      "description": "Windows ne čuva lozinke u memoriji u obliku koji se može pročitati.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\WDigest",
+              "valueName": "UseLogonCredential",
+              "type": "REG_DWORD",
+              "data": 0
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "off",
+        "2": "off",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Isključeno",
+          "satisfiedBy": [
+            "off"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Isključeno",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "audit.events",
+      "category": "audit",
+      "title": "Revizija sigurnosnih događaja",
+      "description": "Windows bilježi prijave, zaključavanja računa, promjene korisnika i druge sigurnosne događaje u zapisnik Security.",
+      "impact": "Korisnici ništa ne primjećuju; zapisnik raste brže.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "basic",
+          "title": "Osnovno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "SYSTEM\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "SCENoApplyLegacyAuditPolicy",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ],
+          "audit": {
+            "Credential Validation": "Success,Failure",
+            "Logon": "Success,Failure",
+            "Logoff": "Success",
+            "Account Lockout": "Failure",
+            "Special Logon": "Success",
+            "User Account Management": "Success,Failure",
+            "Security Group Management": "Success"
+          }
+        },
+        {
+          "id": "extended",
+          "title": "Prošireno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "SYSTEM\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "SCENoApplyLegacyAuditPolicy",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ],
+          "audit": {
+            "Credential Validation": "Success,Failure",
+            "Application Group Management": "Success,Failure",
+            "Security Group Management": "Success",
+            "User Account Management": "Success,Failure",
+            "Plug and Play Events": "Success",
+            "Process Creation": "Success",
+            "Account Lockout": "Failure",
+            "Group Membership": "Success",
+            "Logoff": "Success",
+            "Logon": "Success,Failure",
+            "Other Logon/Logoff Events": "Success,Failure",
+            "Special Logon": "Success",
+            "Detailed File Share": "Failure",
+            "File Share": "Success,Failure",
+            "Other Object Access Events": "Success,Failure",
+            "Removable Storage": "Success,Failure",
+            "Audit Policy Change": "Success",
+            "Authentication Policy Change": "Success",
+            "Authorization Policy Change": "Success",
+            "MPSSVC Rule-Level Policy Change": "Success,Failure",
+            "Other Policy Change Events": "Failure",
+            "Sensitive Privilege Use": "Success,Failure",
+            "IPsec Driver": "Success,Failure",
+            "Other System Events": "Success,Failure",
+            "Security State Change": "Success",
+            "Security System Extension": "Success",
+            "System Integrity": "Success,Failure"
+          }
+        }
+      ],
+      "levels": {
+        "1": "basic",
+        "2": "extended",
+        "3": "extended"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Napredna revizija prema CIS-u za sve podkategorije",
+          "satisfiedBy": [
+            "extended"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "audit.cmdline",
+      "category": "audit",
+      "title": "Naredbeni redak u zapisu procesa",
+      "description": "Uz svaki pokrenuti program bilježi se i cijela naredba, što jako pomaže pri istrazi napada.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\Audit",
+              "valueName": "ProcessCreationIncludeCmdLine_Enabled",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "audit.powershell",
+      "category": "audit",
+      "title": "Zapis PowerShell skripti",
+      "description": "Bilježi sadržaj PowerShell skripti koje se izvršavaju, pa se vidi i prikriveni zlonamjerni kod.",
+      "impact": "Korisnici ništa ne primjećuju; zapisnik PowerShella raste brže.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging",
+              "valueName": "EnableScriptBlockLogging",
+              "type": "REG_DWORD",
+              "data": 1
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": []
+    },
+    {
+      "id": "audit.eventlog-size",
+      "category": "audit",
+      "title": "Veći zapisnici događaja",
+      "description": "Zapisnici Application, Security i System su dovoljno veliki da stari događaji ne nestanu prije istrage.",
+      "impact": "Zapisnici zauzimaju do oko 260 MB na disku.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "cis",
+          "title": "Prema CIS-u",
+          "matchMode": "atLeast",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\Application",
+              "valueName": "MaxSize",
+              "type": "REG_DWORD",
+              "data": 32768
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\Security",
+              "valueName": "MaxSize",
+              "type": "REG_DWORD",
+              "data": 196608
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\System",
+              "valueName": "MaxSize",
+              "type": "REG_DWORD",
+              "data": 32768
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "cis",
+        "3": "cis"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Application i System 32 MB ili više, Security 192 MB ili više",
+          "satisfiedBy": [
+            "cis"
+          ]
+        }
+      ]
+    }
+  ]
+}

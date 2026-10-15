@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": "test",
+  "standards": [
+    { "id": "CIS-L1", "title": "CIS razina 1" },
+    { "id": "CIS-L2", "title": "CIS razina 2", "includes": ["CIS-L1"] },
+    { "id": "MSB", "title": "Microsoft Security Baseline" }
+  ],
+  "levels": [ { "id": 1, "title": "Osnovno" }, { "id": 2, "title": "Preporučeno" }, { "id": 3, "title": "Strogo" } ],
+  "categories": [
+    { "id": "accounts", "title": "Lozinke i prijava", "glyph": "LZ" },
+    { "id": "usb", "title": "USB i prijenosni mediji", "glyph": "US" }
+  ],
+  "controls": [
+    {
+      "id": "accounts.password-length", "category": "accounts",
+      "title": "Minimalna duljina lozinke", "description": "Duže lozinke se teže pogađaju.",
+      "options": [
+        { "id": "8", "title": "8 znakova", "matchMode": "atLeast", "security": { "MinimumPasswordLength": 8 } },
+        { "id": "14", "title": "14 znakova", "matchMode": "atLeast", "security": { "MinimumPasswordLength": 14 } }
+      ],
+      "levels": { "1": "8", "2": "14", "3": "14" },
+      "benchmarks": [
+        { "standard": "CIS-L1", "recommendation": "14 ili više", "satisfiedBy": ["14"] },
+        { "standard": "MSB", "recommendation": "14", "satisfiedBy": ["14"] }
+      ]
+    },
+    {
+      "id": "accounts.screen-lock", "category": "accounts",
+      "title": "Automatsko zaključavanje", "description": "Zaključava računalo kad se ne koristi.",
+      "options": [
+        { "id": "15", "title": "15 minuta", "matchMode": "atMost",
+          "settings": [ { "scope": "Machine", "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", "valueName": "InactivityTimeoutSecs", "type": "REG_DWORD", "data": 900 } ] },
+        { "id": "5", "title": "5 minuta", "matchMode": "atMost",
+          "settings": [ { "scope": "Machine", "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", "valueName": "InactivityTimeoutSecs", "type": "REG_DWORD", "data": 300 } ] }
+      ],
+      "levels": { "1": "15", "2": "15", "3": "5" },
+      "benchmarks": [ { "standard": "CIS-L1", "recommendation": "900 s ili manje", "satisfiedBy": ["15", "5"] } ]
+    },
+    {
+      "id": "usb.storage", "category": "usb",
+      "title": "USB diskovi", "description": "Pristup prijenosnim diskovima.",
+      "options": [
+        { "id": "allowed", "title": "Dozvoljeno",
+          "settings": [
+            { "scope": "Machine", "key": "Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices", "valueName": "Deny_All", "type": "REG_DWORD", "data": 0, "action": "Delete" }
+          ] },
+        { "id": "readonly", "title": "Samo čitanje",
+          "settings": [
+            { "scope": "Machine", "key": "Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices\\{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}", "valueName": "Deny_Write", "type": "REG_DWORD", "data": 1 }
+          ] },
+        { "id": "blocked", "title": "Zabranjeno",
+          "settings": [
+            { "scope": "Machine", "key": "Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices", "valueName": "Deny_All", "type": "REG_DWORD", "data": 1 }
+          ] }
+      ],
+      "levels": { "1": "allowed", "2": "allowed", "3": "readonly" },
+      "benchmarks": [ { "standard": "CIS-L2", "recommendation": "Ograničiti", "satisfiedBy": ["readonly", "blocked"] } ]
+    },
+    {
+      "id": "accounts.audit-logon", "category": "accounts",
+      "title": "Revizija prijava", "description": "Bilježi prijave.",
+      "options": [
+        { "id": "on", "title": "Uključeno",
+          "audit": { "Logon": "Success,Failure" },
+          "settings": [ { "scope": "User", "key": "Software\\Policies\\Test", "valueName": "UserFlag", "type": "REG_DWORD", "data": 1 } ] }
+      ],
+      "levels": { "1": null, "2": "on", "3": "on" },
+      "benchmarks": [ { "standard": "CIS-L1", "recommendation": "Uspjeh i neuspjeh", "satisfiedBy": ["on"] } ]
+    }
+  ]
+}

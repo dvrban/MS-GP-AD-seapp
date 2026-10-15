@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "name": "Prijenosno računalo (teren)",
+  "description": "Za laptope izvan ureda: upis samo na šifrirane USB diskove, brže zaključavanje, zapis vatrozida i bez udaljene radne površine.",
+  "level": 2,
+  "changes": {
+    "usb.bitlocker-write": "on",
+    "accounts.screen-lock": "300",
+    "network.firewall-log": "on",
+    "network.rdp": "off"
+  }
+}

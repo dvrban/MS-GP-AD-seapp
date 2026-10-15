@@ -27,6 +27,9 @@ jobs:
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module Pester -RequiredVersion 5.7.1 -Scope CurrentUser -Force -SkipPublisherCheck
       - name: Testovi
+        env:
+          # GUI test (samo Windows PowerShell 5.1) sprema snimke svih stranica sučelja.
+          GPS_SCREENSHOT_DIR: ${{ github.workspace }}/gui-screenshots
         run: |
           Import-Module Pester -RequiredVersion 5.7.1
           $config = New-PesterConfiguration
@@ -34,3 +37,10 @@ jobs:
           $config.Run.Exit = $true
           $config.Output.Verbosity = 'Detailed'
           Invoke-Pester -Configuration $config
+      - name: Snimke sučelja
+        if: always() && matrix.shell == 'powershell'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-screenshots
+          path: gui-screenshots
+          if-no-files-found: ignore
