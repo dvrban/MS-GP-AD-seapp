@@ -28,6 +28,30 @@ Describe 'gpt.ini' {
     }
 }
 
+Describe 'gpt.ini koji je napisao gpedit' {
+    It 'spaja naš alat u postojeću CSE grupu umjesto da doda duplikat' {
+        InModuleScope GpoStudio.Local {
+            $root = Join-Path $TestDrive 'gp-gpedit'
+            $null = New-Item -ItemType Directory -Path $root
+            $existing = '[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{0F6B957D-509E-11D1-A7CC-0000F87571E3}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]' +
+                '[{827D319E-6EAC-11D2-A4EA-00C04F79F83A}{803E14A0-B4FB-11D0-A0D0-00A0C90F574B}]'
+            Set-Content -Path (Join-Path $root 'gpt.ini') -Value '[General]', "gPCMachineExtensionNames=$existing", 'Version=3'
+
+            Update-GpsGptIni -Root $root -Scope Machine -ExtensionNames $script:GpsAdmCse
+            $line = (Get-Content (Join-Path $root 'gpt.ini')) | Where-Object { $_ -like 'gPCMachineExtensionNames=*' }
+            $value = $line.Substring('gPCMachineExtensionNames='.Length)
+
+            $value | Should -Be $existing
+            ([regex]::Matches($value, '\[\{35378EAC')).Count | Should -Be 1
+
+            # Ponovno pokretanje ništa ne mijenja osim verzije.
+            Update-GpsGptIni -Root $root -Scope Machine -ExtensionNames $script:GpsAdmCse
+            (Get-Content (Join-Path $root 'gpt.ini')) | Should -Contain "gPCMachineExtensionNames=$existing"
+            (Get-Content (Join-Path $root 'gpt.ini')) | Should -Contain 'Version=5'
+        }
+    }
+}
+
 Describe 'Payload za udaljena računala' {
     It 'se izvršava u čistom runspaceu bez učitanih modula' {
         $payload = InModuleScope GpoStudio.Local { Get-GpsRemotePayload }
@@ -73,7 +97,7 @@ Describe 'Invoke-GpsLocalApplyCore' {
             $script:cimStub = $true
         }
     }
-    AfterAll { if ($script:cimStub) { Remove-Item function:global:Get-CimInstance } }
+    AfterAll { if ($script:cimStub) { Remove-Item Function:\Get-CimInstance } }
 
     It 'diff radi i kad Policy Set nema security ni audit (StrictMode)' {
         InModuleScope GpoStudio.Local {
@@ -98,7 +122,7 @@ Describe 'Set-GpsLocalPolicy' {
             $script:cimStub2 = $true
         }
     }
-    AfterAll { if ($script:cimStub2) { Remove-Item function:global:Get-CimInstance } }
+    AfterAll { if ($script:cimStub2) { Remove-Item Function:\Get-CimInstance } }
 
     It 'primjenjuje set bez version i upisuje revizijski zapis' {
         Mock -ModuleName GpoStudio.Local Get-CimInstance { [pscustomobject]@{ PartOfDomain = $false } }

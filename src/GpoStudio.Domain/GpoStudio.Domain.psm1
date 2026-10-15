@@ -61,7 +61,10 @@ function Get-GpsDomainContext {
     Import-GpsRsatModules
     $p = @{}
     if ($Domain) { $p.Identity = $Domain }
-    $d = Get-ADDomain @p
+    $d = Get-ADDomain @p -ErrorAction Stop
+    if (-not $d) {
+        throw "Get-ADDomain nije vratio domenu. Provjerite je li računalo u domeni i je li Get-ADDomain pravi cmdlet (Get-Command Get-ADDomain: CommandType Cmdlet, Source ActiveDirectory); ako je Function, otvorite novi PowerShell."
+    }
     [pscustomobject]@{ Domain = $d.DNSRoot; DistinguishedName = $d.DistinguishedName; Server = $d.PDCEmulator }
 }
 

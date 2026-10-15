@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitionResources xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" revision="1.0" schemaVersion="1.0">
+  <displayName />
+  <description />
+  <resources>
+    <stringTable>
+      <string id="CrossRefPolicy">Policy in a category from another ADMX file</string>
+      <string id="CrossRefPolicy_Help">Its parent category is defined in GpsSample.admx.</string>
+      <string id="MissingCategoryPolicy">Policy whose category file is not loaded</string>
+      <string id="MissingCategoryPolicy_Help">Its parent category is defined in windows.admx, which is not in the fixtures.</string>
+    </stringTable>
+  </resources>
+</policyDefinitionResources>

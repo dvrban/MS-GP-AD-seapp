@@ -1,7 +1,8 @@
 ﻿BeforeAll {
     # Zamjenske funkcije za RSAT cmdlete, da se modul može testirati bez domene.
-    foreach ($name in 'Get-ADDomain', 'Get-GPO', 'New-GPO', 'Backup-GPO', 'Get-GPRegistryValue', 'Set-GPRegistryValue',
-        'Get-GPInheritance', 'New-GPLink', 'Set-GPPermission', 'Get-ADGroup') {
+    $script:rsatStubs = 'Get-ADDomain', 'Get-GPO', 'New-GPO', 'Backup-GPO', 'Get-GPRegistryValue', 'Set-GPRegistryValue',
+        'Get-GPInheritance', 'New-GPLink', 'Set-GPPermission', 'Get-ADGroup'
+    foreach ($name in $script:rsatStubs) {
         Set-Item -Path "function:global:$name" -Value {
             [CmdletBinding()]
             param($Identity, $Name, $Guid, $Domain, $Server, $Key, $ValueName, $Type, $Value, [switch]$Disable,
@@ -18,8 +19,11 @@
 }
 
 AfterAll {
-    foreach ($name in 'Get-ADDomain', 'Get-GPO', 'New-GPO', 'Backup-GPO', 'Get-GPRegistryValue', 'Set-GPRegistryValue',
-        'Get-GPInheritance', 'New-GPLink', 'Set-GPPermission', 'Get-ADGroup') { Remove-Item "function:global:$name" -ErrorAction SilentlyContinue }
+    # Remove-Item 'function:global:Ime' javi uspjeh, a funkciju ne ukloni; ispravna putanja je 'Function:\Ime'.
+    # Zaostale zamjenske funkcije skrivale bi prave RSAT cmdlete u sesiji u kojoj su testovi pokrenuti.
+    foreach ($name in $script:rsatStubs) { if (Test-Path "Function:\$name") { Remove-Item "Function:\$name" } }
+    $left = @($script:rsatStubs | Where-Object { Test-Path "Function:\$_" })
+    if ($left) { throw "Zamjenske funkcije su ostale u sesiji: $($left -join ', ')" }
 }
 
 Describe 'Publish-GpsDomainPolicy' {
@@ -108,6 +112,14 @@ Describe 'Publish-GpsDomainPolicy' {
     It 'odbija zadani domenski GPO bez -Force' {
         Mock -ModuleName GpoStudio.Domain Get-GPO { [pscustomobject]@{ Id = [guid]'31B2F340-016D-11D2-945F-00C04FB984F9' } }
         { Publish-GpsDomainPolicy -PolicySet $set -GpoName 'Default Domain Policy' -Confirm:$false } | Should -Throw '*-Force*'
+    }
+}
+
+Describe 'Get-GpsDomainContext' {
+    It 'javlja jasnu grešku kad Get-ADDomain ne vrati domenu' {
+        Mock -ModuleName GpoStudio.Domain Import-GpsRsatModules {}
+        Mock -ModuleName GpoStudio.Domain Get-ADDomain { }
+        { Get-GpsDomainContext } | Should -Throw '*Get-ADDomain*'
     }
 }
 

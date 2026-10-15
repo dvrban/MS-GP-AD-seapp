@@ -74,11 +74,23 @@ function Update-GpsGptIni {
     foreach ($s in $Scope) {
         $attr = if ($s -eq 'Machine') { 'gPCMachineExtensionNames' } else { 'gPCUserExtensionNames' }
         $current = if ($values.Contains($attr)) { $values[$attr] } else { '' }
-        if (-not $current.Contains($ExtensionNames[$s])) {
-            # GUID parovi moraju biti sortirani; za PoC dodajemo par i sortiramo uzlazno.
-            $pairs = @([regex]::Matches($current + $ExtensionNames[$s], '\[[^\]]+\]') | ForEach-Object Value) | Sort-Object -Unique
-            $values[$attr] = -join $pairs
+        # Svaka [ ] grupa je CSE GUID + GUID-ovi alata. gpedit uz Administrative Templates zna dodati
+        # još alata, pa se naš alat spaja u postojeću grupu istog CSE-a umjesto da se dodaje duplikat.
+        # Grupe se sortiraju po CSE GUID-u, a alati unutar grupe uzlazno (kao GPMC).
+        $map = @{}
+        foreach ($group in [regex]::Matches($current + $ExtensionNames[$s], '\[([^\]]*)\]')) {
+            $guids = @([regex]::Matches($group.Groups[1].Value, '\{[0-9A-Fa-f-]+\}') | ForEach-Object { $_.Value.ToUpperInvariant() })
+            if ($guids.Count -eq 0) { continue }
+            if (-not $map.ContainsKey($guids[0])) { $map[$guids[0]] = [System.Collections.Generic.List[string]]::new() }
+            foreach ($tool in @($guids | Select-Object -Skip 1)) { if (-not $map[$guids[0]].Contains($tool)) { $map[$guids[0]].Add($tool) } }
         }
+        $cses = [string[]]@($map.Keys)
+        [Array]::Sort($cses, [StringComparer]::OrdinalIgnoreCase)
+        $values[$attr] = -join @(foreach ($cse in $cses) {
+                $tools = [string[]]@($map[$cse])
+                [Array]::Sort($tools, [StringComparer]::OrdinalIgnoreCase)
+                '[' + $cse + (-join $tools) + ']'
+            })
     }
 
     $out = @('[General]') + @($values.Keys | ForEach-Object { "$_=$($values[$_])" })

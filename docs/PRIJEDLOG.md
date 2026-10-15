@@ -137,7 +137,8 @@ LGPO.exe ostaje kao opcionalna rezerva za uvoz Microsoft Security Baseline paket
 
 ### 4.3. Više računala
 
-- `Invoke-Command -ComputerName $lista -ScriptBlock {...} -ThrottleLimit 16` preko WinRM-a (HTTPS 5986 za računala izvan domene).
+- `Invoke-Command -ComputerName $lista -ScriptBlock {...} -ThrottleLimit 16` preko WinRM-a. Računala izvan domene
+  zasad se dosežu preko HTTP-a (5985) uz TrustedHosts i NTLM; HTTPS (5986) je planiran.
 - Moduli se na cilj prenose kao script block (bez instalacije na cilju) ili kroz `Copy-Item -ToSession`.
 - Rezultati se skupljaju u tablicu u GUI-u (uspjeh/greška po računalu, diff).
 - Za računala bez WinRM-a: izvoz paketa (`.zip` s `Registry.pol`, `.inf`, `apply.ps1`) za ručnu primjenu.
@@ -300,6 +301,8 @@ Install-WindowsFeature GPMC, RSAT-AD-PowerShell
 
 ```
 docs/PRIJEDLOG.md                 ← ovaj dokument
+docs/TESTNI-LAB.md                ← upute za testni lab
+lab/                              ← skripte za izgradnju laba i smoke test
 src/GpoStudio.Core/               ← model, Registry.pol, ADMX katalog
 src/GpoStudio.Local/              ← adapter za lokalni GP
 src/GpoStudio.Domain/             ← adapter za domenske GPO-ove
@@ -311,6 +314,7 @@ tests/                            ← Pester testovi (Core radi i na Linuxu/CI-j
 ## 13. Sljedeći koraci
 
 1. Potvrditi opseg MVP-a: lokalno, domena ili oboje paralelno.
-2. Osigurati testni lab: 1–2 DC-a (Windows Server 2022/2025), 2–3 klijenta, jedno samostalno računalo.
+2. Izgraditi testni lab: 1–2 DC-a (Windows Server 2022/2025), 2–3 klijenta i jedno samostalno računalo
+   (upute i skripte: [TESTNI-LAB.md](TESTNI-LAB.md) i mapa `lab/`).
 3. Dogovoriti delegacijski model (grupe, OU-ovi) i gdje se čuvaju backupovi i revizijski zapis.
 4. Pokrenuti fazu 1 na temelju PoC kostura iz ovog repozitorija.

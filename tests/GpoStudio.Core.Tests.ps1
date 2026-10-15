@@ -164,6 +164,15 @@ Describe 'ADMX katalog' {
         ($catalog | Where-Object Name -eq 'RemoveStore').DisplayName | Should -Be 'Turn off the Store application'
     }
 
+    It 'povezuje kategoriju iz druge ADMX datoteke preko namespacea, a nepoznatu prikazuje bez prefiksa' {
+        $catalog = @(Get-GpsAdmxCatalog -Path (Join-Path $fixtures 'PolicyDefinitions') -Language 'en-US')
+        $cross = $catalog | Where-Object Name -eq 'CrossRefPolicy'
+        $cross.CategoryRef | Should -Be 'sample:Cat_Store'
+        $cross.Category | Should -Be 'Store'
+        ($catalog | Where-Object Name -eq 'MissingCategoryPolicy').Category | Should -Be 'System'
+        ($catalog | Where-Object Name -eq 'RemoveStore').Category | Should -Be 'Store'
+    }
+
     It 'čita elemente politike (enum, decimal, text)' {
         $policy = Get-GpsAdmxCatalog -Path (Join-Path $fixtures 'PolicyDefinitions') -Language 'en-US' |
             Where-Object Name -eq 'UpdateMode'
@@ -272,11 +281,38 @@ Describe 'ConvertTo-GpsPolicySetting: liste i posebni tipovi' {
         ($pol | Where-Object ValueName -eq 'Restricted').Data | Should -Be 0
     }
 
+    It 'element tipa list se izostavlja uz upozorenje' {
+        $policy = $catalog | Where-Object Name -eq 'DeviceIdList'
+        $s = @(ConvertTo-GpsPolicySetting -Policy $policy -WarningVariable w -WarningAction SilentlyContinue)
+        $s.Count | Should -Be 1
+        $s[0].valueName | Should -Be 'AllowDeviceIDs'
+        "$w" | Should -BeLike "*list*DeviceIds*"
+    }
+
     It 'longDecimal postaje REG_QWORD, a klasa User određuje scope' {
         $s = ConvertTo-GpsPolicySetting -Policy $quota
         $s.type | Should -Be 'REG_QWORD'
         $s.data | Should -Be 5000000000
         $s.scope | Should -Be 'User'
+    }
+}
+
+Describe 'Write-GpsAuditLog' {
+    It 'upisuje zapis u JSON lines' {
+        $path = Join-Path $TestDrive 'audit.jsonl'
+        Write-GpsAuditLog -Action 'Test' -Target 'PC' -Details @{ a = 1 } -Path $path
+        $e = Get-Content $path | ConvertFrom-Json
+        $e.action | Should -Be 'Test'
+        $e.details.a | Should -Be 1
+    }
+
+    It 'ne ruši operaciju kad zapis ne uspije, nego upozorava' {
+        $file = Join-Path $TestDrive 'nije-mapa.txt'
+        Set-Content -Path $file -Value 'x'
+        { Write-GpsAuditLog -Action 'Test' -Target 'PC' -Path (Join-Path $file 'audit.jsonl') -WarningVariable w -WarningAction SilentlyContinue } |
+            Should -Not -Throw
+        Write-GpsAuditLog -Action 'Test' -Target 'PC' -Path (Join-Path $file 'audit.jsonl') -WarningVariable w2 -WarningAction SilentlyContinue
+        "$w2" | Should -BeLike '*nije upisan*'
     }
 }
 
@@ -290,5 +326,15 @@ Describe 'Kodiranje datoteka' {
             if ($b.Length -lt 3 -or $b[0] -ne 0xEF -or $b[1] -ne 0xBB -or $b[2] -ne 0xBF) { $f.Name }
         }
         $missing | Should -BeNullOrEmpty
+    }
+
+    It 'sve PowerShell datoteke (i lab skripte) parsiraju se bez sintaksnih grešaka' {
+        $root = Join-Path $PSScriptRoot '..'
+        $errors = foreach ($f in Get-ChildItem -Path $root -Recurse -File -Include '*.ps1', '*.psm1') {
+            $tokens = $null; $parseErrors = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$tokens, [ref]$parseErrors)
+            foreach ($e in $parseErrors) { "$($f.Name):$($e.Extent.StartLineNumber) $($e.Message)" }
+        }
+        $errors | Should -BeNullOrEmpty
     }
 }

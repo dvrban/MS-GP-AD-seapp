@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitions xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" revision="1.0" schemaVersion="1.0">
+  <policyNamespaces>
+    <target prefix="gpscross" namespace="GpoStudio.Policies.CrossRef" />
+    <using prefix="sample" namespace="GpoStudio.Policies.Sample" />
+    <using prefix="windows" namespace="Microsoft.Policies.Windows" />
+  </policyNamespaces>
+  <resources minRequiredRevision="1.0" />
+  <policies>
+    <policy name="CrossRefPolicy" class="User" displayName="$(string.CrossRefPolicy)" explainText="$(string.CrossRefPolicy_Help)"
+            key="Software\Policies\Gps\CrossRef" valueName="Enabled">
+      <parentCategory ref="sample:Cat_Store" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+    <policy name="MissingCategoryPolicy" class="User" displayName="$(string.MissingCategoryPolicy)" explainText="$(string.MissingCategoryPolicy_Help)"
+            key="Software\Policies\Gps\CrossRef" valueName="Other">
+      <parentCategory ref="windows:System" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+  </policies>
+</policyDefinitions>

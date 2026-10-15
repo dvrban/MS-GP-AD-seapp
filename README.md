@@ -10,6 +10,7 @@ Središnji pojam je **Policy Set**: JSON skup postavki koji se može primijeniti
 kao domenski GPO. Postavke se biraju iz kataloga izgrađenog iz ADMX/ADML predložaka, kao u `gpedit.msc`.
 
 ➡ **Detaljan prijedlog arhitekture, sigurnosti i plana razvoja: [docs/PRIJEDLOG.md](docs/PRIJEDLOG.md)**
+➡ **Upute za testni lab (Hyper-V, domena `gpslab.test`, smoke test): [docs/TESTNI-LAB.md](docs/TESTNI-LAB.md)**
 
 > Status: **proof of concept (faza 0)**. Lokalna primjena i objava domenskog GPO-a rade za
 > administrativne predloške (registry); lokalno su podržane i sigurnosne postavke (`secedit`) i
@@ -24,6 +25,7 @@ kao domenski GPO. Postavke se biraju iz kataloga izgrađenog iz ADMX/ADML predlo
 | `src/GpoStudio.Domain` | Objava GPO-a, povezivanje, sigurnosno filtriranje, provjera replikacije |
 | `src/GpoStudio.Gui` | WPF sučelje (`Start-GpoStudio.ps1` + `MainWindow.xaml`) |
 | `examples` | Primjer Policy Seta |
+| `lab` | Skripte za izgradnju testnog laba i automatizirani smoke test |
 | `tests` | Pester testovi (Core i dijelovi Local/Domain rade i na Linuxu) |
 
 ## Pokretanje GUI-a
