@@ -202,32 +202,42 @@ PoC parser: `src/GpoStudio.Core/Public/Get-GpsAdmxCatalog.ps1`.
 
 ---
 
-## 7. GUI: prijedlog ekrana
+## 7. GUI: ekrani
+
+Sučelje je napravljeno za ljude koji ne poznaju Group Policy: umjesto stabla politika (kao `gpedit.msc`)
+nudi razine zaštite, kvačice i izbore s objašnjenjem, a klasični katalog ostaje kao napredni način.
+Izgled slijedi Auxilium Informatiku (tamna tema, jantarni i cijan naglasci, kosi rubovi kartica).
 
 ```
-┌ GPO Studio ───────────────────────────────────────────────────────────────┐
-│ [Cilj: ● Lokalno  ○ Domena]  Računala: PC01, PC02 ▾   Domena: firma.local │
-├───────────────┬───────────────────────────────────────────┬───────────────┤
-│ KATALOG       │ POLICY SET: "Radna stanica - baseline"     │ DETALJI       │
-│ 🔍 pretraga    │ ┌──────────────────────────────────────┐ │ Naziv politike│
-│ ▸ Computer    │ │ ✔ Windows Update: Configure AU   [3] │ │ Opis (ADML)   │
-│   ▸ Windows   │ │ ✔ Disable Store                     │ │ Registry:     │
-│     Components│ │ ✔ Min. password length = 14         │ │  HKLM\...     │
-│ ▸ User        │ └──────────────────────────────────────┘ │ ○ Not conf.   │
-│ ▸ Security    │ [Dodaj] [Ukloni] [Uvezi GPO] [Izvezi JSON] │ ● Enabled     │
-│ ▸ Audit       │                                           │ ○ Disabled    │
-├───────────────┴───────────────────────────────────────────┴───────────────┤
-│ [Usporedi (Diff)]  [Primijeni]  [Backup]  [Vrati]   Status: ✓ 2/2 računala│
-└───────────────────────────────────────────────────────────────────────────┘
+┌ AUXILIUM. INFORMATIKA │ GPO STUDIO            [RAZINA: PREPORUČENO] [CILJ] [ADMIN] ┐
+│ CILJ  [OVO RAČUNALO] [DRUGA RAČUNALA] [DOMENSKI GPO]                               │
+├──────────────┬────────────────────────────────────────────────────────────────────┤
+│ PREGLED      │  Odaberite razinu zaštite                                          │
+│ SIGURNOSNE   │  ┌ OSNOVNO ─────┐ ┌ PREPORUČENO ─┐ ┌ STROGO ──────┐                 │
+│   POSTAVKE   │  │ mali uredi   │ │ tvrtke       │ │ osjetlj. pod.│                 │
+│ PRESETI      │  └──────────────┘ └──────────────┘ └──────────────┘                 │
+│ USPOREDBA    │  BRZI ODABIR [Kiosk] [Prijenosno računalo] [Učionica]               │
+│ PROMJENE     │  Što će se postaviti (po područjima) │ Usklađenost: CIS L1 ... %    │
+│ NAPREDNO     │                                       │ CIS L2 ... % MS baseline ...%│
+│ DNEVNIK      │                                                                    │
+├──────────────┴────────────────────────────────────────────────────────────────────┤
+│ Primjenjuje se: ...   [SIGURNOSNA KOPIJA] [VRATI] [PREGLEDAJ PROMJENE] [PRIMIJENI] │
+└───────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Kartice:
-1. **Katalog i uređivač**: stablo ADMX kategorija, forma politike, Policy Set.
-2. **Ciljevi**: lokalna računala (lista, uvoz iz CSV-a/AD-a), domena: stablo OU-ova s povezanim GPO-ovima (kao GPMC).
-3. **Diff**: usporedba u dva stupca (trenutno ↔ željeno), s bojama.
-4. **Povijest i backup**: popis backupova, vraćanje jednim klikom.
-5. **Izvještaji**: HTML izvještaj GPO-a, RSoP za računalo/korisnika, *GPO zdravlje* (prazni GPO-ovi, nepovezani GPO-ovi, GPO-ovi s neusklađenim verzijama AD/SYSVOL).
-6. **Log**: konzola s točnim PowerShell naredbama koje su izvršene (transparentnost i učenje).
+Stranice:
+1. **Pregled**: tri razine (Osnovno, Preporučeno, Strogo), brzi preseti, sažetak po područjima i
+   pločice usklađenosti sa standardima.
+2. **Sigurnosne postavke**: kontrolna ploča po područjima (lozinke, ažuriranja, USB, zaštita od
+   virusa, mreža, aplikacije, privatnost, sustav, revizija); svaka postavka ima opis, utjecaj na
+   korisnike, oznake razine, standarda, restarta i uvjeta; pretraga i filtri.
+3. **Preseti**: ugrađeni (kiosk, prijenosno računalo, učionica...) i vlastiti predlošci: spremi,
+   uvezi, izvezi, obriši.
+4. **Usporedba**: odabir ili stvarno stanje računala (registry, `secedit`, `auditpol`) prema CIS
+   benchmarku (razine 1 i 2) i Microsoftovom baselineu, s oznakama stavki i HTML izvještajem.
+5. **Promjene**: pregled prije primjene i rezultat primjene po računalu.
+6. **Napredno (gpedit)**: katalog ADMX politika s pretragom i vlastiti Policy Set.
+7. **Dnevnik**: točne PowerShell naredbe koje su izvršene.
 
 Tehnički: XAML se učitava kroz `[Windows.Markup.XamlReader]`, a dugotrajne operacije idu u
 zaseban runspace da GUI ne zamrzava. Kostur je u `src/GpoStudio.Gui/`.
@@ -276,7 +286,7 @@ Install-WindowsFeature GPMC, RSAT-AD-PowerShell
 
 | Faza | Trajanje (okvirno) | Isporuka |
 |---|---|---|
-| **0 – PoC** *(ovaj repozitorij)* | 1 tjedan | Registry.pol čitač/pisač, ADMX parser, Policy Set model, osnovni cmdleti za lokalno/domenu, WPF kostur |
+| **0 – PoC** *(ovaj repozitorij)* | 1 tjedan | Registry.pol čitač/pisač, ADMX parser, Policy Set model, osnovni cmdleti za lokalno/domenu, WPF sučelje s razinama zaštite, presetima i usporedbom sa standardima |
 | **1 – MVP lokalno** | 3–4 tjedna | GUI katalog + uređivač, lokalna primjena na više računala, backup/restore, diff, log |
 | **2 – MVP domena** | 3–4 tjedna | OU stablo, kreiranje/uređivanje/povezivanje GPO-ova, sigurnosno filtriranje, HTML izvještaji, RSoP |
 | **3 – Napredno** | 4–6 tjedana | Sigurnosne postavke i audit u domeni (SYSVOL), WMI filteri, Preferences, uvoz Microsoft Security Baselinea, zdravlje GPO-ova |
