@@ -8,9 +8,9 @@
     "accounts.hide-last-user": "on",
     "accounts.auto-lock": "min-5",
     "apps.store": "off",
-    "apps.wsh": "off",
+    "apps.script-host": "off",
     "network.remote-desktop": "blocked",
     "privacy.location": "off",
-    "apps.office-macros": "signed"
+    "apps.office-macros": "signed-only"
   }
 }

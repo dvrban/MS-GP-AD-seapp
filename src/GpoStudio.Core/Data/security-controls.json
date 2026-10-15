@@ -159,7 +159,7 @@
           ]
         }
       ],
-      "notes": "secedit [System Access] applies to LOCAL (SAM) accounts. Domain accounts take password policy only from a GPO linked at the domain root (or Fine-Grained Password Policies); an OU-linked GPO only changes local accounts of the member computers. In domain mode these keys must go into the GPO's GptTmpl.inf - Set-GPRegistryValue cannot write them. len-16 needs RelaxMinimumPasswordLengthLimits=1 in place BEFORE secedit imports MinimumPasswordLength>14 (write the SAM value / refresh policy first), otherwise the import is rejected. len-16 is deliberately not used by any level: Windows LAPS-generated local admin passwords must satisfy local policy, and LAPS PasswordLength below 16 (CIS asks 15+) would make rotation fail. Microsoft/Entra accounts and Windows Hello PINs are not affected. NIST SP 800-63B-4 suggests 15+ for single-factor passwords.",
+      "notes": "secedit [System Access] applies to LOCAL (SAM) accounts. Domain accounts take password policy only from a GPO linked at the domain root (or Fine-Grained Password Policies); an OU-linked GPO only changes local accounts of the member computers. In domain mode these keys must go into the GPO's GptTmpl.inf - Set-GPRegistryValue cannot write them. A 16-character option was removed on purpose: (1) its RelaxMinimumPasswordLengthLimits value is owned by accounts.relax-length-limit, and Test-GpsControlCatalog rejects two controls writing the same value (selecting len-8/12/14 would also emit an implied Delete of it, undoing accounts.relax-length-limit); (2) Invoke-GpsLocalApplyCore writes Registry.pol, runs secedit, and only then gpupdate, so on a first apply MinimumPasswordLength > 14 reaches secedit before the SAM relax value exists and the import fails (taking the lockout/complexity keys of the same INF with it); (3) Windows LAPS rotation fails when the LAPS PasswordLength is below the local minimum. Machines already at 15+ still read as len-14 (atLeast). If a 15/16 option is re-added later: no registry settings in it, require accounts.relax-length-limit = on, and apply the SAM value before secedit. Microsoft/Entra accounts and Windows Hello PINs are not affected. NIST SP 800-63B-4 suggests 15+ for single-factor passwords.",
       "sources": [
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
@@ -209,7 +209,7 @@
           ]
         }
       ],
-      "notes": "Local default on stand-alone Windows 11 is Disabled. Enforced only at the next password change. NIST SP 800-63B discourages composition rules, but both CIS and MSB still require this, so it is on at every level.",
+      "notes": "Local default on stand-alone Windows 11 is Disabled. Enforced only at the next password change. NIST SP 800-63B discourages composition rules, but both CIS and MSB still require this, so it is on at every level. CIS v5.1.0 (Sept 2026) is reported (CIS/BigFix release notes, quoted in the network research) to have UPDATED the password complexity recommendation; what changed was not verified. Re-check 1.1.5 before moving references from v5.0.1 to v5.1.0.",
       "sources": [
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
@@ -268,7 +268,7 @@
       "category": "accounts",
       "title": "Najduže trajanje lozinke",
       "description": "Nakon zadanog broja dana Windows traži novu lozinku. Današnje preporuke savjetuju rijetke promjene, a lozinku treba odmah promijeniti ako postoji sumnja da je otkrivena.",
-      "impact": "Korisnici jednom godišnje (ili svakih 90 dana) moraju smisliti novu lozinku.",
+      "impact": "Korisnici jednom godišnje (ili svakih 90 dana) moraju smisliti novu lozinku, a tko se prijavljuje PIN-om tada mora znati i staru lozinku.",
       "impactLevel": "low",
       "requiresRestart": false,
       "options": [
@@ -307,7 +307,7 @@
           "reference": "1.1.2"
         }
       ],
-      "notes": "MSB deliberately does NOT configure password expiration since the Windows 10 1903 baseline (Microsoft: periodic expiration is 'an ancient and obsolete mitigation of very low value'); NIST SP 800-63B also rejects forced periodic changes. days-90 is offered only for regulatory needs (e.g. PCI DSS when the password is the only factor) and is not used by any level. In secedit -1 means 'never expires' and 0 is also 'never' in the UI; atMost (0 < actual <= ours) correctly reads both as non-compliant. Keep MinimumPasswordAge < MaximumPasswordAge.",
+      "notes": "MSB deliberately does NOT configure password expiration since the Windows 10 1903 baseline (Microsoft: periodic expiration is 'an ancient and obsolete mitigation of very low value'); NIST SP 800-63B also rejects forced periodic changes. days-90 is offered only for regulatory needs (e.g. PCI DSS when the password is the only factor) and is not used by any level. In secedit -1 means 'never expires' and 0 is also 'never' in the UI; atMost (0 < actual <= ours) correctly reads both as non-compliant. Keep MinimumPasswordAge < MaximumPasswordAge. Reading state: the Windows local default MaximumPasswordAge is 42 days, so an untouched PC matches both options under atMost and is shown as 'days-90' (strictest match). Accounts flagged 'Password never expires' are not affected; a password already older than the new limit must be changed at the next sign-in.",
       "sources": [
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://learn.microsoft.com/cs-cz/archive/blogs/secguide/security-baseline-final-for-windows-10-v1903-and-windows-server-v1903",
@@ -319,7 +319,7 @@
       "category": "accounts",
       "title": "Najkraće trajanje lozinke",
       "description": "Nova lozinka mora vrijediti barem jedan dan prije sljedeće promjene. Tako korisnik ne može u nekoliko brzih promjena vratiti staru lozinku.",
-      "impact": "Korisnik ne može promijeniti lozinku dvaput u istom danu; administrator je po potrebi može resetirati.",
+      "impact": "Nakon promjene lozinke korisnik je ne može ponovno promijeniti idućih 24 sata; administrator je po potrebi može resetirati.",
       "impactLevel": "low",
       "requiresRestart": false,
       "options": [
@@ -460,32 +460,32 @@
           "id": "ms-10",
           "title": "10 pokušaja / 10 min",
           "matchMode": "exact",
+          "matchModes": {
+            "LockoutBadCount": "atMost",
+            "LockoutDuration": "atLeast",
+            "ResetLockoutCount": "atLeast"
+          },
           "settings": [],
           "security": {
             "LockoutBadCount": 10,
             "LockoutDuration": 10,
             "ResetLockoutCount": 10
-          },
-          "matchModes": {
-            "LockoutBadCount": "atMost",
-            "LockoutDuration": "atLeast",
-            "ResetLockoutCount": "atLeast"
           }
         },
         {
           "id": "cis-5",
           "title": "5 pokušaja / 15 min",
           "matchMode": "exact",
+          "matchModes": {
+            "LockoutBadCount": "atMost",
+            "LockoutDuration": "atLeast",
+            "ResetLockoutCount": "atLeast"
+          },
           "settings": [],
           "security": {
             "LockoutBadCount": 5,
             "LockoutDuration": 15,
             "ResetLockoutCount": 15
-          },
-          "matchModes": {
-            "LockoutBadCount": "atMost",
-            "LockoutDuration": "atLeast",
-            "ResetLockoutCount": "atLeast"
           }
         }
       ],
@@ -497,7 +497,7 @@
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Najviše 5 pogrešnih pokušaja (ne 0); zaključavanje i poništavanje brojača nakon 15 ili više minuta",
+          "recommendation": "Najviše 5 pogrešnih pokušaja (ne 0); zaključavanje traje 15 ili više minuta; brojač se poništava nakon 15 ili više minuta",
           "satisfiedBy": [
             "cis-5"
           ],
@@ -512,7 +512,7 @@
           ]
         }
       ],
-      "notes": "matchMode cannot express mixed semantics: when reading state, LockoutBadCount should be judged atMost (0 < actual <= ours) and LockoutDuration/ResetLockoutCount atLeast; 'exact' is used to stay safe (consider a per-key override in the engine). MSB counts cis-5 as satisfying because the MSB checks used by HardeningKitty/AuditTAP are threshold <= 10 and durations >= 10; a literal diff (Policy Analyzer) will still show a difference. secedit rules: ResetLockoutCount must be <= LockoutDuration and durations are ignored when LockoutBadCount = 0, so write LockoutBadCount first. Windows 11 22H2+ already ships 10/10/10 as the local default. Both standards also require 'Allow Administrator account lockout' = Enabled (secedit AllowAdministratorLockout = 1, CIS 1.2.3): default on Win11 22H2+, but the key is not in the allowed security key list - consider adding it. Domain accounts follow the domain-root policy only. Windows Hello PIN has its own TPM anti-hammering.",
+      "notes": "Per-key matchModes (supported by Get-GpsMatchMode in SecurityControls.ps1): LockoutBadCount atMost (0 < actual <= ours), LockoutDuration/ResetLockoutCount atLeast, so a stricter PC (e.g. 3 attempts / 30 min) reads as cis-5 instead of 'not configured'; a PC at 5/15/15 matches both options and the strictest (cis-5) wins. LockoutDuration -1 (until an admin unlocks) does not match atLeast and reads as not configured. MSB counts cis-5 as satisfying because the MSB checks used by HardeningKitty/AuditTAP are threshold <= 10 and durations >= 10; a literal diff (Policy Analyzer) will still show a difference. secedit rules: ResetLockoutCount must be <= LockoutDuration and durations are ignored when LockoutBadCount = 0, so write LockoutBadCount first. Windows 11 22H2+ already ships 10/10/10 as the local default. Both standards also require 'Allow Administrator account lockout' = Enabled (secedit AllowAdministratorLockout = 1, CIS 1.2.3): default on Win11 22H2+, but the key is not in the allowed security key list - consider adding it. Domain accounts follow the domain-root policy only. Windows Hello PIN has its own TPM anti-hammering.",
       "sources": [
         "https://www.tenable.com/audits/CIS_Microsoft_Windows_11_Enterprise_v5.1.0_L1",
         "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Enterprise_v5.0.0_L1.audit:bf1d4473bf6960631269d11e9b669e3f",
@@ -567,7 +567,7 @@
       "id": "accounts.blank-passwords",
       "category": "accounts",
       "title": "Prazne lozinke samo lokalno",
-      "description": "Lokalni računi bez lozinke mogu se koristiti samo za prijavu za samim računalom, a ne preko mreže ili udaljene radne površine.",
+      "description": "Lokalni računi bez lozinke mogu se prijaviti samo izravno na računalu, a ne preko mreže ili udaljene radne površine. Tako prazna lozinka ne otvara računalo napadaču s mreže.",
       "impact": "Korisnici ništa ne primjećuju.",
       "impactLevel": "none",
       "requiresRestart": false,
@@ -4392,88 +4392,1224 @@
     {
       "id": "apps.edge-smartscreen",
       "category": "apps",
-      "title": "Edge: zaštita od phishinga",
-      "description": "Microsoft Edge blokira poznate phishing i zlonamjerne stranice i preuzimanja, bez mogućnosti zaobilaženja.",
-      "impact": "Korisnik ne može otvoriti stranicu ili datoteku koju SmartScreen označi opasnom.",
-      "impactLevel": "low",
+      "title": "SmartScreen u Edgeu",
+      "description": "Edge upozorava na lažne (phishing) i zlonamjerne stranice, opasna preuzimanja i potencijalno neželjene programe. Uključena je i zaštita od lažnih adresa s tipfelerima.",
+      "impact": "Uz opciju Bez zaobilaženja korisnik ne može otvoriti stranicu ni preuzeti datoteku koju SmartScreen označi kao opasnu ili nepoznatu.",
+      "impactLevel": "medium",
       "requiresRestart": false,
       "options": [
         {
           "id": "on",
           "title": "Uključeno",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Edge",
               "valueName": "SmartScreenEnabled",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "SmartScreenPuaEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "TyposquattingCheckerEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "strict",
+          "title": "Bez zaobilaženja",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "SmartScreenEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "SmartScreenPuaEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "TyposquattingCheckerEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Edge",
               "valueName": "PreventSmartScreenPromptOverride",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Edge",
               "valueName": "PreventSmartScreenPromptOverrideForFiles",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "strict",
+        "3": "strict"
+      },
+      "benchmarks": [
+        {
+          "standard": "MSB",
+          "recommendation": "Microsoft Edge security baseline v151: SmartScreen uključen i blokira potencijalno neželjene aplikacije.; Microsoft Edge security baseline v151: uključena zaštita od tipfelera u adresi (Website Typo Protection).",
+          "satisfiedBy": [
+            "on",
+            "strict"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Microsoft Edge security baseline v151: zabrani zaobilaženje SmartScreen upozorenja za stranice i za preuzimanja.",
+          "satisfiedBy": [
+            "strict"
+          ]
+        }
+      ],
+      "notes": "The benchmark is the Microsoft Edge security baseline (MSB). The latest full baseline is v151; the HardeningKitty dev README groups v151 and v152 under one list, so v152 was a review without changes. The CIS Microsoft Edge Benchmark also recommends SmartScreen, PUA blocking and no-bypass. Its version and item numbers could not be checked here, so no CIS entry is listed; the CIS Windows 11 benchmark itself has no Edge section. All values are REG_DWORD 1 under HKLM\\Software\\Policies\\Microsoft\\Edge. Edge applies them after a browser restart; check edge://policy. PreventSmartScreenPromptOverrideForFiles blocks 'uncommon' downloads as well, not only malicious ones. File Explorer SmartScreen at the Windows level is a separate control (apps.windows-smartscreen).",
+      "sources": [
+        "https://raw.githubusercontent.com/0x6d69636b/windows_hardening/master/lists/finding_list_msft_security_baseline_edge_151_machine.csv",
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_msft_security_baseline_edge_139_machine.csv",
+        "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/security-baseline-for-microsoft-edge-version-151/4549607"
+      ]
+    },
+    {
+      "id": "apps.edge-hardening",
+      "category": "apps",
+      "title": "Sigurnosne postavke Edgea",
+      "description": "Primjenjuje Microsoftove preporučene sigurnosne postavke za Edge: jaču izolaciju stranica, bolju zaštitu spremljenih lozinki i kolačića te zabranu nastavka na stranice s neispravnim certifikatom.",
+      "impact": "Korisnik ne može zaobići upozorenje o neispravnom certifikatu ni koristiti osnovnu (Basic) prijavu, što može smetati na web sučelju rutera ili pisača; opcija Strogo blokira i uklanja sva proširenja preglednika.",
+      "impactLevel": "high",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "recommended",
+          "title": "Preporučeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "SSLErrorOverrideAllowed",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "SitePerProcess",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "BasicAuthOverHttpEnabled",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "AuthSchemes",
+              "type": "REG_SZ",
+              "data": "ntlm,negotiate",
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "NativeMessagingUserLevelHosts",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "SharedArrayBufferUnrestrictedAccessAllowed",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "InternetExplorerIntegrationReloadInIEModeAllowed",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "InternetExplorerModeToolbarButtonEnabled",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "InternetExplorerIntegrationZoneIdentifierMhtFileAllowed",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "EnableUnsafeSwiftShader",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "BrowserLegacyExtensionPointsBlockingEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "ApplicationBoundEncryptionEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "DynamicCodeSettings",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "BrowserCodeIntegritySetting",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "ProcessIsolationEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "RendererAppContainerEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "NetworkServiceSandboxEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "EnhanceSecurityMode",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "strict",
+          "title": "Strogo",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "SSLErrorOverrideAllowed",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "SitePerProcess",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "BasicAuthOverHttpEnabled",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "AuthSchemes",
+              "type": "REG_SZ",
+              "data": "ntlm,negotiate",
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "NativeMessagingUserLevelHosts",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "SharedArrayBufferUnrestrictedAccessAllowed",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "InternetExplorerIntegrationReloadInIEModeAllowed",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "InternetExplorerModeToolbarButtonEnabled",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "InternetExplorerIntegrationZoneIdentifierMhtFileAllowed",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "EnableUnsafeSwiftShader",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "BrowserLegacyExtensionPointsBlockingEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "ApplicationBoundEncryptionEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "DynamicCodeSettings",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "BrowserCodeIntegritySetting",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "ProcessIsolationEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "RendererAppContainerEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "NetworkServiceSandboxEnabled",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge",
+              "valueName": "EnhanceSecurityMode",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Edge\\ExtensionInstallBlocklist",
+              "valueName": "1",
+              "type": "REG_SZ",
+              "data": "*",
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
         "1": null,
-        "2": "on",
-        "3": "on"
+        "2": null,
+        "3": "recommended"
       },
       "benchmarks": [
         {
           "standard": "MSB",
-          "recommendation": "Edge baseline: SmartScreen uključen, bez zaobilaženja",
+          "recommendation": "Microsoft Edge security baseline v151: izolacija stranica i procesa, sandbox, zaštita podataka, bez zaobilaženja HTTPS upozorenja, samo NTLM/Negotiate prijava.",
           "satisfiedBy": [
-            "on"
+            "recommended",
+            "strict"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Microsoft Edge security baseline v151: blokiraj instalaciju svih proširenja ('*'); dopuštena proširenja dodaju se posebnim popisom.",
+          "satisfiedBy": [
+            "strict"
           ]
         }
+      ],
+      "notes": "ADDED beyond the draft list: every non-SmartScreen setting of the Edge v151 baseline. Five settings are new in v151 compared with v139: BrowserCodeIntegritySetting=2, EnhanceSecurityMode=1 ('Balanced'), NetworkServiceSandboxEnabled=1, ProcessIsolationEnabled=1 and RendererAppContainerEnabled=1. They come from the HardeningKitty dev-repo v151 list and could not be cross-checked on Microsoft Learn. BrowserCodeIntegritySetting and DynamicCodeSettings can break third-party software that injects DLLs into Edge, such as some AV, DLP or accessibility tools. AuthSchemes='ntlm,negotiate' removes Basic and Digest completely, even over HTTPS. That breaks many router, NAS and printer admin pages. ExtensionInstallBlocklist '*' (key ...\\Edge\\ExtensionInstallBlocklist, value name '1') also disables extensions that are already installed, such as password managers. The baseline expects an ExtensionInstallAllowlist for approved extensions; GPO Studio does not offer one yet. Edge ignores some policies on unmanaged devices (not domain-joined, not MDM). None of these settings is known to be in that group, but check edge://policy.",
+      "sources": [
+        "https://raw.githubusercontent.com/0x6d69636b/windows_hardening/master/lists/finding_list_msft_security_baseline_edge_151_machine.csv",
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_msft_security_baseline_edge_139_machine.csv",
+        "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/security-baseline-for-microsoft-edge-version-151/4549607"
       ]
     },
     {
-      "id": "apps.office-internet-macros",
+      "id": "apps.office-macros",
       "category": "apps",
-      "title": "Office: blokiraj makronaredbe s interneta",
-      "description": "Makronaredbe u Word, Excel i PowerPoint datotekama preuzetim s interneta ili iz e-pošte ne mogu se pokrenuti.",
-      "impact": "Datoteke s makronaredbama iz interneta otvaraju se bez makronaredbi.",
-      "impactLevel": "low",
+      "title": "Makronaredbe u Officeu",
+      "description": "Makronaredbe u Wordu, Excelu i drugim Office datotekama čest su način širenja zlonamjernog softvera. Postavka blokira makronaredbe u datotekama s interneta i iz e-pošte, a strože opcije ograničavaju i ostale.",
+      "impact": "Makronaredbe u preuzetim datotekama neće se pokretati; uz opciju Samo potpisane ne rade ni nepotpisane makronaredbe u vlastitim datotekama, osim u pouzdanim lokacijama.",
+      "impactLevel": "high",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "block-internet",
+          "title": "Blokiraj s interneta",
+          "matchMode": "atLeast",
+          "settings": [
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\word\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\excel\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\powerpoint\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\access\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\visio\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\ms project\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\publisher\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "notify",
+          "title": "Uz upozorenje",
+          "matchMode": "atLeast",
+          "settings": [
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\word\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\excel\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\powerpoint\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\access\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\visio\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\ms project\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\publisher\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\word\\security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\excel\\security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\powerpoint\\security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\access\\security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\visio\\security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\ms project\\security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\publisher\\security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\excel\\security",
+              "valueName": "xl4macrooff",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "signed-only",
+          "title": "Samo potpisane",
+          "matchMode": "atLeast",
+          "settings": [
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\word\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\excel\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\powerpoint\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\access\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\visio\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\ms project\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\publisher\\security",
+              "valueName": "blockcontentexecutionfrominternet",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\word\\security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 3,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\excel\\security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 3,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\powerpoint\\security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 3,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\access\\security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 3,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\visio\\security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 3,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\ms project\\security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 3,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\publisher\\security",
+              "valueName": "vbawarnings",
+              "type": "REG_DWORD",
+              "data": 3,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\word\\security",
+              "valueName": "vbadigsigtrustedpublishers",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\excel\\security",
+              "valueName": "vbadigsigtrustedpublishers",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\powerpoint\\security",
+              "valueName": "vbadigsigtrustedpublishers",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\access\\security",
+              "valueName": "vbadigsigtrustedpublishers",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\visio\\security",
+              "valueName": "vbadigsigtrustedpublishers",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\publisher\\security",
+              "valueName": "vbadigsigtrustedpublishers",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\excel\\security",
+              "valueName": "xl4macrooff",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\common\\security",
+              "valueName": "macroruntimescanscope",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "block-internet",
+        "2": "notify",
+        "3": "signed-only"
+      },
+      "benchmarks": [
+        {
+          "standard": "MSB",
+          "recommendation": "Microsoft 365 Apps for enterprise security baseline v2512: blokiraj makronaredbe u datotekama s interneta (Word, Excel, PowerPoint, Access, Visio, Project, Publisher).",
+          "satisfiedBy": [
+            "block-internet",
+            "notify",
+            "signed-only"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Microsoft 365 Apps for enterprise security baseline v2512: Excel ne smije pokretati stare XLM (Excel 4.0) makronaredbe.",
+          "satisfiedBy": [
+            "notify",
+            "signed-only"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Microsoft 365 Apps for enterprise security baseline v2512: onemogući sve makronaredbe osim digitalno potpisanih; potpis mora biti od pouzdanog izdavača.; Microsoft 365 Apps for enterprise security baseline v2512: antivirusna (AMSI) provjera makronaredbi za sve dokumente.",
+          "satisfiedBy": [
+            "signed-only"
+          ]
+        }
+      ],
+      "notes": "These are user-scope policies under HKCU\\Software\\Policies\\Microsoft\\Office\\16.0\\<app>\\security. 16.0 covers Office 2016/2019/2021/2024 and Microsoft 365 Apps. In local GP, the User Registry.pol applies to every user, including administrators. For a domain GPO, link it to OUs that contain the users (or use loopback). VBAWarnings is a REG_DWORD: 1 = enable all, 2 = disable all with notification (Office default), 3 = disable all except digitally signed, 4 = disable all without notification. atLeast works for VBAWarnings, because 3 and 4 also satisfy 2. vbadigsigtrustedpublishers=1 only matters when VBAWarnings=3. The baseline sets it for Word, Excel, PowerPoint, Access, Visio and Publisher, but not Project. The baseline also writes vbarequirelmtrustedpublisher=0 and vbarequiredigsigwithcodesigningeku=0 (checkbox defaults); these are left out. Outlook macros (outlook\\security\\level=3 in the baseline) are not covered. Office has blocked internet macros by default since 2022 (Current Channel 2203). The policy enforces this so users cannot enable such macros from the trust bar. Removing the Mark of the Web via file Properties > Unblock still works; see apps.attachment-zone. Level 2 ('notify') deliberately does not meet the MSB VBA requirement, because unsigned business macros are common in small offices. The CIS Microsoft 365 Apps benchmark has similar items but was not used, because it could not be verified here.",
+      "sources": [
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_msft_security_baseline_microsoft_365_apps_v2512_user.csv",
+        "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/security-baseline-for-m365-apps-for-enterprise-v2512/4487213",
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_0x6d69636b_user.csv"
+      ]
+    },
+    {
+      "id": "apps.store",
+      "category": "apps",
+      "title": "Microsoft Store",
+      "description": "Određuje smiju li korisnici sami instalirati aplikacije iz Microsoft Storea. U obje opcije aplikacije se automatski ažuriraju, a Windows ne nudi nadogradnju sustava preko Storea.",
+      "impact": "Uz opciju Isključen korisnici ne mogu otvoriti Store ni tražiti aplikaciju u Storeu za nepoznate vrste datoteka.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "allowed",
+          "title": "Dozvoljen",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsStore",
+              "valueName": "AutoDownload",
+              "type": "REG_DWORD",
+              "data": 4,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsStore",
+              "valueName": "DisableOSUpgrade",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "off",
+          "title": "Isključen",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsStore",
+              "valueName": "AutoDownload",
+              "type": "REG_DWORD",
+              "data": 4,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsStore",
+              "valueName": "DisableOSUpgrade",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsStore",
+              "valueName": "RemoveWindowsStore",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Explorer",
+              "valueName": "NoUseStoreOpenWith",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "allowed",
+        "2": "allowed",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Automatsko preuzimanje i instalacija ažuriranja aplikacija ostaje uključeno (politika 'Turn off Automatic Download and Install of updates' = Disabled).; Isključi ponudu nadogradnje na najnoviju verziju Windowsa (Omogućeno).",
+          "satisfiedBy": [
+            "allowed",
+            "off"
+          ],
+          "reference": "18.10.66.2, 18.10.66.3"
+        },
+        {
+          "standard": "CIS-L2",
+          "recommendation": "Isključi aplikaciju Store (Omogućeno).; Isključi pristup Storeu pri otvaranju nepoznatih vrsta datoteka (Omogućeno).",
+          "satisfiedBy": [
+            "off"
+          ],
+          "reference": "18.10.66.4, 18.9.20.1.1"
+        }
+      ],
+      "notes": "Only Windows Enterprise and Education honor RemoveWindowsStore; Pro ignores it. NoUseStoreOpenWith, AutoDownload and DisableOSUpgrade work on all editions. AutoDownload=4 is the CIS 'Disabled' state of 'Turn off Automatic Download and Install of updates', which keeps app auto-update on; 2 would turn it off. Not used: CIS 18.10.66.1 (L2) 'Disable all apps from Microsoft Store' (DisableStoreApps=1 per CIS audit data). Its semantics are counter-intuitive and it needs testing before it is offered. CIS v3.0.0 also had 'Only display the private store' (RequirePrivateStoreOnly); v4.0.0 removed it. MSB does not configure the Store. Not verified: whether inbox and Store app updates continue while RemoveWindowsStore=1. Test this on a pilot machine.",
+      "sources": [
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://raw.githubusercontent.com/ansible-lockdown/Windows-11-CIS/devel/tasks/section_18/section_18.10/cis_18.10.65.x.yml",
+        "https://raw.githubusercontent.com/ansible-lockdown/Windows-11-CIS/devel/tasks/section_18/section_18.9/cis_18.9.20.x.yml"
+      ],
+      "requirement": "Isključivanje Trgovine djeluje samo na Windows Enterprise i Education; ostale postavke na svim izdanjima."
+    },
+    {
+      "id": "apps.script-host",
+      "category": "apps",
+      "title": "Windows Script Host (VBS/JS)",
+      "description": "Windows Script Host pokreće .vbs i .js skripte, koje napadači često šalju u privicima e-pošte. Isključivanjem se takve skripte ne mogu pokrenuti dvoklikom.",
+      "impact": "Ne rade .vbs i .js skripte, uključujući stare skripte za prijavu na domenu, neke instalacijske programe i alat slmgr za aktivaciju Windowsa.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključen",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows Script Host\\Settings",
+              "valueName": "Enabled",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "on",
+          "title": "Uključen",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows Script Host\\Settings",
+              "valueName": "Enabled",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Delete"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": null,
+        "3": "off"
+      },
+      "benchmarks": [],
+      "notes": "Not part of CIS Windows 11 or the Microsoft baselines. The key is NOT under Policies, so writing it through Registry.pol tattoos the value: removing the setting from the GPO does not restore it. That is why there is an explicit 'on' option (action Delete) to undo it. Type: common hardening scripts use REG_DWORD 0. WSH's own values in this key (DisplayLogo, UseWINSAFER) are REG_SZ, and REG_SZ \"0\" is also widely reported to work. Test on a pilot machine. A per-user value under HKCU\\Software\\Microsoft\\Windows Script Host\\Settings may override it unless IgnoreUserSettings is set (not verified). Breaks: .vbs/.js/.wsf logon scripts, slmgr.vbs and ospp.vbs (activation), some vendor installers and printer scripts such as prnport.vbs. Does not block VBScript inside Office or mshta. Microsoft is deprecating VBScript (Feature on Demand, planned to be disabled by default), so this setting will break less over time.",
+      "sources": [
+        "https://raw.githubusercontent.com/Disassembler0/Win10-Initial-Setup-Script/master/Win10.psm1"
+      ]
+    },
+    {
+      "id": "apps.winget",
+      "category": "apps",
+      "title": "Instalacija naredbom (winget)",
+      "description": "Zatvara rizične opcije alata App Installer i winget, npr. zaobilaženje provjere datoteka i instalaciju preko web poveznica. Opcija Isključeno potpuno gasi winget i App Installer.",
+      "impact": "Uz opciju Sigurno korisnici ništa ne primjećuju; uz opciju Isključeno ne rade winget i instalacija .appx/.msix paketa dvoklikom.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "safe",
+          "title": "Sigurno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AppInstaller",
+              "valueName": "EnableExperimentalFeatures",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AppInstaller",
+              "valueName": "EnableHashOverride",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AppInstaller",
+              "valueName": "EnableLocalArchiveMalwareScanOverride",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AppInstaller",
+              "valueName": "EnableBypassCertificatePinningForMicrosoftStore",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AppInstaller",
+              "valueName": "EnableMSAppInstallerProtocol",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AppInstaller",
+              "valueName": "EnableExperimentalFeatures",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AppInstaller",
+              "valueName": "EnableHashOverride",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AppInstaller",
+              "valueName": "EnableLocalArchiveMalwareScanOverride",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AppInstaller",
+              "valueName": "EnableBypassCertificatePinningForMicrosoftStore",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AppInstaller",
+              "valueName": "EnableMSAppInstallerProtocol",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AppInstaller",
+              "valueName": "EnableAppInstaller",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AppInstaller",
+              "valueName": "EnableWindowsPackageManagerCommandLineInterfaces",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "safe",
+        "2": "safe",
+        "3": "safe"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Isključene eksperimentalne značajke, zaobilaženje provjere hash vrijednosti i skeniranja arhiva, zaobilaženje provjere certifikata Storea i protokol ms-appinstaller.",
+          "satisfiedBy": [
+            "safe",
+            "off"
+          ],
+          "reference": "18.10.18.2-18.10.18.6"
+        },
+        {
+          "standard": "CIS-L2",
+          "recommendation": "Isključen App Installer (Onemogućeno).; Isključeno sučelje naredbenog retka Windows Package Managera (winget).",
+          "satisfiedBy": [
+            "off"
+          ],
+          "reference": "18.10.18.1, 18.10.18.7"
+        }
+      ],
+      "notes": "ADDED beyond the draft list. Values come from CIS v4.0.0 items 18.10.18.x; v3.0.0 had only 18.10.17.1-18.10.17.4. Not in MSB. Level 3 deliberately stays on 'safe': disabling winget breaks winget-based patching ('winget upgrade --all'), which is often the only way small offices update third-party apps. The App Installer ADMX (DesktopAppInstaller.admx) is needed only to edit these in gpedit; the registry values work without it.",
+      "sources": [
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://raw.githubusercontent.com/ansible-lockdown/Windows-11-CIS/devel/tasks/section_18/section_18.10/cis_18.10.17.x.yml"
+      ]
+    },
+    {
+      "id": "apps.attachment-zone",
+      "category": "apps",
+      "title": "Oznaka preuzetih datoteka",
+      "description": "Windows pamti da je datoteka stigla s interneta ili iz e-pošte i pri otvaranju je daje antivirusnom programu na provjeru. Na toj oznaci rade i SmartScreen i blokiranje makronaredbi.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
       "requiresRestart": false,
       "options": [
         {
           "id": "on",
-          "title": "Blokiraj",
+          "title": "Uključeno",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "User",
-              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\word\\Security",
-              "valueName": "blockcontentexecutionfrominternet",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Attachments",
+              "valueName": "SaveZoneInformation",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 2,
+              "action": "Set"
             },
             {
               "scope": "User",
-              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\excel\\Security",
-              "valueName": "blockcontentexecutionfrominternet",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Attachments",
+              "valueName": "ScanWithAntiVirus",
               "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "User",
-              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\powerpoint\\Security",
-              "valueName": "blockcontentexecutionfrominternet",
-              "type": "REG_DWORD",
-              "data": 1
+              "data": 3,
+              "action": "Set"
             }
           ]
         }
@@ -4485,153 +5621,19 @@
       },
       "benchmarks": [
         {
-          "standard": "MSB",
-          "recommendation": "Microsoft 365 Apps baseline: blokirano",
+          "standard": "CIS-L1",
+          "recommendation": "Čuvaj podatak o podrijetlu (zoni) u privicima: politika 'Do not preserve zone information' = Onemogućeno.; Obavijesti antivirusni program pri otvaranju privitaka (Omogućeno).",
           "satisfiedBy": [
             "on"
-          ]
+          ],
+          "reference": "19.7.5.1, 19.7.5.2"
         }
+      ],
+      "notes": "ADDED beyond the draft list, because Office internet-macro blocking and SmartScreen both rely on it (Mark of the Web). User scope, under a policy key, so no tattooing. SaveZoneInformation 2 = keep zone information (1 would turn it off). ScanWithAntiVirus 3 = always scan. Not in MSB. The item numbers are the same in CIS v3.0.0 and v4.0.0.",
+      "sources": [
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_user.csv",
+        "https://raw.githubusercontent.com/ansible-lockdown/Windows-11-CIS/devel/tasks/section_19/cis_19.7.5.x.yml"
       ]
-    },
-    {
-      "id": "apps.office-macros",
-      "category": "apps",
-      "title": "Office: makronaredbe općenito",
-      "description": "Određuje smiju li se makronaredbe pokretati u Office datotekama.",
-      "impact": "Ovisno o izboru korisnik vidi upozorenje ili se pokreću samo potpisane makronaredbe.",
-      "impactLevel": "high",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "notify",
-          "title": "Isključene uz obavijest",
-          "settings": [
-            {
-              "scope": "User",
-              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\word\\Security",
-              "valueName": "vbawarnings",
-              "type": "REG_DWORD",
-              "data": 2
-            },
-            {
-              "scope": "User",
-              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\excel\\Security",
-              "valueName": "vbawarnings",
-              "type": "REG_DWORD",
-              "data": 2
-            },
-            {
-              "scope": "User",
-              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\powerpoint\\Security",
-              "valueName": "vbawarnings",
-              "type": "REG_DWORD",
-              "data": 2
-            }
-          ]
-        },
-        {
-          "id": "signed",
-          "title": "Samo potpisane",
-          "settings": [
-            {
-              "scope": "User",
-              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\word\\Security",
-              "valueName": "vbawarnings",
-              "type": "REG_DWORD",
-              "data": 3
-            },
-            {
-              "scope": "User",
-              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\excel\\Security",
-              "valueName": "vbawarnings",
-              "type": "REG_DWORD",
-              "data": 3
-            },
-            {
-              "scope": "User",
-              "key": "Software\\Policies\\Microsoft\\Office\\16.0\\powerpoint\\Security",
-              "valueName": "vbawarnings",
-              "type": "REG_DWORD",
-              "data": 3
-            }
-          ]
-        }
-      ],
-      "levels": {
-        "1": null,
-        "2": null,
-        "3": "signed"
-      },
-      "benchmarks": [
-        {
-          "standard": "MSB",
-          "recommendation": "Microsoft 365 Apps baseline: samo potpisane",
-          "satisfiedBy": [
-            "signed"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "apps.store",
-      "category": "apps",
-      "title": "Isključena Microsoft Trgovina",
-      "description": "Korisnici ne mogu instalirati aplikacije iz Microsoft Trgovine. Korisno za javna računala i kioske.",
-      "impact": "Trgovina se ne otvara (samo Windows Enterprise i Education).",
-      "impactLevel": "high",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "off",
-          "title": "Isključeno",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\WindowsStore",
-              "valueName": "RemoveWindowsStore",
-              "type": "REG_DWORD",
-              "data": 1
-            }
-          ]
-        }
-      ],
-      "levels": {
-        "1": null,
-        "2": null,
-        "3": null
-      },
-      "benchmarks": [],
-      "requirement": "Windows Enterprise ili Education; na Pro izdanju nema učinka."
-    },
-    {
-      "id": "apps.wsh",
-      "category": "apps",
-      "title": "Isključen Windows Script Host",
-      "description": "Zabranjuje pokretanje .vbs i .js skripti koje napadači često šalju e-poštom.",
-      "impact": "Stare prijavne skripte u .vbs obliku prestaju raditi.",
-      "impactLevel": "high",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "off",
-          "title": "Isključeno",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows Script Host\\Settings",
-              "valueName": "Enabled",
-              "type": "REG_DWORD",
-              "data": 0
-            }
-          ]
-        }
-      ],
-      "levels": {
-        "1": null,
-        "2": null,
-        "3": null
-      },
-      "benchmarks": []
     },
     {
       "id": "privacy.telemetry",
@@ -5515,7 +6517,7 @@
       "category": "system",
       "title": "Kontrola korisničkog računa (UAC)",
       "description": "UAC traži potvrdu prije nego što program dobije administratorske ovlasti. Tako zlonamjerni program ne može neprimjetno mijenjati sustav.",
-      "impact": "Uz Preporučeno i Strogo standardni korisnici ne mogu sami instalirati programe, a administratori potvrđuju svaku promjenu sustava.",
+      "impact": "Uz Preporučeno i Strogo standardni korisnici više ne dobivaju prozor za upis administratorske lozinke, pa programe instalira administrator prijavljen svojim računom; administratori, i ugrađeni račun Administrator, potvrđuju svaku promjenu sustava, a uz Strogo upisuju lozinku.",
       "impactLevel": "medium",
       "requiresRestart": true,
       "options": [
@@ -5749,7 +6751,7 @@
           ]
         }
       ],
-      "notes": "All values are Security Options under HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System; writing them through Registry.pol works but tattoos (they stay after the GPO is removed). ConsentPromptBehaviorAdmin: 0 elevate without prompt, 1 credentials on secure desktop, 2 consent on secure desktop, 3 credentials, 4 consent, 5 consent for non-Windows binaries (default). ConsentPromptBehaviorUser: 0 auto-deny, 1 credentials on secure desktop, 3 credentials (default). 'standard' = Windows defaults with UAC forced on (repairs a disabled UAC). A restart is only needed when EnableLUA or FilterAdministratorToken actually changes; prompt behaviour applies immediately. With auto-deny, standard users get 'access denied' instead of a password prompt; IT must sign in with an admin account to install software. 'strict' (admin value 1) satisfies CIS ('consent on the secure desktop or higher') and is stricter than MSB's literal 2 - counted as satisfying MSB, but literal-diff tools will flag it. PromptOnSecureDesktop is a CIS item only (MSB leaves the default). CIS v5.0.1 section 2.3.17 numbering is unchanged from v4.0.0 (2.3.17.1-2.3.17.4, 2.3.17.6, 2.3.17.7 confirmed for v5.0.1), which also indicates CIS has not added the Administrator protection settings.",
+      "notes": "All values are Security Options under HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System; writing them through Registry.pol works but tattoos (they stay after the GPO is removed). ConsentPromptBehaviorAdmin: 0 elevate without prompt, 1 credentials on secure desktop, 2 consent on secure desktop, 3 credentials, 4 consent, 5 consent for non-Windows binaries (default). ConsentPromptBehaviorUser: 0 auto-deny, 1 credentials on secure desktop, 3 credentials (default). 'standard' = Windows defaults with UAC forced on (repairs a disabled UAC). A restart is only needed when EnableLUA or FilterAdministratorToken actually changes; prompt behaviour applies immediately. With auto-deny, standard users get 'access denied' instead of a password prompt; IT must sign in with an admin account to install software. 'strict' (admin value 1) satisfies CIS ('consent on the secure desktop or higher'; AuditTAP CIS 4.0.0 accepts 1 or 2) and is stricter than MSB's literal 2 - counted as satisfying MSB, but literal-diff tools will flag it. PromptOnSecureDesktop is a CIS item only (MSB leaves the default). CIS v5.0.1 section 2.3.17 numbering is unchanged from v4.0.0 (2.3.17.1-2.3.17.4, 2.3.17.6, 2.3.17.7 confirmed for v5.0.1), which also indicates CIS has not added the Administrator protection settings.",
       "sources": [
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
@@ -5824,7 +6826,7 @@
           ]
         }
       ],
-      "notes": "Windows 11 24H2+ client only (not Server, Windows 365, AVD). Microsoft updated the 26H2 baseline (v2 package) for Administrator protection GA with 'Configure type of Admin Approval Mode' = Admin Approval Mode with Administrator protection (TypeOfAdminApprovalMode=2) and the Administrator-protection prompt = 'Prompt for credentials on the secure desktop'; MC1506291: for baseline users it becomes enabled by default with the October 2026 security update (24H2/25H2/26H2). ConsentPromptBehaviorEnhancedAdmin=1 is used for 'credentials' (AuditTAP's MSB 25H2 check and the 24H2 baseline GPO report both show 1); HardeningKitty's MSB list uses 2, which upstream issue #217 reports as wrong - verify on a test device. Not in CIS v5.0.1. Known issues: Group Policy refresh failures with the baseline on Aug/Sept 2026 previews (reported fixed by KB5127648), conflicts with Endpoint Privilege Management tools, no auto-elevation for Windows binaries, Project Zero bypasses (reported fixed). 'legacy' (1) is Microsoft's documented rollback; it is not tied to any level. Restart required.",
+      "notes": "Windows 11 24H2+ client only (not Server, Windows 365, AVD). Microsoft updated the 26H2 baseline (v2 package) for Administrator protection GA with 'Configure type of Admin Approval Mode' = Admin Approval Mode with Administrator protection (TypeOfAdminApprovalMode=2) and the Administrator-protection prompt = 'Prompt for credentials on the secure desktop'; MC1506291: for baseline users it becomes enabled by default with the October 2026 security update (24H2/25H2/26H2). ConsentPromptBehaviorEnhancedAdmin=1 is used for 'credentials': issue #217 (0x6d69636b/windows_hardening) quotes the Policy CSP LocalPoliciesSecurityOptions page as '1 -> Prompt for credentials on secure desktop' (default) and calls HardeningKitty's 2 wrong. AuditTAP's MSB 25H2 check also expects 1 but LABELS it 'Prompt for consent on the secure desktop' (old 'Enhanced Privilege Protection Mode' wording), so it confirms the value, not its meaning. The dgulle 26H2 Intune export has no Administrator protection settings. Verify on a test device. Not in CIS v5.0.1. Known issues: Group Policy refresh failures with the baseline on Aug/Sept 2026 previews (reported fixed by KB5127648), conflicts with Endpoint Privilege Management tools, no auto-elevation for Windows binaries, Project Zero bypasses (reported fixed). 'legacy' (1) is Microsoft's documented rollback; it is not tied to any level. Restart required.",
       "sources": [
         "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/windows-11-version-26h2-security-baseline/4560382",
         "https://mc.merill.net/message/MC1506291",
@@ -5969,7 +6971,7 @@
       "category": "system",
       "title": "Zaštita lozinki u memoriji (LSA)",
       "description": "Windows proces koji čuva prijave i lozinke (LSASS) radi kao zaštićeni proces. Alati za krađu lozinki tako ne mogu čitati njegovu memoriju.",
-      "impact": "Korisnici ništa ne primjećuju; vrlo stari dodaci za prijavu ili sigurnosni programi mogu se prestati učitavati.",
+      "impact": "Korisnici ništa ne primjećuju, ali vrlo stari dodaci za prijavu mogu se prestati učitavati, a 'Trajno uključeno' ne može se poništiti samo promjenom postavke.",
       "impactLevel": "low",
       "requiresRestart": true,
       "options": [
@@ -5998,7 +7000,7 @@
         },
         {
           "id": "uefi-lock",
-          "title": "Uključeno + UEFI",
+          "title": "Trajno uključeno",
           "matchMode": "exact",
           "settings": [
             {
@@ -6042,12 +7044,13 @@
           ]
         }
       ],
-      "notes": "RunAsPPL: 0 off, 1 on with UEFI lock, 2 on without UEFI lock (Win11 22H2+). Written to BOTH the classic location System\\CurrentControlSet\\Control\\Lsa (honoured by every build; 23H2 and older templates wrote here) and the 24H2+ ADMX location Software\\Policies\\Microsoft\\Windows\\System (what the MSB 25H2 GPO and CIS v5 audit check). With the UEFI lock the state lives in a UEFI variable: deleting the registry values does NOT turn it off; Microsoft's LSA Protected Process Opt-out tool (LSAPPLConfig.efi) at the console is needed. Level 2 deliberately uses 2 (reversible) and therefore does not meet CIS/MSB literally; level 3 matches both. After reboot, System log event 12 (Wininit) confirms protected mode; blocked plug-ins are logged in Microsoft-Windows-CodeIntegrity/Operational. CIS number was 18.9.26.2 in v4.0.0, 18.9.27.2 in v5.0.1.",
+      "notes": "RunAsPPL: 0 off, 1 on with UEFI lock, 2 on without UEFI lock (Win11 22H2+). The CIS benchmark text (quoted in Fleet's CIS policy set) says the 23H2 ADMX wrote HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa:RunAsPPL and the 24H2+ ADMX writes HKLM\\Software\\Policies\\Microsoft\\Windows\\System:RunAsPPL. Written to BOTH locations: the classic Lsa path (honoured by every build; HardeningKitty's MSB 25H2 list still checks only this path) and the 24H2+ policy path (AuditTAP's MSB 25H2 check reads this one). With the UEFI lock the state lives in a UEFI variable: deleting the registry values does NOT turn it off; Microsoft's LSA Protected Process Opt-out tool (LSAPPLConfig.efi) at the console is needed. Level 2 deliberately uses 2 (reversible) and therefore does not meet CIS/MSB literally; level 3 matches both. After reboot, System log event 12 (Wininit) confirms protected mode; blocked plug-ins are logged in Microsoft-Windows-CodeIntegrity/Operational. CIS number was 18.9.26.2 in v4.0.0, 18.9.27.2 in v5.0.1.",
       "sources": [
         "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-15150.html",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/fbprogmbh/Hardening-Audit-Tool-AuditTAP/tree/master/ATAPAuditor/AuditGroups",
-        "https://learn.microsoft.com/en-us/windows-server/security/credentials-protection-and-management/configuring-additional-lsa-protection"
+        "https://learn.microsoft.com/en-us/windows-server/security/credentials-protection-and-management/configuring-additional-lsa-protection",
+        "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml"
       ]
     },
     {
@@ -6153,24 +7156,26 @@
       ]
     },
     {
-      "id": "audit.events",
+      "id": "audit.security-events",
       "category": "audit",
       "title": "Revizija sigurnosnih događaja",
-      "description": "Windows bilježi prijave, zaključavanja računa, promjene korisnika i druge sigurnosne događaje u zapisnik Security.",
-      "impact": "Korisnici ništa ne primjećuju; zapisnik raste brže.",
-      "impactLevel": "none",
+      "description": "Windows bilježi prijave i odjave, neuspjele pokušaje prijave, zaključavanja računa te promjene korisnika i grupa. Ti zapisi pomažu otkriti napad i kasnije utvrditi što se dogodilo.",
+      "impact": "Korisnici ništa ne primjećuju; zapisnik Sigurnost brže raste.",
+      "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
           "id": "basic",
           "title": "Osnovno",
+          "matchMode": "atLeast",
           "settings": [
             {
               "scope": "Machine",
-              "key": "SYSTEM\\CurrentControlSet\\Control\\Lsa",
+              "key": "System\\CurrentControlSet\\Control\\Lsa",
               "valueName": "SCENoApplyLegacyAuditPolicy",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             }
           ],
           "audit": {
@@ -6180,19 +7185,22 @@
             "Account Lockout": "Failure",
             "Special Logon": "Success",
             "User Account Management": "Success,Failure",
-            "Security Group Management": "Success"
+            "Security Group Management": "Success",
+            "Audit Policy Change": "Success"
           }
         },
         {
           "id": "extended",
           "title": "Prošireno",
+          "matchMode": "atLeast",
           "settings": [
             {
               "scope": "Machine",
-              "key": "SYSTEM\\CurrentControlSet\\Control\\Lsa",
+              "key": "System\\CurrentControlSet\\Control\\Lsa",
               "valueName": "SCENoApplyLegacyAuditPolicy",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             }
           ],
           "audit": {
@@ -6234,34 +7242,72 @@
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Napredna revizija prema CIS-u za sve podkategorije",
+          "recommendation": "Napredne potkategorije revizije imaju prednost pred starim kategorijama (Omogućeno).",
+          "satisfiedBy": [
+            "basic",
+            "extended"
+          ],
+          "reference": "2.3.2.1"
+        },
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Svih 27 potkategorija napredne revizije s CIS vrijednostima (prijave, računi, promjene pravila, privilegije, sustav).",
+          "satisfiedBy": [
+            "extended"
+          ],
+          "reference": "17.1.1-17.9.5"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Napredne potkategorije revizije imaju prednost pred starim kategorijama (Omogućeno).",
+          "satisfiedBy": [
+            "basic",
+            "extended"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "23 potkategorije napredne revizije prema Windows 11 baselineu (podskup CIS popisa; Sensitive Privilege Use samo Uspjeh).",
           "satisfiedBy": [
             "extended"
           ]
         }
+      ],
+      "notes": "Audit values follow CIS v4.0.0 section 17; every item there is Level 1. CIS words some items as 'include Success' or 'include Failure'. So for audit, matchMode 'atLeast' should mean: the actual flags must be a SUPERSET of ours (Success,Failure satisfies Success). Option 'basic' is the logon/lockout/account-management core: 8 subcategories with CIS values. On its own it satisfies neither CIS nor MSB. Option 'extended' covers all 27 CIS L1 subcategories. It is a superset of the MSB Windows 11 25H2/26H2 audit set, so it satisfies MSB too. Where MSB differs from CIS: since 23H2, MSB sets Sensitive Privilege Use to Success only (CIS wants Success,Failure; the 22H2 MSB still had Success,Failure). MSB does not configure Logoff, Application Group Management, Authorization Policy Change or IPsec Driver. Subcategory names are the English auditpol names; CIS calls 'Plug and Play Events' 'Audit PNP Activity'. On localized systems use the GUIDs: auditpol /set /subcategory:{GUID} /success:enable /failure:enable. GUID table: Credential Validation = {0CCE923F-69AE-11D9-BED3-505054503030} (CIS 17.1.1: Success,Failure); Application Group Management = {0CCE9239-69AE-11D9-BED3-505054503030} (17.2.1: Success,Failure); Security Group Management = {0CCE9237-69AE-11D9-BED3-505054503030} (17.2.2: Success); User Account Management = {0CCE9235-69AE-11D9-BED3-505054503030} (17.2.3: Success,Failure); Plug and Play Events = {0CCE9248-69AE-11D9-BED3-505054503030} (17.3.1: Success); Process Creation = {0CCE922B-69AE-11D9-BED3-505054503030} (17.3.2: Success); Account Lockout = {0CCE9217-69AE-11D9-BED3-505054503030} (17.5.1: Failure); Group Membership = {0CCE9249-69AE-11D9-BED3-505054503030} (17.5.2: Success); Logoff = {0CCE9216-69AE-11D9-BED3-505054503030} (17.5.3: Success); Logon = {0CCE9215-69AE-11D9-BED3-505054503030} (17.5.4: Success,Failure); Other Logon/Logoff Events = {0CCE921C-69AE-11D9-BED3-505054503030} (17.5.5: Success,Failure); Special Logon = {0CCE921B-69AE-11D9-BED3-505054503030} (17.5.6: Success); Detailed File Share = {0CCE9244-69AE-11D9-BED3-505054503030} (17.6.1: Failure); File Share = {0CCE9224-69AE-11D9-BED3-505054503030} (17.6.2: Success,Failure); Other Object Access Events = {0CCE9227-69AE-11D9-BED3-505054503030} (17.6.3: Success,Failure); Removable Storage = {0CCE9245-69AE-11D9-BED3-505054503030} (17.6.4: Success,Failure); Audit Policy Change = {0CCE922F-69AE-11D9-BED3-505054503030} (17.7.1: Success); Authentication Policy Change = {0CCE9230-69AE-11D9-BED3-505054503030} (17.7.2: Success); Authorization Policy Change = {0CCE9231-69AE-11D9-BED3-505054503030} (17.7.3: Success); MPSSVC Rule-Level Policy Change = {0CCE9232-69AE-11D9-BED3-505054503030} (17.7.4: Success,Failure); Other Policy Change Events = {0CCE9234-69AE-11D9-BED3-505054503030} (17.7.5: Failure); Sensitive Privilege Use = {0CCE9228-69AE-11D9-BED3-505054503030} (17.8.1: Success,Failure); IPsec Driver = {0CCE9213-69AE-11D9-BED3-505054503030} (17.9.1: Success,Failure); Other System Events = {0CCE9214-69AE-11D9-BED3-505054503030} (17.9.2: Success,Failure); Security State Change = {0CCE9210-69AE-11D9-BED3-505054503030} (17.9.3: Success); Security System Extension = {0CCE9211-69AE-11D9-BED3-505054503030} (17.9.4: Success); System Integrity = {0CCE9212-69AE-11D9-BED3-505054503030} (17.9.5: Success,Failure). SCENoApplyLegacyAuditPolicy (CIS 2.3.2.1, MSB) is a Security Option. It is normally stored in GptTmpl.inf [Registry Values] as MACHINE\\System\\CurrentControlSet\\Control\\Lsa\\SCENoApplyLegacyAuditPolicy=4,1. Writing it through Registry.pol or Set-GPRegistryValue sets the same registry value. Persistence: auditpol only changes the effective policy. At the next refresh it is overwritten by an audit.csv in local GP (%SystemRoot%\\System32\\GroupPolicy\\Machine\\Microsoft\\Windows NT\\Audit\\audit.csv) or by a domain GPO. Domain mode: Set-GPRegistryValue cannot set advanced audit. Instead, write audit.csv into the GPO at Machine\\Microsoft\\Windows NT\\Audit\\audit.csv (Setting Value 1=Success, 2=Failure, 3=both, 0=none). Then register the Advanced Audit Policy client-side extension in gPCMachineExtensionNames.",
+      "sources": [
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_msft_security_baseline_windows_11_23h2_machine.csv",
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_msft_security_baseline_windows_11_22h2_machine.csv",
+        "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/windows-11-version-26h2-security-baseline/4560382"
       ]
     },
     {
-      "id": "audit.cmdline",
+      "id": "audit.process-cmdline",
       "category": "audit",
-      "title": "Naredbeni redak u zapisu procesa",
-      "description": "Uz svaki pokrenuti program bilježi se i cijela naredba, što jako pomaže pri istrazi napada.",
-      "impact": "Korisnici ništa ne primjećuju.",
+      "title": "Naredbe pokrenutih programa",
+      "description": "Uz svaki pokrenuti program u zapisnik se upisuje i cijela naredba kojom je pokrenut. To uvelike olakšava otkrivanje zlonamjernih skripti i istragu napada.",
+      "impact": "Korisnici ništa ne primjećuju; lozinke upisane u naredbeni redak mogu završiti u zapisniku.",
       "impactLevel": "none",
       "requiresRestart": false,
       "options": [
         {
           "id": "on",
           "title": "Uključeno",
+          "matchMode": "atLeast",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\Audit",
               "valueName": "ProcessCreationIncludeCmdLine_Enabled",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             }
-          ]
+          ],
+          "audit": {
+            "Process Creation": "Success"
+          }
         }
       ],
       "levels": {
@@ -6272,55 +7318,169 @@
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Uključeno",
+          "recommendation": "Uključi naredbeni redak u događaje stvaranja procesa (Omogućeno).",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "18.9.3.1"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Uključi naredbeni redak u događaje stvaranja procesa (dodano u Windows 11 25H2 baseline).",
           "satisfiedBy": [
             "on"
           ]
         }
+      ],
+      "notes": "The registry value only adds the command line to event 4688. Without 'Process Creation' Success auditing it does nothing, so this option also sets that subcategory. The value matches audit.security-events 'extended', so there is no conflict. MSB added this setting in 25H2; it is missing from the 24H2 baseline (per dgulle/Security-Baselines README and the HardeningKitty 24H2/25H2 lists). Command lines can contain secrets, so limit who can read the Security log.",
+      "sources": [
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://raw.githubusercontent.com/dgulle/Security-Baselines/master/README.md",
+        "https://raw.githubusercontent.com/ansible-lockdown/Windows-11-CIS/devel/tasks/section_18/section_18.9/cis_18.9.3.x.yml"
       ]
     },
     {
       "id": "audit.powershell",
       "category": "audit",
-      "title": "Zapis PowerShell skripti",
-      "description": "Bilježi sadržaj PowerShell skripti koje se izvršavaju, pa se vidi i prikriveni zlonamjerni kod.",
-      "impact": "Korisnici ništa ne primjećuju; zapisnik PowerShella raste brže.",
-      "impactLevel": "none",
+      "title": "Zapisivanje PowerShell skripti",
+      "description": "Bilježi sadržaj PowerShell skripti i naredbi koje se izvršavaju na računalu. Napadači često zloupotrebljavaju PowerShell, pa ti zapisi pomažu otkriti i istražiti napad.",
+      "impact": "Korisnici obično ništa ne primjećuju; uz opciju Potpuno u mapi Dokumenti nastaju tekstualni zapisi PowerShell sesija.",
+      "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
-          "id": "on",
-          "title": "Uključeno",
+          "id": "scriptblock",
+          "title": "Skripte",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging",
               "valueName": "EnableScriptBlockLogging",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging",
+              "valueName": "EnableScriptBlockInvocationLogging",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "full",
+          "title": "Potpuno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging",
+              "valueName": "EnableScriptBlockLogging",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging",
+              "valueName": "EnableScriptBlockInvocationLogging",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\PowerShell\\ModuleLogging",
+              "valueName": "EnableModuleLogging",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\PowerShell\\ModuleLogging\\ModuleNames",
+              "valueName": "*",
+              "type": "REG_SZ",
+              "data": "*",
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\PowerShell\\Transcription",
+              "valueName": "EnableTranscripting",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\PowerShell\\Transcription",
+              "valueName": "EnableInvocationHeader",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
         "1": null,
-        "2": "on",
-        "3": "on"
+        "2": "scriptblock",
+        "3": "full"
       },
-      "benchmarks": []
+      "benchmarks": [
+        {
+          "standard": "CIS-L2",
+          "recommendation": "Uključi zapisivanje blokova PowerShell skripti (Omogućeno).",
+          "satisfiedBy": [
+            "scriptblock",
+            "full"
+          ],
+          "reference": "18.10.87.1"
+        },
+        {
+          "standard": "CIS-L2",
+          "recommendation": "Uključi transkripciju PowerShell sesija (Omogućeno).",
+          "satisfiedBy": [
+            "full"
+          ],
+          "reference": "18.10.87.2"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Uključi zapisivanje blokova PowerShell skripti, bez zapisa početka i kraja izvršavanja.",
+          "satisfiedBy": [
+            "scriptblock",
+            "full"
+          ]
+        }
+      ],
+      "notes": "How CIS's position changed (from the HardeningKitty CIS lists and the ansible-lockdown v3.0.0 role): Win10 v1.6.1 (1809) set BOTH Script Block Logging and Transcription to Disabled. Win10 v1.12.0 and Win11 v1.0.0 set Script Block Logging Enabled and Transcription Disabled. Win11 v2.0.0 set both Enabled at L1. Win11 v3.0.0 and v4.0.0 keep both Enabled but move them to Level 2 (items 18.10.86.x in v3, 18.10.87.x in v4). MSB (23H2 through 25H2/26H2) enables Script Block Logging with EnableScriptBlockInvocationLogging=0. MSB does not configure transcription or module logging. Module logging for all modules ('*') is in neither CIS nor MSB; it is added to 'full' because it is common SOC guidance. When OutputDirectory is not set, transcripts go to each user's Documents folder; that folder may sync to OneDrive and the transcripts may contain secrets. Consider an OutputDirectory on a protected location. Script block logs (Microsoft-Windows-PowerShell/Operational, event 4104) can also contain secrets; consider Protected Event Logging. These keys affect Windows PowerShell 5.1 only. PowerShell 7 reads Software\\Policies\\Microsoft\\PowerShellCore\\... instead; set UseWindowsPowerShellPolicySetting=1 there to inherit.",
+      "sources": [
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://raw.githubusercontent.com/ansible-lockdown/Windows-11-CIS/devel/tasks/section_18/section_18.10/cis_18.10.86.x.yml",
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_cis_microsoft_windows_10_enterprise_1809_machine.csv",
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_cis_microsoft_windows_10_enterprise_21h2_machine.csv"
+      ]
     },
     {
       "id": "audit.eventlog-size",
       "category": "audit",
-      "title": "Veći zapisnici događaja",
-      "description": "Zapisnici Application, Security i System su dovoljno veliki da stari događaji ne nestanu prije istrage.",
-      "impact": "Zapisnici zauzimaju do oko 260 MB na disku.",
+      "title": "Veličina zapisnika događaja",
+      "description": "Povećava zapisnike Aplikacija, Sigurnost, Postavljanje i Sustav da se stari događaji ne brišu prebrzo. Tako ostaje dovoljno povijesti za istragu incidenta.",
+      "impact": "Korisnici ništa ne primjećuju; zapisnici zauzimaju do oko 290 MB (Preporučeno) ili 1,2 GB (Veliko) diska.",
       "impactLevel": "none",
       "requiresRestart": false,
       "options": [
         {
-          "id": "cis",
-          "title": "Prema CIS-u",
+          "id": "standard",
+          "title": "Preporučeno",
           "matchMode": "atLeast",
           "settings": [
             {
@@ -6328,38 +7488,168 @@
               "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\Application",
               "valueName": "MaxSize",
               "type": "REG_DWORD",
-              "data": 32768
+              "data": 32768,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\Application",
+              "valueName": "Retention",
+              "type": "REG_SZ",
+              "data": "0",
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\Security",
               "valueName": "MaxSize",
               "type": "REG_DWORD",
-              "data": 196608
+              "data": 196608,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\Security",
+              "valueName": "Retention",
+              "type": "REG_SZ",
+              "data": "0",
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\Setup",
+              "valueName": "MaxSize",
+              "type": "REG_DWORD",
+              "data": 32768,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\Setup",
+              "valueName": "Retention",
+              "type": "REG_SZ",
+              "data": "0",
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\System",
               "valueName": "MaxSize",
               "type": "REG_DWORD",
-              "data": 32768
+              "data": 32768,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\System",
+              "valueName": "Retention",
+              "type": "REG_SZ",
+              "data": "0",
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "large",
+          "title": "Veliko",
+          "matchMode": "atLeast",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\Application",
+              "valueName": "MaxSize",
+              "type": "REG_DWORD",
+              "data": 65536,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\Application",
+              "valueName": "Retention",
+              "type": "REG_SZ",
+              "data": "0",
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\Security",
+              "valueName": "MaxSize",
+              "type": "REG_DWORD",
+              "data": 1048576,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\Security",
+              "valueName": "Retention",
+              "type": "REG_SZ",
+              "data": "0",
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\Setup",
+              "valueName": "MaxSize",
+              "type": "REG_DWORD",
+              "data": 32768,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\Setup",
+              "valueName": "Retention",
+              "type": "REG_SZ",
+              "data": "0",
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\System",
+              "valueName": "MaxSize",
+              "type": "REG_DWORD",
+              "data": 65536,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\EventLog\\System",
+              "valueName": "Retention",
+              "type": "REG_SZ",
+              "data": "0",
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
-        "1": null,
-        "2": "cis",
-        "3": "cis"
+        "1": "standard",
+        "2": "standard",
+        "3": "large"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Application i System 32 MB ili više, Security 192 MB ili više",
+          "recommendation": "Zapisnik Aplikacija: najmanje 32 768 KB.; Zapisnik Sigurnost: najmanje 196 608 KB.; Zapisnik Postavljanje: najmanje 32 768 KB.; Zapisnik Sustav: najmanje 32 768 KB.; Kad se zapisnik napuni, najstariji događaji se prepisuju (postavka 'Disabled') za sva četiri zapisnika.",
           "satisfiedBy": [
-            "cis"
+            "standard",
+            "large"
+          ],
+          "reference": "18.10.26.1.2, 18.10.26.2.2, 18.10.26.3.2, 18.10.26.4.2, 18.10.26.1.1, 18.10.26.2.1, 18.10.26.3.1, 18.10.26.4.1"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Aplikacija najmanje 32 768 KB, Sigurnost najmanje 196 608 KB, Sustav najmanje 32 768 KB.",
+          "satisfiedBy": [
+            "standard",
+            "large"
           ]
         }
+      ],
+      "notes": "MaxSize is a REG_DWORD in KB. Use multiples of 64 KB; the policy accepts up to 4194240 KB. Retention is a REG_SZ. CIS expects \"0\", which means the policy 'Control Event Log behavior when the log file reaches its maximum size' is Disabled: the oldest events are overwritten, as Windows does by default. The option matchMode atLeast is meant for the MaxSize DWORDs; compare Retention as an exact string. MSB does not configure the Setup log or Retention. Left out: CIS 18.5.13 (L1) MSS WarningLevel <= 90 for the Security log (System\\CurrentControlSet\\Services\\Eventlog\\Security\\WarningLevel), because it needs atMost semantics. Add it as its own control if wanted.",
+      "sources": [
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://raw.githubusercontent.com/ansible-lockdown/Windows-11-CIS/devel/tasks/section_18/section_18.10/cis_18.10.25.x.yml"
       ]
     }
   ]

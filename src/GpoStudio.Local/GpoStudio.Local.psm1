@@ -192,14 +192,16 @@ function Restore-GpsRegistrySnapshotCore {
                 $key = $base.CreateSubKey([string]$e.key)
                 try {
                     $kind = [Microsoft.Win32.RegistryValueKind]([string]$e.kind)
-                    $data = switch ($kind) {
-                        'Binary' { [Convert]::FromBase64String([string]$e.data) }
-                        'DWord' { [BitConverter]::ToInt32([BitConverter]::GetBytes([uint32]$e.data), 0) }
-                        'QWord' { [long]$e.data }
-                        'MultiString' { [string[]]@($e.data) }
-                        default { [string]$e.data }
+                    # Dodjela unutar grana: izlaz iz switch-a bi razmotao string[] u object[].
+                    switch ($kind) {
+                        'Binary' { [byte[]]$data = [Convert]::FromBase64String([string]$e.data) }
+                        'DWord' { $data = [BitConverter]::ToInt32([BitConverter]::GetBytes([uint32]$e.data), 0) }
+                        'QWord' { $data = [long]$e.data }
+                        'MultiString' { [string[]]$data = @($e.data | ForEach-Object { [string]$_ }) }
+                        default { $data = [string]$e.data }
                     }
                     $key.SetValue([string]$e.valueName, $data, $kind)
+                    Remove-Variable -Name data
                 }
                 finally { $key.Close() }
             }
