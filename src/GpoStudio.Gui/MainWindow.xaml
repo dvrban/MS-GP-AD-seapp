@@ -243,6 +243,8 @@
                     <StackPanel DockPanel.Dock="Top" Margin="22,18,22,8">
                         <DockPanel>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                                <Button x:Name="btnExportReport" Content="IZVEZI IZVJEŠTAJ" Margin="0,0,8,0"
+                                        ToolTip="Sprema usporedbu kao HTML izvještaj koji se može ispisati ili poslati."/>
                                 <Button x:Name="btnUseState" Content="PREUZMI KAO ODABIR" Margin="0,0,8,0" IsEnabled="False"
                                         ToolTip="Postavlja odabir na stanje pronađeno na računalu, da ga možete doraditi i ponovno primijeniti."/>
                                 <Button x:Name="btnCheckComputer" Style="{StaticResource GumbPrimarni}" Content="PROVJERI RAČUNALO"/>

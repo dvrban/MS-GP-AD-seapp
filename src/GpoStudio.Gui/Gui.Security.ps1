@@ -610,3 +610,20 @@ function Use-DetectedState {
 }
 
 #endregion
+
+#region Izvještaj
+
+function Export-UiComplianceReport {
+    $useState = [bool]$ui.rbCmpState.IsChecked -and $Sec.Detected
+    $selection = if ($useState) { $Sec.Detected.Selection } else { $Sec.Selection }
+    $subject = if ($useState) { "Računalo $($Sec.Detected.ComputerName)" } else { "Odabir: $(Get-SelectionTitle)" }
+    $name = if ($useState) { "GPO Studio - $($Sec.Detected.ComputerName)" } else { 'GPO Studio - odabir' }
+    $dlg = [Microsoft.Win32.SaveFileDialog]@{ Filter = 'HTML izvještaj (*.html)|*.html'; FileName = ("{0} {1:yyyy-MM-dd}.html" -f $name, (Get-Date)) }
+    if (-not $dlg.ShowDialog($window)) { return }
+    $html = ConvertTo-GpsComplianceHtml -Catalog $Sec.Catalog -Selection $selection -Subject $subject -NotSetText $(if ($useState) { 'Nije postavljeno' } else { 'Ne mijenja se' })
+    [IO.File]::WriteAllText($dlg.FileName, $html, [Text.UTF8Encoding]::new($true))
+    Write-UiLog "Izvještaj spremljen: $($dlg.FileName)" -Level Ok
+    try { Start-Process -FilePath $dlg.FileName } catch { }
+}
+
+#endregion

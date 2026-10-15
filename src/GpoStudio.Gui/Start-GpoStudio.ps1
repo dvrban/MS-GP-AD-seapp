@@ -146,6 +146,7 @@ $ui.btnPresetImport.Add_Click({ Import-UiPreset })
 # Usporedba
 $ui.btnCheckComputer.Add_Click({ Start-ComputerCheck })
 $ui.btnUseState.Add_Click({ Use-DetectedState })
+$ui.btnExportReport.Add_Click({ Export-UiComplianceReport })
 foreach ($rb in 'rbCmpSelection', 'rbCmpState') { $ui[$rb].Add_Checked({ Update-ComparePage }) }
 
 # Napredno

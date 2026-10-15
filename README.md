@@ -7,7 +7,20 @@ Microsoftovom okruženju:
 - **domenski GPO-ovi** preko domain controllera (PDC emulator), uz RSAT GroupPolicy modul.
 
 Središnji pojam je **Policy Set**: JSON skup postavki koji se može primijeniti lokalno ili objaviti
-kao domenski GPO. Postavke se biraju iz kataloga izgrađenog iz ADMX/ADML predložaka, kao u `gpedit.msc`.
+kao domenski GPO.
+
+Sučelje je napravljeno za korisnike koji ne poznaju Group Policy (izgled: Auxilium Informatika):
+
+- **tri razine zaštite** (Osnovno, Preporučeno, Strogo) i **gotovi preseti** (javno računalo/kiosk,
+  prijenosno računalo, učionica...);
+- **kontrolna ploča sigurnosnih postavki**: kvačice i izbori po područjima (lozinke i prijava,
+  ažuriranja, USB, Microsoft Defender, mreža i vatrozid, preglednik i Office, privatnost, sustav,
+  revizija), s objašnjenjem na hrvatskom i utjecajem na korisnike;
+- **vlastiti preseti** (predlošci) koji se spremaju, izvoze i uvoze;
+- **usporedba sa standardima**: odabir ili stvarno stanje računala prema CIS benchmarku za
+  Windows 11 (razine 1 i 2) i Microsoftovom sigurnosnom baselineu;
+- **pregled promjena** prije primjene, sigurnosna kopija prije svake primjene i vraćanje s popisa;
+- **napredni način**: katalog ADMX politika s pretragom, kao `gpedit.msc`.
 
 ➡ **Detaljan prijedlog arhitekture, sigurnosti i plana razvoja: [docs/PRIJEDLOG.md](docs/PRIJEDLOG.md)**
 ➡ **Upute za testni lab (Hyper-V, domena `gpslab.test`, smoke test): [docs/TESTNI-LAB.md](docs/TESTNI-LAB.md)**
@@ -20,10 +33,11 @@ kao domenski GPO. Postavke se biraju iz kataloga izgrađenog iz ADMX/ADML predlo
 
 | Mapa | Sadržaj |
 |---|---|
-| `src/GpoStudio.Core` | Registry.pol čitač/pisač, ADMX katalog, Policy Set model, diff, revizijski zapis |
+| `src/GpoStudio.Core` | Registry.pol čitač/pisač, ADMX katalog, Policy Set model, diff, revizijski zapis, sigurnosne kontrole i preseti |
+| `src/GpoStudio.Core/Data` | Katalog sigurnosnih kontrola (`security-controls.json`) i ugrađeni preseti (`Presets`) |
 | `src/GpoStudio.Local` | Primjena na lokalni GP (gpt.ini, secedit, auditpol, gpupdate, backup/restore, WinRM) |
 | `src/GpoStudio.Domain` | Objava GPO-a, povezivanje, sigurnosno filtriranje, provjera replikacije |
-| `src/GpoStudio.Gui` | WPF sučelje (`Start-GpoStudio.ps1` + `MainWindow.xaml`) |
+| `src/GpoStudio.Gui` | WPF sučelje (`Start-GpoStudio.ps1`, `MainWindow.xaml`, `Gui.*.ps1`) i Auxilium tema (`Theme/Auxilium.xaml`) |
 | `examples` | Primjer Policy Seta |
 | `lab` | Skripte za izgradnju testnog laba i automatizirani smoke test |
 | `tests` | Pester testovi (Core i dijelovi Local/Domain rade i na Linuxu) |
@@ -36,7 +50,9 @@ kao domenski GPO. Postavke se biraju iz kataloga izgrađenog iz ADMX/ADML predlo
 ```
 
 GUI radi u 64-bitnom Windows PowerShellu 5.1. Pokrene li se iz PowerShella 7 ili 32-bitnog
-procesa, sam se ponovno pokreće u `powershell.exe`. Domenski cmdleti (`GpoStudio.Domain`) također
+procesa, sam se ponovno pokreće u `powershell.exe`. Fontovi marke (Orbitron, Sora, IBM Plex Mono;
+licenca OFL) koriste se ako su u mapi `src\GpoStudio.Gui\Fonts`; bez njih sučelje koristi
+Bahnschrift, Segoe UI i Consolas. Domenski cmdleti (`GpoStudio.Domain`) također
 traže Windows PowerShell 5.1, a Core i lokalni dio rade i u PowerShellu 7.
 
 Za domenski način potreban je RSAT:
@@ -70,6 +86,27 @@ Test-GpsDomainGpoReplication -GpoName 'WS - Baseline'
 # Slaganje iz ADMX kataloga
 $policy = Get-GpsAdmxCatalog | Where-Object DisplayName -like '*Store*' | Select-Object -First 1
 $set.settings.AddRange(@(ConvertTo-GpsPolicySetting -Policy $policy -State Enabled))
+```
+
+### Sigurnosne postavke iz skripte
+
+```powershell
+Import-Module .\src\GpoStudio.Local\GpoStudio.Local.psm1
+
+$catalog = Get-GpsControlCatalog
+$selection = Get-GpsControlSelection -Catalog $catalog -Level 2 -Override @{ 'usb.storage' = 'readonly' }
+$set = ConvertTo-GpsControlPolicySet -Catalog $catalog -Selection $selection
+Set-GpsLocalPolicy -PolicySet $set -WhatIf
+
+# Usporedba odabira i stvarnog stanja računala sa standardima
+Get-GpsControlCompliance -Catalog $catalog -Selection $selection | Select-Object Id, Score, Satisfied, Total
+$state = Get-GpsControlState -Catalog $catalog -ComputerName PC01
+Get-GpsControlCompliance -Catalog $catalog -Selection $state.Selection
+
+# Preseti
+Get-GpsControlPreset | Select-Object Name, Level, BuiltIn
+$preset = New-GpsControlPreset -Catalog $catalog -Name 'Recepcija' -Level 2 -Selection $selection
+Export-GpsControlPreset -Preset $preset
 ```
 
 ## Testovi

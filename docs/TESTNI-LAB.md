@@ -339,32 +339,39 @@ Lokalna primjena (N1, N3) traži povišenu sesiju kao `gps.admin`; A1 i A2 se na
 
 ### 5.1. GUI
 
+Sučelje ima stranice u lijevoj navigaciji (*Pregled*, *Sigurnosne postavke*, *Preseti*, *Usporedba*,
+*Promjene*, *Napredno (gpedit)*, *Dnevnik*), traku **CILJ** ispod zaglavlja i traku radnji na dnu
+(*Sigurnosna kopija*, *Vrati prethodno stanje*, *Pregledaj promjene*, *Primijeni*). Traka radnji radi s
+izvorom koji piše uz *Primjenjuje se*: na stranici *Napredno* to je napredni Policy Set, inače
+sigurnosne postavke.
+
 | ID | Koraci | Očekivano | Rezultat |
 |---|---|---|---|
-| G1 | `powershell.exe -File C:\GpoStudio\src\GpoStudio.Gui\Start-GpoStudio.ps1` (povišeno) | prozor se otvara, katalog se sam učitava, a status pokazuje *Učitavanje kataloga: gotovo* | |
+| G1 | `powershell.exe -File C:\GpoStudio\src\GpoStudio.Gui\Start-GpoStudio.ps1` (povišeno) | tamni prozor s logotipom Auxilium i naslovom GPO STUDIO; čip *ADMINISTRATOR*; odabrana razina *Preporučeno*; pločice usklađenosti pokazuju postotke | |
 | G2 | isto iz `pwsh` (PowerShell 7) | `pwsh` se odmah vraća, a GUI se otvara u `powershell.exe` | |
 | G3 | isto iz `C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe` (32-bitni) | GUI se otvara u 64-bitnom procesu (Task Manager: bez oznake *32 bit*) | |
 | G4 | `Set-ExecutionPolicy Restricted -Scope LocalMachine` u `powershell.exe`, zatim pokretanje iz `pwsh` gdje je politika RemoteSigned | GUI se ipak otvara (politika se prosljeđuje); zatim vratite `Set-ExecutionPolicy RemoteSigned -Scope LocalMachine` | |
-| G5 | iz `pwsh`: `Start-GpoStudio.ps1 -AdmxPath C:\Windows\PolicyDefinitions\` (s `\` na kraju) | polje putanje je ispravno (bez navodnika), katalog se učitava | |
-| G6 | pretraga *Store*; odabir politike | stablo se filtrira; desno su opis, registry ključ, klasa i izvor | |
-| G7a | *Dodaj: Enabled* za politiku s elementima (npr. *Configure Automatic Updates*) | otvara se dijalog s padajućim izbornicima i kvačicama; nakon *U redu* postavke su u setu | |
-| G7b | GUI s `-AdmxPath C:\GpoStudio\tests\fixtures\PolicyDefinitions`, politika *Store update mode* (na hrvatskom sustavu *Način ažuriranja Trgovine*), *Delay* = 31 | poruka *Vrijednost 31 … nije u rasponu 0-30*; ništa se ne dodaje | |
-| G8 | istu politiku dodajte ponovno s drugom opcijom | nema duplikata; postavke iz prethodnog izbora zamijenjene su ili označene za brisanje | |
-| G9 | politika klase *Both* dodana i pod *Konfiguracija računala* i pod *Korisnička konfiguracija* | postoje obje varijante (Machine i User), jedna ne briše drugu | |
-| G10 | *Otvori JSON…* → `examples\radna-stanica-baseline.json`; *Spremi JSON…* u novu datoteku | 5 postavki; log pokazuje security 4 i audit 2; spremljena datoteka ima iste postavke, security, audit, opis i verziju (svakoj postavci dodano je polje `action`, a formatiranje JSON-a se razlikuje) | |
-| G11 | lokalno, prazno polje *Računala*: *Usporedi (diff)* | kartica *Diff* s bojama (zeleno *Added*), ništa se ne mijenja | |
-| G12 | *Primijeni* | potvrda navodi cilj (*ovo računalo*); log pokazuje status OK i putanju backupa; postavke računala (HKLM) su odmah u registryju, a korisnička postavka (`NoDriveTypeAutoRun` u HKCU) tek nakon `gpupdate /target:user /force` ili nove prijave | |
-| G13 | *Backup*, zatim *Vrati iz backupa…* s pogrešnom putanjom | backup: putanja u logu; pogrešna putanja: status Error i poruka, ništa se ne mijenja | |
-| G14 | *Vrati iz backupa…* s ispravnom putanjom iz G12 | status OK; vrijednosti iz G12 nestaju nakon `gpupdate` | |
-| G14b | lokalno: politiku s izborom dodajte kao *Enabled*, zatim ponovno s drugom opcijom, a drugu politiku kao *Disabled*; *Primijeni*, zatim otvorite `gpedit.msc` | gpedit prikazuje obje politike u stanju i s opcijom koju je postavio GPO Studio; vratite backup kao u G14 | |
-| G15 | *Računala*: `WS01, WS02`, *Usporedi*, zatim *Primijeni* | rezultat po računalu u kartici *Diff* i logu; poruka da su računala u domeni | |
-| G16 | domenski način, prazan naziv GPO-a, *Usporedi* | upozorenje *Upišite naziv GPO-a*; ništa se ne pokreće | |
-| G17 | domena: GPO `GPS-LAB-GUI`, link na `OU=Pilot,...`, grupa `GPS-Pilot-PC`; *Usporedi*, zatim *Primijeni* | potvrda navodi link; u GPMC-u se vide GPO, link i Security Filtering | |
-| G17b | u isti GPO kao G17 dodajte stvarnu politiku kao *Disabled* (npr. *Turn off the Store application*) i politiku s izborom, zatim je ponovno dodajte s drugom opcijom; *Primijeni*. Zatim `Get-GpsDomainGpoReport -GpoName GPS-LAB-GUI -Path "$env:TEMP\gpo.html"` | u izvještaju (i u GPMC-u, kartica *Settings*) politike su pod svojim nazivima sa stanjem *Disabled* odnosno s novom opcijom, a ne pod *Extra Registry Settings*; nema vrijednosti iz prve opcije | |
-| G18 | *Provjeri replikaciju* | tablica DC-ova u kartici *Log*, svi `InSync = True` | |
-| G19 | zatvaranje prozora dok operacija traje | pitanje za potvrdu | |
+| G5 | pokretanje kao standardni korisnik (bez *Run as administrator*) | čip *STANDARDNI KORISNIK*; u *Dnevniku* upozorenje da primjena traži administratora | |
+| G6 | *Pregled*: redom kliknite *Osnovno*, *Strogo*, *Preporučeno* | mijenjaju se broj postavki, sažetak po područjima i postoci usklađenosti; *Osnovno* ima najmanje postavki | |
+| G7 | *Sigurnosne postavke* → *USB i prijenosni mediji* → za *USB diskovi* odaberite *Zabranjeno* | redak dobiva oznaku *RUČNO PROMIJENJENO* i napomenu *Razina Preporučeno predlaže: Bez pokretanja programa*; naslov na *Pregledu* je *Prilagođeno (temelj: Preporučeno)* | |
+| G8 | promijenite razinu na *Pregledu* dok postoji ručna promjena iz G7 | pitanje *Imate ručne promjene…*; *Odustani* ostavlja odabir, *Promijeni razinu* ga poništava | |
+| G9 | *Sigurnosne postavke*: pretraga *lozinka*, zatim filtri *Uključene* i *Ručno promijenjene*; *Vrati na razinu* | pretraga prikazuje postavke iz više područja; filtri prikazuju samo odgovarajuće retke; *Vrati na razinu* uklanja ručne promjene | |
+| G10 | *Pregled* → *Brzi odabir* → *Javno računalo / kiosk* | naslov *Preset: Javno računalo / kiosk*; u području USB odabrano *Zabranjeno*, *Isključena Microsoft Trgovina* ima kvačicu | |
+| G11 | *Preseti* → *Spremi trenutni odabir*, naziv *Lab test*; zatim *Izvezi…* u Dokumente, *Obriši*, *Uvezi preset* iz Dokumenata | kartica *VLASTITI PRESET* nastaje, nestaje i vraća se; datoteka postoji u `C:\ProgramData\GpoStudio\Presets` | |
+| G12 | razina *Preporučeno*, cilj *Ovo računalo*: *Pregledaj promjene* | stranica *Promjene* s nazivima postavki (npr. *Vatrozid uključen: Uključeno*), statusima *DODAJE SE* / *BEZ PROMJENE* i retcima *POSTAVLJA SE* za lozinke i reviziju; ništa se ne mijenja | |
+| G13 | *Primijeni* → *Primijeni* | potvrda navodi cilj; *Primijenjene promjene* i u *Dnevniku* putanja sigurnosne kopije; `net accounts` pokazuje *Minimum password length: 14*; `Get-ItemProperty HKLM:\Software\Policies\Microsoft\WindowsFirewall\PublicProfile` pokazuje `EnableFirewall = 1` | |
+| G14 | *Usporedba* → *Provjeri računalo* (prije i poslije G13 na svježem checkpointu) | izvor *Stanje računala*; nakon G13 postotci su znatno viši nego prije; tablica pokazuje *U REDU* / *ODSTUPA* / *NIJE POSTAVLJENO* | |
+| G15 | *Usporedba* → *Izvezi izvještaj*; zatim *Preuzmi kao odabir* | HTML izvještaj se otvara u pregledniku (svijetla tema, tablice po standardu); nakon preuzimanja naslov odabira je *Stanje računala ADMIN01* | |
+| G16 | *Vrati prethodno stanje* | popis sigurnosnih kopija s datumom; odabir najnovije i *Vrati* → u *Dnevniku* status OK; nakon `gpupdate /force` vrijednosti iz G13 nestaju | |
+| G17 | *Napredno (gpedit)* | katalog se učita pri prvom otvaranju; pretraga *Store*; *Dodaj: uključeno* za politiku s elementima otvara dijalog; *Primjenjuje se* pokazuje napredni Policy Set | |
+| G18 | *Napredno*: *Otvori…* → `examples\radna-stanica-baseline.json`, *Pregledaj promjene* | 5 postavki u tablici; promjene se odnose na napredni set, ne na sigurnosne postavke | |
+| G19 | cilj *Druga računala*: `WS01, WS02`; *Pregledaj promjene*, zatim *Primijeni* | rezultat po računalu na stranici *Promjene*; poruka da su računala u domeni | |
+| G20 | cilj *Domenski GPO*, prazan naziv GPO-a, *Pregledaj promjene* | upozorenje *Upišite naziv GPO-a*; ništa se ne pokreće | |
+| G21 | domena: GPO `GPS-LAB-GUI`, poveži na `OU=Pilot,OU=Racunala,OU=GpsLab,DC=gpslab,DC=test`, grupa `GPS-Pilot-PC`; *Primijeni* | potvrda navodi link, grupu i da se lozinke i revizija ne objavljuju u domenu; u GPMC-u se vide GPO, link i Security Filtering | |
+| G22 | *Provjeri replikaciju* (vidljivo samo za domenski cilj) | poruka da je GPO jednak na svim DC-ovima; tablica u *Dnevniku* | |
+| G23 | zatvaranje prozora dok radnja traje (npr. tijekom G19) | pitanje za potvrdu | |
 
-Nakon G17 obrišite GPO `GPS-LAB-GUI` u GPMC-u ili s `Remove-GPO -Name GPS-LAB-GUI`.
+Nakon G21 obrišite GPO `GPS-LAB-GUI` u GPMC-u ili s `Remove-GPO -Name GPS-LAB-GUI`.
 
 ### 5.2. Domena: ovlasti i PowerShell 7
 

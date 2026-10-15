@@ -562,3 +562,85 @@ function Resolve-GpsControlState {
 }
 
 #endregion
+
+#region Izvještaj
+
+function ConvertTo-GpsComplianceHtml {
+    <#
+    .SYNOPSIS
+        HTML izvještaj usporedbe sa standardima (svijetla, ispisna Auxilium tema).
+    .PARAMETER Subject
+        Što se uspoređuje, npr. 'Odabir: Preporučeno' ili 'Računalo PC01'.
+    .EXAMPLE
+        ConvertTo-GpsComplianceHtml -Catalog $catalog -Selection $state.Selection -Subject 'Računalo PC01' | Set-Content izvjestaj.html -Encoding UTF8
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Catalog,
+        [Parameter(Mandatory)][System.Collections.IDictionary]$Selection,
+        [string]$Subject = 'Odabir sigurnosnih postavki',
+        [datetime]$Date = (Get-Date),
+        [string]$NotSetText = 'Ne mijenja se'
+    )
+    $enc = { param($t) [System.Net.WebUtility]::HtmlEncode([string]$t) }
+    $statusWord = @{ OK = 'U REDU'; Deviates = 'ODSTUPA'; NotSet = 'NIJE POSTAVLJENO' }
+    $statusClass = @{ OK = 'good'; Deviates = 'bad'; NotSet = 'warn' }
+    $results = @(Get-GpsControlCompliance -Catalog $Catalog -Selection $Selection)
+    $enabled = @($Selection.Values | Where-Object { $_ }).Count
+
+    $sb = [System.Text.StringBuilder]::new()
+    $null = $sb.Append(@"
+<!DOCTYPE html>
+<html lang="hr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPO Studio – usporedba sa standardima</title>
+<style>
+:root{--text:#1c1e24;--muted:#585c68;--line:#ced1d9;--good:#12804a;--warn:#b06c00;--bad:#c6202c;--zebra:#f4f5f8;--th:#161f30;--band:#090c14;--amber:#ffc94a;--bar:#e1e4ea}
+*{box-sizing:border-box}body{margin:0;background:#e9ebf0;color:var(--text);font:14px/1.45 "Segoe UI",Arial,sans-serif}
+.page{max-width:1080px;margin:24px auto;background:#fff;border:1px solid #d5d8df}
+.band{background:var(--band);color:#fff;padding:22px 28px 18px;border-bottom:3px solid var(--amber);display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.logo{font:700 26px/1 Bahnschrift,"Segoe UI Semibold",sans-serif;letter-spacing:0}.logo .x{color:#e63946}.logo .d{color:var(--amber)}
+.logo small{display:block;margin-top:6px;font:400 11px/1 "Segoe UI",sans-serif;letter-spacing:3px;color:#c0c4ce}
+.band h1{margin:0;font:700 18px/1.2 Bahnschrift,"Segoe UI",sans-serif;text-align:right}.band p{margin:4px 0 0;color:#c0c4ce;text-align:right}
+.content{padding:24px 28px}h2{font:700 15px/1.3 Bahnschrift,"Segoe UI",sans-serif;margin:28px 0 10px;padding-left:10px;border-left:4px solid #b08014}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.tile{border:1px solid var(--line);padding:12px 14px;background:#f9f9fb}.tile h3{margin:0;font:700 11px/1.2 "Segoe UI",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tile .n{font:700 28px/1.2 Bahnschrift,"Segoe UI",sans-serif;margin:4px 0}.bar{height:8px;background:var(--bar)}.bar span{display:block;height:100%}
+.good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}.bg-good{background:var(--good)}.bg-warn{background:var(--warn)}.bg-bad{background:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:13px}th{background:var(--th);color:#fff;text-align:left;font-weight:600;letter-spacing:.04em;padding:7px 8px;font-size:11px;text-transform:uppercase}
+td{padding:6px 8px;border-bottom:1px solid #e1e3e9;vertical-align:top}tr:nth-child(even) td{background:var(--zebra)}td.s{font-weight:700;white-space:nowrap}
+.note{margin-top:28px;padding:10px 14px;border-left:3px solid #3d6fb6;background:#f3f6fb;color:var(--muted);font-size:12.5px}
+.foot{padding:12px 28px 18px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
+@media print{body{background:#fff}.page{margin:0;border:0}th{-webkit-print-color-adjust:exact;print-color-adjust:exact}.band,.bar span{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body><div class="page">
+<div class="band"><div class="logo">AU<span class="x">X</span>ILIUM<span class="d">.</span><small>INFORMATIKA</small></div>
+<div><h1>Usporedba sa sigurnosnim standardima</h1><p>
+"@)
+    $null = $sb.Append((& $enc $Subject)).Append('  ·  ').Append($Date.ToString('dd.MM.yyyy. HH:mm')).Append("</p></div></div>`n<div class=""content"">`n")
+    $null = $sb.Append("<p>Uključeno postavki: <b>$enabled</b> od $(@($Catalog.controls).Count). Katalog: $(& $enc (Get-GpsOptionalProperty $Catalog 'catalogVersion')).</p>`n<div class=""tiles"">`n")
+    foreach ($r in $results) {
+        $cls = if ($r.Total -eq 0) { '' } elseif ($r.Score -ge 80) { 'good' } elseif ($r.Score -ge 50) { 'warn' } else { 'bad' }
+        $null = $sb.Append("<div class=""tile""><h3>$(& $enc $r.Title)</h3><div class=""n $cls"">$($r.Score) %</div>")
+        $null = $sb.Append("<div class=""bar""><span class=""bg-$cls"" style=""width:$($r.Score)%""></span></div>")
+        $null = $sb.Append("<div style=""margin-top:6px"">$($r.Satisfied) od $($r.Total) preporuka</div></div>`n")
+    }
+    $null = $sb.Append("</div>`n")
+    foreach ($r in $results) {
+        $null = $sb.Append("<h2>$(& $enc $r.Title)</h2>`n")
+        if ($r.Source) { $null = $sb.Append("<p style=""margin:0 0 8px;color:#585c68"">$(& $enc $r.Source)</p>`n") }
+        $null = $sb.Append("<table><thead><tr><th>Područje</th><th>Postavka</th><th>Preporuka</th><th>Odabir / stanje</th><th>Status</th></tr></thead><tbody>`n")
+        foreach ($row in @($r.Rows | Sort-Object @{ Expression = { switch ($_.Status) { 'Deviates' { 0 } 'NotSet' { 1 } default { 2 } } } }, Category, Control)) {
+            $selected = if ($row.Selected) { $row.Selected } else { $NotSetText }
+            $null = $sb.Append("<tr><td>$(& $enc $row.Category)</td><td>$(& $enc $row.Control)</td><td>$(& $enc $row.Recommendation)</td><td>$(& $enc $selected)</td>")
+            $null = $sb.Append("<td class=""s $($statusClass[$row.Status])"">$($statusWord[$row.Status])</td></tr>`n")
+        }
+        $null = $sb.Append("</tbody></table>`n")
+    }
+    $null = $sb.Append(@"
+<div class="note">Postotak se računa samo za preporuke koje GPO Studio može postaviti, a standardi sadrže
+stotine preporuka. Izvještaj nije potvrda sukladnosti sa standardom.</div>
+</div><div class="foot">GPO Studio · Auxilium Informatika · www.auxilium.hr</div></div></body></html>
+"@)
+    $sb.ToString()
+}
+
+#endregion

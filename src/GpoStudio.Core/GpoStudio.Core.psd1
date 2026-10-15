@@ -14,7 +14,7 @@
         'ConvertTo-GpsControlPolicySet', 'Get-GpsControlCompliance',
         'Get-GpsControlPreset', 'Get-GpsControlPresetFolder', 'Import-GpsControlPreset', 'Export-GpsControlPreset',
         'New-GpsControlPreset', 'Resolve-GpsControlPreset',
-        'Get-GpsControlStateQuery', 'Resolve-GpsControlState'
+        'Get-GpsControlStateQuery', 'Resolve-GpsControlState', 'ConvertTo-GpsComplianceHtml'
     )
     CmdletsToExport   = @()
     AliasesToExport   = @()

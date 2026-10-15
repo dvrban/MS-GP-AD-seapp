@@ -213,3 +213,16 @@ Describe 'Stanje računala' {
         (Get-GpsControlCompliance -Catalog $catalog -Selection $r.Selection | Where-Object Id -eq 'CIS-L2').Score | Should -Be 100
     }
 }
+
+Describe 'Izvještaj usporedbe' {
+    It 'sadrži sve standarde, retke i escapea tekst' {
+        $html = ConvertTo-GpsComplianceHtml -Catalog $catalog -Selection (Get-GpsControlSelection -Catalog $catalog -Level 2) -Subject 'Računalo <PC01>' -Date ([datetime]'2026-10-15 08:30')
+        $html | Should -Match '<!DOCTYPE html>'
+        $html | Should -Match 'Računalo &lt;PC01&gt;'
+        $html | Should -Match '15\.10\.2026\. 08:30'
+        foreach ($std in $catalog.standards) { $html | Should -Match ([regex]::Escape($std.title)) }
+        ([regex]::Matches($html, '<tr><td>')).Count | Should -Be 8
+        $html | Should -Match 'U REDU'
+        $html | Should -Match 'ODSTUPA'
+    }
+}

@@ -319,7 +319,8 @@ function New-AuxScoreTile {
     $tile.Padding = '16,10,14,10'
     $tile.Margin = '0,0,8,0'
     $stack = [System.Windows.Controls.StackPanel]::new()
-    $title = New-AuxText $Title 'Eyebrow'
+    # Ne $title: PowerShell ne razlikuje velika i mala slova, pa bi to bio parametar [string]$Title.
+    $titleText = New-AuxText $Title 'Eyebrow'
     $number = [System.Windows.Controls.TextBlock]::new()
     $number.FontFamily = Get-AuxBrush 'FontNaslov'
     $number.FontWeight = 'Bold'
@@ -342,7 +343,7 @@ function New-AuxScoreTile {
     $sub = New-AuxText $Subtitle 'Nagovjestaj' '0,2,0,0'
     $sub.TextWrapping = 'NoWrap'
     $sub.TextTrimming = 'CharacterEllipsis'
-    foreach ($e in $title, $number, $bar, $label, $sub) { $null = $stack.Children.Add($e) }
+    foreach ($e in $titleText, $number, $bar, $label, $sub) { $null = $stack.Children.Add($e) }
     $tile.Content = $stack
     [pscustomobject]@{ Root = $tile; Number = $number; Bar = $bar; Label = $label; Subtitle = $sub }
 }
