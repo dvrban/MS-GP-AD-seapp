@@ -388,8 +388,9 @@ function Invoke-GpsLocalApplyCore {
 
         if (-not $NoGpUpdate) {
             $null = & gpupdate.exe /target:computer /force
-            # Korisnički dio osvježava se za račun koji pokreće primjenu; 'N' odbija moguću odjavu.
-            if ($changedScopes -contains 'User') { $null = 'N' | & gpupdate.exe /target:user /force }
+            # Korisnički dio osvježava se za račun koji pokreće primjenu; 'N' odbija moguću odjavu, a /wait
+            # ograničava čekanje (u WinRM sesiji na udaljenom računalu obrada korisničkog dijela može trajati).
+            if ($changedScopes -contains 'User') { $null = 'N' | & gpupdate.exe /target:user /force /wait:60 }
         }
         $status = 'OK'
     }

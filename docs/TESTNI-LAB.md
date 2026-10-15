@@ -256,6 +256,56 @@ računalo, njegova lozinka računa računala u AD-u može se razlikovati od one 
 izgubi povjerenje s domenom (*trust relationship failed*). S dva DC-a nakon vraćanja provjerite
 SYSVOL (poglavlje 8).
 
+### 3.9. Nadogradnja GPO Studija u postojećem labu
+
+Nova verzija treba samo na **ADMIN01**: tamo rade GUI, cmdleti i smoke test. DC-ovi, WS01, WS02 i
+STANDALONE01 ne trebaju ništa, jer GPO Studio pri primjeni šalje potreban kod preko WinRM-a. Lab
+skripte (`lab\01`–`05`) se nisu mijenjale, pa lab ne treba graditi ponovno.
+
+1. **Na hostu vratite sve VM-ove na *Clean*** (poglavlje 8), da nadogradnja krene od čistog stanja,
+   bez postavki iz ranijih testova. S dva DC-a provjerite SYSVOL (poglavlje 8).
+2. **Kopirajte novi ZIP na ADMIN01** (npr. preuzet na host u `D:\GpoStudio.zip`):
+
+   ```powershell
+   Enable-VMIntegrationService -VMName GPS-ADMIN01 -Name 'Guest Service Interface'
+   Copy-VMFile -Name GPS-ADMIN01 -SourcePath D:\GpoStudio.zip -DestinationPath C:\Lab\GpoStudio.zip `
+       -FileSource Host -CreateFullPath -Force
+   ```
+
+3. **Na ADMIN01** (prijava `GPSLAB\gps.admin`, povišeni Windows PowerShell 5.1) zatvorite GPO Studio
+   i zamijenite staru verziju. Brisanje stare mape osigurava da ne ostanu stare datoteke; vlastiti
+   preseti, sigurnosne kopije i revizijski zapis su u `C:\ProgramData\GpoStudio` i ostaju.
+
+   ```powershell
+   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+   cd C:\
+   Remove-Item C:\GpoStudio -Recurse -Force
+   C:\Lab\05-Install-GpsLabAdmin.ps1 -RepoZip C:\Lab\GpoStudio.zip
+   ```
+
+   Skripta preskače ono što je već instalirano (RSAT, PowerShell 7, Pester), raspakira ZIP u
+   `C:\GpoStudio`, otključa datoteke i pokrene Pester testove: zadnji redak mora biti
+   *Pester: … prošlo, 0 palo*. Provjera verzije:
+
+   ```powershell
+   (Import-PowerShellDataFile C:\GpoStudio\src\GpoStudio.Core\GpoStudio.Core.psd1).ModuleVersion   # 0.2.0
+   ```
+
+4. **Na hostu napravite novi checkpoint** svih VM-ova i ubuduće vraćajte njega (stari *Clean* ima
+   staru verziju GPO Studija):
+
+   ```powershell
+   Get-VM GPS-* | Checkpoint-VM -SnapshotName Clean-v2
+   ```
+
+5. **Smoke test** (poglavlje 4) mora proći kao i prije, a zatim slijede ručni GUI testovi (5.1).
+
+Razinu *Strogo* najprije isprobajte na WS01 (cilj *Druga računala*), a ne na ADMIN01: zabranjuje
+udaljenu radnu površinu (Enhanced Session tada može prestati raditi; u prozoru VM-a isključite
+*View → Enhanced Session*), traži Ctrl+Alt+Del (u konzoli VM-a Ctrl+Alt+End ili gumb na alatnoj
+traci), skriva zadnjeg korisnika (upišite `GPSLAB\gps.admin`), uključuje zaštitu administratora i
+trajnu zaštitu LSA. Najbrži povratak na čisto stanje je checkpoint *Clean-v2* za sve VM-ove zajedno.
+
 ---
 
 ## 4. Automatizirani smoke test
@@ -324,7 +374,7 @@ istom labu. D0 prije domenskih koraka briše testne GPO-ove ostale od prekinutog
 ## 5. Ručni testni slučajevi
 
 Ovi slučajevi pokrivaju ono što smoke test ne može: GUI i rubne situacije. Testove radite od
-checkpointa *Clean*. U stupac *Rezultat* upišite ✅, ❌ ili ⚠️ i napomenu.
+checkpointa *Clean* (nakon nadogradnje *Clean-v2*). U stupac *Rezultat* upišite ✅, ❌ ili ⚠️ i napomenu.
 
 Za slučajeve koji koriste cmdlete (5.2 i 5.3) prvo u Windows PowerShellu 5.1 na ADMIN01 pokrenite:
 
@@ -464,7 +514,8 @@ Korisni prilozi:
 
 ## 8. Vraćanje i uklanjanje laba
 
-Vraćanje svih VM-ova na *Clean* (uvijek zajedno, vidi 3.8):
+Vraćanje svih VM-ova na *Clean* (uvijek zajedno, vidi 3.8). Nakon nadogradnje GPO Studija (3.9) u
+naredbama umjesto *Clean* koristite *Clean-v2*:
 
 ```powershell
 Get-VM GPS-* | Stop-VM -TurnOff -Force
