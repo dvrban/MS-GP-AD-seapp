@@ -133,9 +133,93 @@ function Get-GpsLocalPolicyCore {
     }
 }
 
+function Get-GpsRegistryHive([string]$Scope) {
+    $view = if ([Environment]::Is64BitOperatingSystem) { [Microsoft.Win32.RegistryView]::Registry64 } else { [Microsoft.Win32.RegistryView]::Default }
+    $hive = if ($Scope -eq 'User') { [Microsoft.Win32.RegistryHive]::CurrentUser } else { [Microsoft.Win32.RegistryHive]::LocalMachine }
+    [Microsoft.Win32.RegistryKey]::OpenBaseKey($hive, $view)
+}
+
+function Save-GpsRegistrySnapshotCore {
+    <#
+        Sprema trenutne registry vrijednosti koje će primjena postaviti. Vrijednosti izvan grana
+        Policies (npr. Lsa\RunAsPPL, LanmanServer\Parameters) Windows ne briše kad se uklone iz
+        Registry.pol, pa ih vraćanje backupa mora vratiti izravno.
+    #>
+    param([object[]]$Setting, [Parameter(Mandatory)][string]$Path)
+    $seen = @{}
+    $entries = foreach ($s in @($Setting | Where-Object { $_ })) {
+        $scope = if ($s.scope -eq 'User') { 'User' } else { 'Machine' }
+        $id = ('{0}\{1}\{2}' -f $scope, $s.key, $s.valueName).ToLowerInvariant()
+        if ($seen.ContainsKey($id)) { continue }
+        $seen[$id] = $true
+        $entry = [ordered]@{ scope = $scope; key = [string]$s.key; valueName = [string]$s.valueName; exists = $false; kind = $null; data = $null }
+        $base = Get-GpsRegistryHive $scope
+        try {
+            $key = $base.OpenSubKey([string]$s.key)
+            if ($key) {
+                try {
+                    if (@($key.GetValueNames()) -contains [string]$s.valueName) {
+                        $kind = $key.GetValueKind([string]$s.valueName)
+                        $data = $key.GetValue([string]$s.valueName, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+                        $entry.exists = $true
+                        $entry.kind = [string]$kind
+                        $entry.data = switch ($kind) {
+                            'Binary' { [Convert]::ToBase64String([byte[]]$data) }
+                            'DWord' { [BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$data), 0) }
+                            'MultiString' { , @($data) }
+                            default { $data }
+                        }
+                    }
+                }
+                finally { $key.Close() }
+            }
+        }
+        finally { $base.Close() }
+        [pscustomobject]$entry
+    }
+    ConvertTo-Json -InputObject @($entries) -Depth 5 | Set-Content -LiteralPath $Path -Encoding UTF8 -ErrorAction Stop
+}
+
+function Restore-GpsRegistrySnapshotCore {
+    <# Vraća vrijednosti iz Save-GpsRegistrySnapshotCore: postojeće upisuje, a nepostojeće briše. #>
+    param([Parameter(Mandatory)][string]$Path)
+    $count = 0
+    foreach ($e in @(Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json)) {
+        if (-not $e) { continue }
+        $base = Get-GpsRegistryHive $e.scope
+        try {
+            if ($e.exists) {
+                $key = $base.CreateSubKey([string]$e.key)
+                try {
+                    $kind = [Microsoft.Win32.RegistryValueKind]([string]$e.kind)
+                    $data = switch ($kind) {
+                        'Binary' { [Convert]::FromBase64String([string]$e.data) }
+                        'DWord' { [BitConverter]::ToInt32([BitConverter]::GetBytes([uint32]$e.data), 0) }
+                        'QWord' { [long]$e.data }
+                        'MultiString' { [string[]]@($e.data) }
+                        default { [string]$e.data }
+                    }
+                    $key.SetValue([string]$e.valueName, $data, $kind)
+                }
+                finally { $key.Close() }
+            }
+            else {
+                $key = $base.OpenSubKey([string]$e.key, $true)
+                if ($key) { try { $key.DeleteValue([string]$e.valueName, $false) } finally { $key.Close() } }
+            }
+            $count++
+        }
+        finally { $base.Close() }
+    }
+    $count
+}
+
 function Backup-GpsLocalPolicyCore {
-    <# Sprema GroupPolicy mapu, sigurnosnu politiku i reviziju; manifest se piše zadnji. #>
-    param([string]$Destination)
+    <#
+        Sprema GroupPolicy mapu, sigurnosnu politiku, reviziju i (uz -Setting) trenutne registry
+        vrijednosti koje će se postaviti; manifest se piše zadnji.
+    #>
+    param([string]$Destination, [object[]]$Setting)
     if (-not $Destination) {
         $Destination = Join-Path $env:ProgramData ("GpoStudio\Backup\{0:yyyyMMdd-HHmmss}" -f (Get-Date))
     }
@@ -150,6 +234,7 @@ function Backup-GpsLocalPolicyCore {
     $auditCsv = Join-Path $Destination 'audit.csv'
     $output = & auditpol.exe /backup "/file:$auditCsv" 2>&1
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $auditCsv)) { throw "auditpol /backup nije uspio ($LASTEXITCODE): $output" }
+    if ($Setting) { Save-GpsRegistrySnapshotCore -Setting $Setting -Path (Join-Path $Destination 'registry.json') }
 
     [ordered]@{ computerName = [Environment]::MachineName; created = (Get-Date).ToString('o'); gpRootExisted = $gpExisted } |
         ConvertTo-Json | Set-Content -LiteralPath (Join-Path $Destination 'gpostudio-backup.json') -Encoding UTF8
@@ -199,6 +284,11 @@ function Restore-GpsLocalPolicyCore {
         if (Test-Path -LiteralPath $csv) {
             $output = & auditpol.exe /restore "/file:$csv" 2>&1
             if ($LASTEXITCODE -ne 0) { throw "auditpol /restore nije uspio ($LASTEXITCODE): $output" }
+        }
+        $snapshot = Join-Path $BackupPath 'registry.json'
+        if (Test-Path -LiteralPath $snapshot) {
+            $restored = Restore-GpsRegistrySnapshotCore -Path $snapshot
+            $messages.Add("Vraćeno registry vrijednosti: $restored.")
         }
         $null = & gpupdate.exe /force
         $status = 'OK'
@@ -281,7 +371,7 @@ function Invoke-GpsLocalApplyCore {
             return [pscustomobject]@{ ComputerName = [Environment]::MachineName; Status = 'WhatIf'; Diff = $diff; BackupPath = $null; Messages = $messages }
         }
 
-        $backup = (Backup-GpsLocalPolicyCore).BackupPath
+        $backup = (Backup-GpsLocalPolicyCore -Setting @($set.settings)).BackupPath
         foreach ($scope in $changedScopes) {
             $polPath = Join-Path $gpRoot "$scope\Registry.pol"
             $merged = Merge-GpsPolicySet -Existing @(Read-GpsRegistryPol -Path $polPath) -Setting $byScope[$scope]
@@ -428,6 +518,7 @@ $script:GpsRemoteFunctions = @(
     'Read-GpsRegistryPol', 'Write-GpsRegistryPol', 'Merge-GpsPolicySet', 'Compare-GpsPolicySet',
     'ConvertTo-GpsComparable', 'Get-GpsSettingKey',
     'ConvertTo-GpsHashtable', 'Get-GpsLocalGpRoot', 'Update-GpsGptIni', 'Get-GpsLocalPolicyCore', 'Backup-GpsLocalPolicyCore',
+    'Get-GpsRegistryHive', 'Save-GpsRegistrySnapshotCore', 'Restore-GpsRegistrySnapshotCore',
     'Restore-GpsLocalPolicyCore', 'Set-GpsSecurityPolicyCore', 'Set-GpsAuditPolicyCore', 'Invoke-GpsLocalApplyCore',
     'Get-GpsControlStateCore', 'Get-GpsLocalBackupCore'
 )

@@ -163,6 +163,37 @@ Describe 'Restore-GpsLocalPolicyCore' {
     }
 }
 
+Describe 'Registry snimka u sigurnosnoj kopiji' -Skip:([Environment]::OSVersion.Platform -ne 'Win32NT') {
+    It 'vraća promijenjene vrijednosti i briše one kojih prije nije bilo' {
+        InModuleScope GpoStudio.Local {
+            $key = 'Software\GpoStudioTest\Snimka-{0}' -f [guid]::NewGuid().ToString('N')
+            $path = "HKCU:\$key"
+            $null = New-Item -Path $path -Force
+            try {
+                New-ItemProperty -Path $path -Name 'Broj' -PropertyType DWord -Value 1 | Out-Null
+                New-ItemProperty -Path $path -Name 'Popis' -PropertyType MultiString -Value @('a', 'b') | Out-Null
+                $settings = @(
+                    [pscustomobject]@{ scope = 'User'; key = $key; valueName = 'Broj' }
+                    [pscustomobject]@{ scope = 'User'; key = $key; valueName = 'Popis' }
+                    [pscustomobject]@{ scope = 'User'; key = $key; valueName = 'Novo' }
+                )
+                $file = Join-Path $TestDrive 'registry.json'
+                Save-GpsRegistrySnapshotCore -Setting $settings -Path $file
+
+                Set-ItemProperty -Path $path -Name 'Broj' -Value 5
+                Set-ItemProperty -Path $path -Name 'Popis' -Value @('x')
+                New-ItemProperty -Path $path -Name 'Novo' -PropertyType String -Value 'z' | Out-Null
+
+                Restore-GpsRegistrySnapshotCore -Path $file | Should -Be 3
+                (Get-ItemProperty -Path $path).Broj | Should -Be 1
+                (Get-ItemProperty -Path $path).Popis | Should -Be @('a', 'b')
+                (Get-Item -Path $path).GetValueNames() | Should -Not -Contain 'Novo'
+            }
+            finally { Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue }
+        }
+    }
+}
+
 Describe 'Prepoznavanje lokalnog računala' {
     It 'vlastito DNS ime je lokalno, a tuđe nije' {
         InModuleScope GpoStudio.Local {
