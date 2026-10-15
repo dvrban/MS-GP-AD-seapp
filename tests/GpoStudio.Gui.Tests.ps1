@@ -110,6 +110,9 @@ Describe 'GUI (WPF)' -Skip:(-not $canRun) {
         $ui.pnlDomain.Visibility | Should -Be 'Visible'
         $ui.btnReplication.Visibility | Should -Be 'Visible'
         $ui.rbTargetLocal.IsChecked = $true
+        $ui.lbCategories.SelectedIndex = [array]::IndexOf(@($Sec.Catalog.categories.id), 'defender')
+        $Sec.Category | Should -Be 'defender'
+        $null = Save-PageShot 'Sigurnost' '06-sigurnosne-zastita.png'
         foreach ($p in @(@('Preseti', '03-preseti.png'), @('Dnevnik', '07-dnevnik.png'))) {
             $path = Save-PageShot $p[0] $p[1]
             (Get-Item $path).Length | Should -BeGreaterThan 10000
