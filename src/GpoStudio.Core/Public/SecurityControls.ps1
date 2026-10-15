@@ -111,14 +111,14 @@ function Test-GpsControlCatalog {
 
     $standards = @{}
     foreach ($s in @(Get-GpsOptionalProperty $Catalog 'standards')) {
-        if (-not $s) { continue }
+        if (-not $s) { $errors.Add('Prazan zapis u standards.'); continue }
         $sid = [string](Get-GpsOptionalProperty $s 'id')
         if (-not $sid -or -not (Get-GpsOptionalProperty $s 'title')) { $errors.Add("Standard '$sid' nema id ili title.") }
         $standards[$sid] = $s
     }
     $categories = @{}
     foreach ($c in @(Get-GpsOptionalProperty $Catalog 'categories')) {
-        if (-not $c) { continue }
+        if (-not $c) { $errors.Add('Prazan zapis u categories.'); continue }
         $cid = [string](Get-GpsOptionalProperty $c 'id')
         if (-not $cid -or -not (Get-GpsOptionalProperty $c 'title')) { $errors.Add("Kategorija '$cid' nema id ili title.") }
         if ($categories.ContainsKey($cid)) { $errors.Add("Kategorija '$cid' je navedena dvaput.") }
@@ -130,7 +130,7 @@ function Test-GpsControlCatalog {
     $controls = @(Get-GpsOptionalProperty $Catalog 'controls')
     if ($controls.Count -eq 0) { $errors.Add('Katalog nema kontrola.') }
     foreach ($c in $controls) {
-        if (-not $c) { continue }
+        if (-not $c) { $errors.Add('Prazan zapis u controls.'); continue }
         $id = [string](Get-GpsOptionalProperty $c 'id')
         if (-not $id) { $errors.Add('Kontrola bez id-a.'); continue }
         if ($controlIds.ContainsKey($id)) { $errors.Add("Kontrola '$id' je navedena dvaput.") }

@@ -84,6 +84,32 @@ Describe 'GUI (WPF)' -Skip:(-not $canRun) {
         $active.Source | Should -Match 'sigurnosne postavke'
     }
 
+    It 'izvor primjene ostaje isti na stranicama Promjene i Dnevnik' {
+        $Gui.ActionSource = 'Advanced'
+        Show-Page 'Promjene'
+        $Gui.ActionSource | Should -Be 'Advanced'
+        (Get-UiActivePolicySet).Source | Should -Match 'napredni'
+        Show-Page 'Dnevnik'
+        $Gui.ActionSource | Should -Be 'Advanced'
+        Show-Page 'Pregled'
+        $Gui.ActionSource | Should -Be 'Security'
+    }
+
+    It 'neuspjela primjena i računalo koje nije odgovorilo nisu prikazani kao uspjeh' {
+        $active = Get-UiActivePolicySet
+        $first = @($active.Set.settings)[0]
+        $failedResult = [pscustomobject]@{
+            ComputerName = 'PC01'; Status = 'Error'; BackupPath = $null; Messages = @('Greška: pristup odbijen')
+            Diff = @([pscustomobject]@{ Status = 'Added'; Scope = $first.scope; Key = $first.key; ValueName = $first.valueName; Current = $null; Desired = "$($first.data)"; Action = 'Set' })
+        }
+        Show-UiChanges -Results @($failedResult) -Active $active -Target 'PC01, PC02' -Applied -Expected @('PC01', 'PC02')
+        $ui.txtChangesTitle.Text | Should -Be 'Primjena s greškama'
+        $ui.txtChangesInfo.Text | Should -Match '2 cilj'
+        @($ui.dgChanges.ItemsSource | Where-Object StatusText -in 'DODANO', 'POSTAVLJENO').Count | Should -Be 0
+        @($ui.dgChanges.ItemsSource)[0].StatusText | Should -Be 'NIJE PRIMIJENJENO'
+        Show-Page 'Pregled'
+    }
+
     It 'prikazuje promjene i usporedbu' {
         $active = Get-UiActivePolicySet
         $first = @($active.Set.settings)[0]

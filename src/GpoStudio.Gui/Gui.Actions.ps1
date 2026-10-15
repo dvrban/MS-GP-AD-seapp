@@ -6,7 +6,12 @@
 
 function Get-UiTarget {
     $mode = if ($ui.rbTargetDomain.IsChecked) { 'Domain' } elseif ($ui.rbTargetRemote.IsChecked) { 'Remote' } else { 'Local' }
-    $computers = if ($mode -eq 'Remote') { @($ui.txtComputers.Text -split '[,;\s]+' | Where-Object { $_ }) } else { @() }
+    $computers = @()
+    if ($mode -eq 'Remote') {
+        # Bez duplikata (velika i mala slova su ista): dvaput isto računalo pokrenulo bi dvije primjene.
+        $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        $computers = @($ui.txtComputers.Text -split '[,;\s]+' | Where-Object { $_ -and $seen.Add($_) })
+    }
     [pscustomobject]@{
         Mode      = $mode
         Computers = $computers
@@ -42,8 +47,10 @@ function Test-UiTarget($Target) {
 }
 
 function Get-UiActivePolicySet([switch]$Domain) {
-    # Napredna stranica radi sa svojim Policy Setom, sve ostale sa sigurnosnim postavkama.
-    if ($ui.pgNapredno.Visibility -eq 'Visible') {
+    # Napredna stranica radi sa svojim Policy Setom, ostale sa sigurnosnim postavkama; stranice Promjene i
+    # Dnevnik zadržavaju izvor zadnje stranice (pregled naprednog seta mora primijeniti taj isti set).
+    if ($Gui.ActionSource -eq 'Advanced') {
+        if (-not $ui.txtSetName.Text.Trim()) { $null = Show-AuxDialog -Message 'Upišite naziv Policy Seta na stranici Napredno.' -Kind Warning; return $null }
         $set = Get-UiAdvancedPolicySet
         return [pscustomobject]@{ Set = $set; Source = "napredni Policy Set '$($set.name)'"; Lookup = @{}; Skipped = @() }
     }
@@ -79,19 +86,31 @@ function Get-UiActivePolicySet([switch]$Domain) {
 }
 
 function Test-UiPolicySetEmpty($Set) {
+    if ($null -eq $Set) { return $true }
     @($Set.settings).Count -eq 0 -and $Set.security.Count -eq 0 -and $Set.audit.Count -eq 0
 }
 
 function Show-UiChanges {
-    param($Results, $Active, [string]$Target, [switch]$Domain, [switch]$Applied)
-    $statusTexts = @{ Added = 'DODAJE SE'; Changed = 'MIJENJA SE'; Removed = 'BRIŠE SE'; Unchanged = 'BEZ PROMJENE'; Planned = 'POSTAVLJA SE' }
-    if ($Applied) { $statusTexts = @{ Added = 'DODANO'; Changed = 'PROMIJENJENO'; Removed = 'OBRISANO'; Unchanged = 'BEZ PROMJENE'; Planned = 'POSTAVLJENO' } }
+    param($Results, $Active, [string]$Target, [switch]$Domain, [switch]$Applied, [string[]]$Expected)
+    $previewTexts = @{ Added = 'DODAJE SE'; Changed = 'MIJENJA SE'; Removed = 'BRIŠE SE'; Unchanged = 'BEZ PROMJENE'; Planned = 'POSTAVLJA SE' }
+    $appliedTexts = @{ Added = 'DODANO'; Changed = 'PROMIJENJENO'; Removed = 'OBRISANO'; Unchanged = 'BEZ PROMJENE'; Planned = 'POSTAVLJENO' }
+    $chipTexts = if ($Applied) { $appliedTexts.Clone() } else { $previewTexts.Clone() }
+    $chipTexts.Failed = 'NIJE PRIMIJENJENO'
     $rows = [System.Collections.Generic.List[object]]::new()
     $failed = 0
-    foreach ($r in @($Results)) {
+    # Računalo koje nije odgovorilo (WinRM) ne vraća rezultat; to je greška, a ne uspjeh.
+    $answered = @($Results | Where-Object { $_ } | ForEach-Object { ([string]$_.ComputerName).Split('.')[0] })
+    foreach ($e in @($Expected | Where-Object { $_ })) {
+        if ($answered -notcontains $e.Split('.')[0]) { $failed++; Write-UiLog "${e}: nije odgovorilo (provjerite WinRM i mrežu)." -Level Error }
+    }
+    if (-not @($Results | Where-Object { $_ }).Count -and $Gui.LastJobErrors) { $failed = [math]::Max($failed, 1) }
+    foreach ($r in @($Results | Where-Object { $_ })) {
         $name = if ($Domain) { $r.GpoName } else { $r.ComputerName }
         foreach ($m in @(Get-GpsOptionalProperty $r 'Messages')) { Write-UiLog "${name}: $m" -Level $(if ($m -like 'Greška*') { 'Error' } else { 'Info' }) }
+        $targetFailed = $Applied -and $r.Status -eq 'Error'
         if ($r.Status -eq 'Error') { $failed++ }
+        # Kad primjena na računalu nije uspjela, retci ne smiju pisati DODANO/POSTAVLJENO.
+        $statusTexts = if (-not $Applied) { $previewTexts } elseif ($targetFailed) { @{} } else { $appliedTexts }
         $line = "${name}: status $($r.Status)"
         $backup = Get-GpsOptionalProperty $r 'BackupPath'
         if ($backup) { $line += ", sigurnosna kopija: $backup" }
@@ -99,42 +118,46 @@ function Show-UiChanges {
         foreach ($d in @($r.Diff)) {
             $key = "reg|$($d.Scope)\$($d.Key)\$($d.ValueName)".ToLowerInvariant()
             $rows.Add([pscustomobject]@{
-                    Target = $name; Status = $d.Status; StatusText = $statusTexts[$d.Status]
+                    Target = $name; Status = $(if ($targetFailed -and $d.Status -ne 'Unchanged') { 'Failed' } else { $d.Status })
+                    StatusText = $(if ($targetFailed -and $d.Status -ne 'Unchanged') { 'NIJE PRIMIJENJENO' } elseif ($targetFailed) { 'BEZ PROMJENE' } else { $statusTexts[$d.Status] })
                     Setting = if ($Active.Lookup.ContainsKey($key)) { $Active.Lookup[$key] } else { "$($d.Key)\$($d.ValueName)" }
                     Current = if ($null -ne $d.Current) { $d.Current } else { '(nije postavljeno)' }
                     Desired = $d.Desired; Technical = "$(if ($d.Scope -eq 'User') { 'HKCU' } else { 'HKLM' })\$($d.Key)\$($d.ValueName)"
                 })
         }
         if (-not $Domain) {
+            $plannedStatus = if ($targetFailed) { 'Failed' } else { 'Planned' }
+            $plannedText = if ($targetFailed) { 'NIJE PRIMIJENJENO' } else { $statusTexts.Planned }
             foreach ($k in $Active.Set.security.Keys) {
-                $rows.Add([pscustomobject]@{ Target = $name; Status = 'Planned'; StatusText = $statusTexts.Planned; Setting = $(if ($Active.Lookup.ContainsKey("sec|$k")) { $Active.Lookup["sec|$k"] } else { $k })
+                $rows.Add([pscustomobject]@{ Target = $name; Status = $plannedStatus; StatusText = $plannedText; Setting = $(if ($Active.Lookup.ContainsKey("sec|$k")) { $Active.Lookup["sec|$k"] } else { $k })
                         Current = '(provjera na stranici Usporedba)'; Desired = [string]$Active.Set.security[$k]; Technical = "secedit [System Access] $k" })
             }
             foreach ($k in $Active.Set.audit.Keys) {
-                $rows.Add([pscustomobject]@{ Target = $name; Status = 'Planned'; StatusText = $statusTexts.Planned; Setting = $(if ($Active.Lookup.ContainsKey("aud|$k")) { $Active.Lookup["aud|$k"] } else { $k })
+                $rows.Add([pscustomobject]@{ Target = $name; Status = $plannedStatus; StatusText = $plannedText; Setting = $(if ($Active.Lookup.ContainsKey("aud|$k")) { $Active.Lookup["aud|$k"] } else { $k })
                         Current = '(provjera na stranici Usporedba)'; Desired = [string]$Active.Set.audit[$k]; Technical = "auditpol /subcategory:`"$k`"" })
             }
         }
     }
-    $ordered = @($rows | Sort-Object @{ Expression = { switch ($_.Status) { 'Changed' { 0 } 'Added' { 1 } 'Removed' { 2 } 'Planned' { 3 } default { 4 } } } }, Setting)
+    $ordered = @($rows | Sort-Object @{ Expression = { switch ($_.Status) { 'Failed' { 0 } 'Changed' { 1 } 'Added' { 2 } 'Removed' { 3 } 'Planned' { 4 } default { 5 } } } }, Setting)
     $ui.dgChanges.ItemsSource = $ordered
 
     $ui.pnlChangeChips.Children.Clear()
-    foreach ($status in 'Added', 'Changed', 'Removed', 'Planned', 'Unchanged') {
+    foreach ($status in 'Failed', 'Added', 'Changed', 'Removed', 'Planned', 'Unchanged') {
         $count = @($rows | Where-Object Status -eq $status).Count
         if (-not $count) { continue }
         $chip = [System.Windows.Controls.ContentControl]::new()
         $chip.Style = Get-AuxBrush 'Cip'
-        $chip.Content = "$($statusTexts[$status]): $count"
+        $chip.Content = "$($chipTexts[$status]): $count"
         $chip.Margin = '0,0,8,0'
-        $chip.Foreground = Get-AuxBrush $(switch ($status) { 'Added' { 'Green' } 'Changed' { 'Amber' } 'Unchanged' { 'Muted' } default { 'Cyan' } })
+        $chip.Foreground = Get-AuxBrush $(switch ($status) { 'Failed' { 'Red' } 'Added' { 'Green' } 'Changed' { 'Amber' } 'Unchanged' { 'Muted' } default { 'Cyan' } })
         $null = $ui.pnlChangeChips.Children.Add($chip)
     }
-    $ui.txtChangesTitle.Text = if ($Applied) { 'Primijenjene promjene' } else { 'Pregled promjena' }
+    $ui.txtChangesTitle.Text = if ($Applied -and $failed) { 'Primjena s greškama' } elseif ($Applied) { 'Primijenjene promjene' } else { 'Pregled promjena' }
+    $skippedNote = if ($Domain -and @($Active.Skipped).Count) { " Ne objavljuje se (lozinke i revizija još nisu podržane u domeni): $(@($Active.Skipped) -join ', ')." } else { '' }
     $ui.txtChangesInfo.Text = if ($Applied) {
-        "Primijenjeno na: $Target. Izvor: $($Active.Source)." + $(if ($failed) { " $failed cilj(eva) javlja grešku, pogledajte Dnevnik." } else { ' Prije primjene napravljena je sigurnosna kopija.' })
+        "Cilj: $Target. Izvor: $($Active.Source)." + $(if ($failed) { " $failed cilj(eva) javlja grešku ili nije odgovorilo, pogledajte Dnevnik." } else { ' Prije primjene napravljena je sigurnosna kopija.' }) + $skippedNote
     }
-    else { "Ništa još nije promijenjeno. Cilj: $Target. Izvor: $($Active.Source). Kliknite Primijeni za primjenu." }
+    else { "Ništa još nije promijenjeno. Cilj: $Target. Izvor: $($Active.Source). Kliknite Primijeni za primjenu.$skippedNote" }
     Show-Page 'Promjene'
 }
 
@@ -142,7 +165,13 @@ function Invoke-UiPolicyAction([switch]$Apply) {
     $target = Get-UiTarget
     if (-not (Test-UiTarget $target)) { return }
     $active = Get-UiActivePolicySet -Domain:($target.Mode -eq 'Domain')
+    if (-not $active) { return }
     $set = $active.Set
+    if ($target.Mode -eq 'Domain' -and $set -and @($set.settings).Count -eq 0) {
+        $null = Show-AuxDialog -Message ('Za domenski GPO nema postavki: lozinke i revizija se u domenu još ne objavljuju.' +
+            $(if (@($active.Skipped).Count) { " Izostavljeno: $(@($active.Skipped) -join ', ')." })) -Kind Warning
+        return
+    }
     if (Test-UiPolicySetEmpty $set) {
         $null = Show-AuxDialog -Message 'Nema postavki za primjenu. Odaberite razinu ili uključite postavke.' -Kind Warning
         return
@@ -156,12 +185,12 @@ function Invoke-UiPolicyAction([switch]$Apply) {
         $computers = $target.Computers
         $cmd = "Set-GpsLocalPolicy -PolicySet `$set" + $(if ($computers) { " -ComputerName $($computers -join ',')" }) + $(if ($Apply) { ' -Confirm:$false' } else { ' -WhatIf' })
         Start-UiJob -Title $(if ($Apply) { 'Primjena' } else { 'Pregled promjena' }) -Command $cmd -Arguments @($set, $computers, [bool]$Apply) `
-            -Context @{ Active = $active; Target = $target.Text; Applied = [bool]$Apply } -ScriptBlock {
+            -Context @{ Active = $active; Target = $target.Text; Applied = [bool]$Apply; Expected = $computers } -ScriptBlock {
             param($set, $computers, $apply)
             $p = @{ PolicySet = $set }
             if ($computers) { $p.ComputerName = $computers }
             if ($apply) { Set-GpsLocalPolicy @p -Confirm:$false } else { Set-GpsLocalPolicy @p -WhatIf }
-        } -OnSuccess { param($r, $ctx) Show-UiChanges -Results $r -Active $ctx.Active -Target $ctx.Target -Applied:$ctx.Applied }
+        } -OnSuccess { param($r, $ctx) Show-UiChanges -Results $r -Active $ctx.Active -Target $ctx.Target -Applied:$ctx.Applied -Expected $ctx.Expected }
         return
     }
 
@@ -267,6 +296,13 @@ function Invoke-UiReplicationCheck {
     } -OnSuccess {
         param($r)
         Write-UiLog ($r | Format-Table DomainController, ComputerAD, ComputerSysvol, UserAD, UserSysvol, InSync -AutoSize | Out-String)
+        # Redak s greškom (DC nedostupan, GPO ne postoji) nije "još nije repliciran".
+        $errors = @($r | Where-Object { $_ -and $_.PSObject.Properties['Error'] -and $_.Error })
+        if ($errors.Count) {
+            $null = Show-AuxDialog -Title 'Replikacija' -Kind Danger -Message 'Provjera nije uspjela na svim domain controllerima.' `
+                -Details (($errors | ForEach-Object { "$($_.DomainController): $($_.Error)" }) -join "`n")
+            return
+        }
         $bad = @($r | Where-Object { -not $_.InSync }).Count
         $null = Show-AuxDialog -Title 'Replikacija' -Kind $(if ($bad) { 'Warning' } else { 'Info' }) `
             -Message $(if ($bad) { "GPO još nije usklađen na $bad domain controller(a). Pričekajte nekoliko minuta i provjerite ponovno." } else { 'GPO je jednak na svim domain controllerima.' })

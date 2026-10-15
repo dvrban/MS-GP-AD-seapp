@@ -363,7 +363,9 @@ function Update-AuxScoreTile($Tile, [int]$Score, [int]$Satisfied, [int]$Total) {
 
 #region Pozadinski poslovi (runspace + DispatcherTimer)
 
-$Gui = @{ Job = $null }
+# ActionSource: što traka radnji primjenjuje ('Security' ili 'Advanced'); mijenja se samo na stranicama
+# koje imaju svoj izvor, pa pregled promjena i dnevnik ne mijenjaju što će se primijeniti.
+$Gui = @{ Job = $null; ActionSource = 'Security'; LastJobErrors = 0 }
 $Gui.JobTimer = [System.Windows.Threading.DispatcherTimer]::new()
 $Gui.JobTimer.Interval = [TimeSpan]::FromMilliseconds(250)
 $Gui.JobTimer.Add_Tick({
@@ -376,6 +378,7 @@ $Gui.JobTimer.Add_Tick({
             foreach ($w in $job.PowerShell.Streams.Warning) { Write-UiLog "$w" -Level Warning }
             foreach ($e in $job.PowerShell.Streams.Error) { Write-UiLog "$e" -Level Error }
             Set-UiBusy $false
+            $Gui.LastJobErrors = $job.PowerShell.Streams.Error.Count
             if ($job.OnSuccess) { & $job.OnSuccess @($output) $job.Context }
             Write-UiLog "$($job.Title): gotovo ($([int]((Get-Date) - $job.Started).TotalSeconds) s)." -Level Ok
         }

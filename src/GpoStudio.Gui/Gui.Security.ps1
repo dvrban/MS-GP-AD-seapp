@@ -161,6 +161,11 @@ function Initialize-SecurityUi {
     $Sec.CompareNote = "Katalog $([string](Get-GpsOptionalProperty $Sec.Catalog 'catalogVersion')). " +
         'Standardi sadrže stotine preporuka; ovdje se uspoređuju samo one koje GPO Studio može postaviti. Rezultat nije potvrda sukladnosti.'
 
+    # Zadani standard mora postojati u katalogu (inače usporedba nema što prikazati).
+    if (-not @($Sec.Catalog.standards | Where-Object { [string]$_.id -eq $Sec.Standard }).Count -and @($Sec.Catalog.standards).Count) {
+        $Sec.Standard = [string]@($Sec.Catalog.standards)[0].id
+        foreach ($rb in $ui.pnlStandardFilter.Children) { if ($rb.Tag -eq $Sec.Standard) { $rb.IsChecked = $true } }
+    }
     $ui.lbCategories.SelectedIndex = 0
     Update-PresetList
     Update-AllControlRows
@@ -446,6 +451,7 @@ function Update-ComparePage {
         if ($Sec.TilesCompare.ContainsKey($r.Id)) { Update-AuxScoreTile $Sec.TilesCompare[$r.Id] $r.Score $r.Satisfied $r.Total }
     }
     $current = $results | Where-Object Id -eq $Sec.Standard | Select-Object -First 1
+    if (-not $current) { $ui.dgCompliance.ItemsSource = @(); return }
     $notSetText = if ($useState) { 'Nije postavljeno' } else { 'Ne mijenja se' }
     $rows = foreach ($row in @($current.Rows)) {
         [pscustomobject]@{
@@ -465,7 +471,7 @@ function Update-ComparePage {
 
 function Update-ActionSource {
     if (-not $ui.txtActionSource) { return }
-    if ($ui.pgNapredno.Visibility -eq 'Visible') {
+    if ($Gui.ActionSource -eq 'Advanced') {
         $ui.txtActionSource.Text = "Napredni Policy Set '$($ui.txtSetName.Text)': $($State.Settings.Count) postavki"
     }
     else {
@@ -540,11 +546,13 @@ function Save-UiPreset {
     if (-not $result) { return }
     if (-not $result['Naziv']) { $null = Show-AuxDialog -Message 'Upišite naziv preseta.' -Kind Warning; return }
     $preset = New-GpsControlPreset -Catalog $Sec.Catalog -Name $result['Naziv'] -Description $result['Opis'] -Level $Sec.Level -Selection $Sec.Selection
-    try { $path = Export-GpsControlPreset -Preset $preset }
-    catch {
-        if ((Show-AuxDialog -Title 'Spremi preset' -Kind Warning -Buttons @('ZAMIJENI', 'ODUSTANI') -Message "Preset s nazivom '$($preset.Name)' već postoji. Zamijeniti ga?") -ne 'ZAMIJENI') { return }
-        $path = Export-GpsControlPreset -Preset $preset -Force
-    }
+    $fileName = ($preset.Name -replace '[\\/:*?"<>|]', '-').Trim()
+    if (-not $fileName) { $fileName = 'preset' }
+    $path = Join-Path (Get-GpsControlPresetFolder) "$fileName.json"
+    if ((Test-Path -LiteralPath $path) -and
+        (Show-AuxDialog -Title 'Spremi preset' -Kind Warning -Buttons @('ZAMIJENI', 'ODUSTANI') -Message "Preset s nazivom '$($preset.Name)' već postoji. Zamijeniti ga?") -ne 'ZAMIJENI') { return }
+    try { $path = Export-GpsControlPreset -Preset $preset -Path $path -Force -ErrorAction Stop }
+    catch { $null = Show-AuxDialog -Title 'Spremi preset' -Kind Danger -Message 'Preset se ne može spremiti.' -Details "$_"; return }
     $Sec.Preset = "Preset: $($preset.Name)"
     Set-SelectionBaseline
     Write-UiLog "Preset spremljen: $path" -Level Ok
@@ -556,7 +564,8 @@ function Import-UiPreset {
     $dlg = [Microsoft.Win32.OpenFileDialog]@{ Filter = 'GPO Studio preset (*.json)|*.json'; Title = 'Uvezi preset' }
     if (-not $dlg.ShowDialog($window)) { return }
     try {
-        $preset = Import-GpsControlPreset -Path $dlg.FileName
+        try { $preset = Import-GpsControlPreset -Path $dlg.FileName }
+        catch { $null = Show-AuxDialog -Title 'Uvezi preset' -Message 'Datoteka nije ispravan preset.' -Details "$_" -Kind Danger; return }
         $null = Resolve-GpsControlPreset -Catalog $Sec.Catalog -Preset $preset -WarningVariable w -WarningAction SilentlyContinue
         foreach ($m in $w) { Write-UiLog "Preset '$($preset.Name)': $m" -Level Warning }
         $target = Join-Path (Get-GpsControlPresetFolder) ([IO.Path]::GetFileName($dlg.FileName))
@@ -566,19 +575,23 @@ function Import-UiPreset {
         Write-UiLog "Uvezen preset '$($preset.Name)'." -Level Ok
         Update-PresetList
     }
-    catch { $null = Show-AuxDialog -Title 'Uvezi preset' -Message 'Datoteka nije ispravan preset.' -Details "$_" -Kind Danger }
+    catch { $null = Show-AuxDialog -Title 'Uvezi preset' -Message 'Preset se ne može spremiti u mapu preseta.' -Details "$_" -Kind Danger }
 }
 
 function Export-UiPreset($Preset) {
     $dlg = [Microsoft.Win32.SaveFileDialog]@{ Filter = 'GPO Studio preset (*.json)|*.json'; FileName = (($Preset.Name -replace '[\\/:*?"<>|]', '-') + '.json') }
     if (-not $dlg.ShowDialog($window)) { return }
-    $null = Export-GpsControlPreset -Preset $Preset -Path $dlg.FileName -Force
-    Write-UiLog "Preset '$($Preset.Name)' izvezen: $($dlg.FileName)" -Level Ok
+    try {
+        $null = Export-GpsControlPreset -Preset $Preset -Path $dlg.FileName -Force -ErrorAction Stop
+        Write-UiLog "Preset '$($Preset.Name)' izvezen: $($dlg.FileName)" -Level Ok
+    }
+    catch { $null = Show-AuxDialog -Title 'Izvoz preseta' -Kind Danger -Message 'Preset se ne može spremiti.' -Details "$_" }
 }
 
 function Remove-UiPreset($Preset) {
     if ((Show-AuxDialog -Title 'Obriši preset' -Kind Danger -Buttons @('OBRIŠI', 'ODUSTANI') -Message "Obrisati preset '$($Preset.Name)'?") -ne 'OBRIŠI') { return }
-    Remove-Item -LiteralPath $Preset.Path -Force
+    try { Remove-Item -LiteralPath $Preset.Path -Force -ErrorAction Stop }
+    catch { $null = Show-AuxDialog -Title 'Obriši preset' -Kind Danger -Message 'Preset se ne može obrisati.' -Details "$_"; return }
     Write-UiLog "Preset '$($Preset.Name)' obrisan."
     Update-PresetList
 }
@@ -655,7 +668,8 @@ function Export-UiComplianceReport {
     if (-not $dlg.ShowDialog($window)) { return }
     $html = ConvertTo-GpsComplianceHtml -Catalog $Sec.Catalog -Selection $selection -Subject $subject -NotSetText $(if ($useState) { 'Nije postavljeno' } else { 'Ne mijenja se' }) `
         -Details $(if ($useState) { @($Sec.Detected.Details) } else { $null })
-    [IO.File]::WriteAllText($dlg.FileName, $html, [Text.UTF8Encoding]::new($true))
+    try { [IO.File]::WriteAllText($dlg.FileName, $html, [Text.UTF8Encoding]::new($true)) }
+    catch { $null = Show-AuxDialog -Title 'Izvještaj' -Kind Danger -Message 'Izvještaj se ne može spremiti.' -Details "$_"; return }
     Write-UiLog "Izvještaj spremljen: $($dlg.FileName)" -Level Ok
     try { Start-Process -FilePath $dlg.FileName } catch { }
 }

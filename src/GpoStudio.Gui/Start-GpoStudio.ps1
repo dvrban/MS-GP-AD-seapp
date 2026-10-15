@@ -90,6 +90,8 @@ function Show-Page([string]$Name) {
     }
     $nav = $ui[$Pages[$Name].Nav]
     if (-not $nav.IsChecked) { $nav.IsChecked = $true }
+    if ($Name -eq 'Napredno') { $Gui.ActionSource = 'Advanced' }
+    elseif ($Name -in 'Pregled', 'Sigurnost', 'Preseti', 'Usporedba') { $Gui.ActionSource = 'Security' }
     switch ($Name) {
         'Usporedba' { Update-ComparePage }
         'Napredno' { if (-not $State.CatalogLoaded -and -not $Gui.Job) { Start-CatalogLoad } }
@@ -165,7 +167,14 @@ $CatalogSearchTimer.Interval = [TimeSpan]::FromMilliseconds(350)
 $CatalogSearchTimer.Add_Tick({ $CatalogSearchTimer.Stop(); Update-CatalogTree })
 $ui.txtSearch.Add_TextChanged({ $CatalogSearchTimer.Stop(); $CatalogSearchTimer.Start() })
 $ui.tvCatalog.Add_SelectedItemChanged({ if ($ui.tvCatalog.SelectedItem) { Show-PolicyDetails $ui.tvCatalog.SelectedItem.Tag } })
-$ui.tvCatalog.Add_MouseDoubleClick({ if ($ui.tvCatalog.SelectedItem -and $ui.tvCatalog.SelectedItem.Tag) { Add-SelectedPolicy 'Enabled' } })
+$ui.tvCatalog.Add_MouseDoubleClick({
+        # Samo dvoklik na odabranu politiku (ne na klizač ili strelicu kategorije).
+        $node = $_.OriginalSource
+        while ($node -and $node -isnot [System.Windows.Controls.TreeViewItem]) {
+            $node = if ($node -is [System.Windows.Media.Visual] -or $node -is [System.Windows.Media.Media3D.Visual3D]) { [System.Windows.Media.VisualTreeHelper]::GetParent($node) } else { $null }
+        }
+        if ($node -and $node -eq $ui.tvCatalog.SelectedItem -and $node.Tag) { Add-SelectedPolicy 'Enabled' }
+    })
 $ui.btnEnable.Add_Click({ Add-SelectedPolicy 'Enabled' })
 $ui.btnDisable.Add_Click({ Add-SelectedPolicy 'Disabled' })
 $ui.btnRemove.Add_Click({
