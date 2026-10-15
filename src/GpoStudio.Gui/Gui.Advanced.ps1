@@ -178,8 +178,12 @@ function Open-UiAdvancedPolicySet {
 }
 
 function Save-UiAdvancedPolicySet {
-    $dlg = [Microsoft.Win32.SaveFileDialog]@{ Filter = 'Policy Set (*.json)|*.json'; FileName = "$($ui.txtSetName.Text).json" }
+    if (-not $ui.txtSetName.Text.Trim()) { $null = Show-AuxDialog -Message 'Upišite naziv Policy Seta.' -Kind Warning; return }
+    $dlg = [Microsoft.Win32.SaveFileDialog]@{ Filter = 'Policy Set (*.json)|*.json'; FileName = "$($ui.txtSetName.Text.Trim()).json" }
     if (-not $dlg.ShowDialog($window)) { return }
-    Export-GpsPolicySet -PolicySet (Get-UiAdvancedPolicySet) -Path $dlg.FileName
-    Write-UiLog "Spremljeno: $($dlg.FileName)" -Level Ok
+    try {
+        Export-GpsPolicySet -PolicySet (Get-UiAdvancedPolicySet) -Path $dlg.FileName -ErrorAction Stop
+        Write-UiLog "Spremljeno: $($dlg.FileName)" -Level Ok
+    }
+    catch { $null = Show-AuxDialog -Title 'Spremi Policy Set' -Kind Danger -Message 'Policy Set se ne može spremiti.' -Details "$_" }
 }

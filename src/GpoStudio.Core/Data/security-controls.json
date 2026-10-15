@@ -1460,7 +1460,7 @@
       "category": "usb",
       "title": "USB memorije i memorijske kartice",
       "description": "Određuje što zaposlenici smiju raditi s USB memorijama i memorijskim karticama. Zabrana pokretanja programa sprječava da se virus pokrene izravno s USB-a.",
-      "impact": "Ovisno o izboru: programi se ne pokreću s USB-a, na USB se ne može spremati ili se USB, CD i mobitel kao disk uopće ne otvaraju; tipkovnice, miševi i pisači rade normalno.",
+      "impact": "Ovisno o izboru: programi se ne pokreću s USB-a, na USB se ne može spremati ili se USB memorije, CD-i i mobiteli spojeni kabelom uopće ne otvaraju; tipkovnice, miševi i pisači rade normalno.",
       "impactLevel": "high",
       "requiresRestart": true,
       "options": [
@@ -1563,7 +1563,7 @@
         "3": "readonly"
       },
       "benchmarks": [],
-      "notes": "RemovableStorage.admx (System > Removable Storage Access): RemovableDisks_DenyExecute_Access_2 (Machine only, Win7+), RemovableDisks_DenyWrite_Access_2 and RemovableDisks_DenyRead_Access_2 -> HKLM\\Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices\\{53f5630d-b6bf-11d0-94f2-00a0c91efb8b} Deny_Execute/Deny_Write/Deny_Read = DWORD 1. RemovableStorageClasses_DenyAll_Access_2 -> ...\\RemovableStorageDevices Deny_All = DWORD 1. Deny_All overrides every class policy and also blocks CD/DVD, floppy, tape and WPD devices such as phones/cameras over MTP. Deny_Read/Deny_Write/Deny_All also exist as User-scope (HKCU) policies; this control manages only the Machine scope. Option 'Dozvoljeno' also deletes Deny_Read, so a value set by another tool is cleared. Restart: the ADML help of AccessRights_RebootTime says 'If no reboot is forced, the access right does not take effect until the operating system is restarted', hence requiresRestart=true. Newly inserted media often pick up the change after a policy refresh, but an already mounted volume keeps its access until it is plugged in again. We deliberately do NOT set RebootTimeinSeconds_state/RebootTimeinSeconds, because that forces a reboot. Neither CIS Windows 11 (L1/L2) nor the Microsoft Security Baseline has Removable Storage Access recommendations. Both only use Device Installation restrictions against DMA (SBP-2/Thunderbolt classes; CIS BitLocker profile + MSB BitLocker GPO), which belong to the BitLocker/system group. Deny_Execute stops executables from starting on the medium; it is not full application control. Enterprise alternative: Defender for Endpoint Device Control. Not verified for USB hard disks/SSDs that report as fixed media: test before relying on it.",
+      "notes": "RemovableStorage.admx (System > Removable Storage Access): RemovableDisks_DenyExecute_Access_2 (Machine only, supportedOn Windows 7), RemovableDisks_DenyWrite_Access_2 and RemovableDisks_DenyRead_Access_2 -> HKLM\\Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices\\{53f5630d-b6bf-11d0-94f2-00a0c91efb8b} Deny_Execute/Deny_Write/Deny_Read = DWORD 1. RemovableStorageClasses_DenyAll_Access_2 -> ...\\RemovableStorageDevices Deny_All = DWORD 1. Deny_All overrides every class policy and also blocks CD/DVD, floppy, tape and WPD devices such as phones/cameras over MTP. Deny_Read/Deny_Write/Deny_All also exist as User-scope (HKCU) policies; this control manages only the Machine scope. Option 'Dozvoljeno' also deletes Deny_Read, so a value set by another tool is cleared. Restart: the ADML help of AccessRights_RebootTime says 'If no reboot is forced, the access right does not take effect until the operating system is restarted', hence requiresRestart=true. We deliberately do NOT set RebootTimeinSeconds_state/RebootTimeinSeconds, because that forces a reboot. INTERACTION with usb.bitlocker-write: 'Samo čitanje' (Deny_Write) and 'Zabranjeno' (Deny_All) deny writes to EVERY removable disk, including BitLocker To Go drives, so they supersede 'Upis samo na šifrirane USB diskove' (the ADML of RemovableDisks_DenyWrite points to the BitLocker policy as the alternative for encrypted-only writing). For 'write only to encrypted sticks' combine 'Bez pokretanja programa' with usb.bitlocker-write, as the laptop preset (11-prijenosno-racunalo) does. Level 3 keeps 'Samo čitanje' to match the 'Strogo' preset text ('USB samo za čitanje'); usb.bitlocker-write is therefore not enabled at level 3. Neither CIS Windows 11 (L1/L2) nor the Microsoft Security Baseline has Removable Storage Access recommendations; both only use Device Installation restrictions against DMA, which belong to the BitLocker/system group. Deny_Execute stops executables from starting on the medium; it is not full application control. Enterprise alternative: Defender for Endpoint Device Control. Not verified for USB hard disks/SSDs that report as fixed media: test before relying on it.",
       "sources": [
         "https://github.com/nsacyber/Windows-Secure-Host-Baseline/tree/master/Windows/Group%20Policy%20Templates",
         "https://github.com/nsacyber/Windows-Secure-Host-Baseline/blob/master/Windows/Group%20Policy%20Templates/RemovableStorage.admx",
@@ -1583,7 +1583,7 @@
       "options": [
         {
           "id": "off",
-          "title": "Isključeno",
+          "title": "Uključeno",
           "matchMode": "exact",
           "settings": [
             {
@@ -1635,7 +1635,7 @@
           ]
         }
       ],
-      "notes": "AutoPlay.admx: policy 'Autorun' (Turn off Autoplay) is an enum NoDriveTypeAutoRun: 181 = CD-ROM and removable, 255 = All drives. Policy 'NoAutorun' (Set the default behavior for AutoRun) is an enum: 1 = Do not execute any autorun commands, 2 = Automatically execute. Both live under Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer and are class Both (also HKCU); CIS/MSB check the HKLM values, which is what we write. NoAutoplayfornonVolume (Disallow Autoplay for non-volume devices, MTP phones/cameras) is under Software\\Policies\\Microsoft\\Windows\\Explorer. Item numbers are CIS v4.0.0. The same three items are L1 in v5.0.1 (Fleet v5.0.1 policy set; 18.10.8.3 confirmed in the v5.0.1 table of contents) and are 18.10.7.1-3 in v3.0.0. requiresRestart=false: Explorer reads the policy when media arrives. A signed-in session may rarely need a sign-out; not checked against a primary source.",
+      "notes": "Option id stays 'off' (AutoPlay off) for preset compatibility, but its title is 'Uključeno': for a single-option control the GUI renders the option title as the checkbox label (Gui.Security.ps1), and the catalog convention for 'Bez ...' titles is 'Uključeno' (privacy.advertising, privacy.feedback-logs). A box labelled 'ISKLJUČENO' next to 'Bez automatskog pokretanja' reads as switching the protection off. AutoPlay.admx: policy 'Autorun' (Turn off Autoplay) is an enum NoDriveTypeAutoRun: 181 = CD-ROM and removable, 255 = All drives. Policy 'NoAutorun' (Set the default behavior for AutoRun) is an enum: 1 = Do not execute any autorun commands, 2 = Automatically execute. Both live under Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer and are class Both (also HKCU); CIS/MSB check the HKLM values, which is what we write. NoAutoplayfornonVolume (Disallow Autoplay for non-volume devices, MTP phones/cameras) is under Software\\Policies\\Microsoft\\Windows\\Explorer. Item numbers are CIS v4.0.0 (HardeningKitty v4.0.0 list); L1 in v3.0.0 (Wazuh SCA, 18.10.7.1-3) and v5.0.1 (Fleet). requiresRestart=false: Explorer re-reads shell restrictions after the policy-change broadcast; a signed-in session may rarely need a sign-out.",
       "sources": [
         "https://github.com/nsacyber/Windows-Secure-Host-Baseline/blob/master/Windows/Group%20Policy%20Templates/AutoPlay.admx",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
@@ -1680,7 +1680,7 @@
       "levels": {
         "1": null,
         "2": null,
-        "3": "on"
+        "3": null
       },
       "benchmarks": [
         {
@@ -1691,12 +1691,14 @@
           ]
         }
       ],
-      "notes": "VolumeEncryption.admx policy RDVDenyWriteAccess_Name (BitLocker Drive Encryption > Removable Data Drives > Deny write access to removable drives not protected by BitLocker) writes RDVDenyWriteAccess under System\\CurrentControlSet\\Policies\\Microsoft\\FVE (NOT Software\\Policies). The policy also has a REQUIRED boolean element RDVCrossOrg, written as RDVDenyCrossOrg under Software\\Policies\\Microsoft\\FVE. Value 0 means 'Do not allow write access to devices configured in another organization' is unchecked. MSB 25H2/26H2 (BitLocker GPO): RDVDenyWriteAccess=1, RDVDenyCrossOrg=0. CIS has it only in the BitLocker (BL) profile, not in L1/L2: v4.0.0 18.10.10.3.14 (Enabled) and 18.10.10.3.15 (cross-org False). Therefore there is no CIS-L1/L2 entry. Creating a BitLocker To Go drive needs Windows Pro/Enterprise/Education. Takes effect when a drive is inserted again; no restart. Level 3 only, because small offices often exchange files on plain USB sticks.",
+      "notes": "VolumeEncryption.admx policy RDVDenyWriteAccess_Name (BitLocker Drive Encryption > Removable Data Drives > Deny write access to removable drives not protected by BitLocker) writes RDVDenyWriteAccess under System\\CurrentControlSet\\Policies\\Microsoft\\FVE (NOT Software\\Policies). The policy also has a REQUIRED boolean element RDVCrossOrg, written as RDVDenyCrossOrg under Software\\Policies\\Microsoft\\FVE. Value 0 means 'Do not allow write access to devices configured in another organization' is unchecked. MSB 25H2/26H2 (BitLocker GPO): RDVDenyWriteAccess=1, RDVDenyCrossOrg=0. CIS has it only in the BitLocker (BL) profile, not in L1/L2: v4.0.0 18.10.10.3.14 (Enabled) and 18.10.10.3.15 (cross-org False); v3.0.0 18.10.9.3.14/.15 (BL). Therefore there is no CIS-L1/L2 entry. LEVELS: not enabled at any level. Level 3 selects usb.storage 'Samo čitanje' (Deny_Write on the Removable Disks class), which blocks writing to every removable disk, BitLocker-protected or not, so this policy would add nothing there except a BitLocker prompt, and even an encrypted stick would stay read-only. Use it together with usb.storage 'Bez pokretanja programa' (e.g. the laptop preset 11-prijenosno-racunalo) when encrypted sticks must stay writable. A level-3 compliance report will therefore show this MSB item as not met, although 'Samo čitanje' is stricter. Creating a BitLocker To Go drive needs Windows Pro/Enterprise/Education. Takes effect when a drive is inserted again; no restart.",
       "sources": [
         "https://github.com/nsacyber/Windows-Secure-Host-Baseline/blob/master/Windows/Group%20Policy%20Templates/VolumeEncryption.admx",
+        "https://github.com/nsacyber/Windows-Secure-Host-Baseline/blob/master/Windows/Group%20Policy%20Templates/en-us/RemovableStorage.adml",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml",
+        "https://github.com/wazuh/wazuh/blob/main/ruleset/sca/windows/cis_win11_enterprise.yml",
         "https://github.com/dgulle/Security-Baselines"
       ],
       "requirement": "BitLocker: Windows Pro, Enterprise ili Education."
@@ -1951,7 +1953,7 @@
       "category": "defender",
       "title": "Zaštita iz oblaka",
       "description": "Defender šalje Microsoftu podatke o sumnjivim datotekama i u nekoliko sekundi dobiva odgovor. Tako prepoznaje i potpuno nove viruse.",
-      "impact": "Korisnici obično ništa ne primjećuju; uz 'Pojačano' se nova sumnjiva datoteka ponekad otvori nekoliko sekundi kasnije, dok se ne provjeri.",
+      "impact": "Korisnici obično ništa ne primjećuju; uz 'Pojačano' se nova, nepoznata datoteka ponekad otvori tek nakon provjere, što može potrajati do jedne minute.",
       "impactLevel": "low",
       "requiresRestart": false,
       "options": [
@@ -2013,6 +2015,9 @@
           "id": "full",
           "title": "Pojačano",
           "matchMode": "exact",
+          "matchModes": {
+            "MpCloudBlockLevel": "atLeast"
+          },
           "settings": [
             {
               "scope": "Machine",
@@ -2097,13 +2102,16 @@
           ]
         }
       ],
-      "notes": "CONFLICT between standards. CIS L2 wants 'Join Microsoft MAPS' = Disabled for privacy (v4.0.0 18.10.43.5.2; still 'Disabled' at L2 in Fleet's v5.0.1 policy set). MSB 25H2/26H2 wants: Advanced MAPS (SpynetReporting=2); 'Send file samples' = Send all samples (SubmitSamplesConsent=3; the 22H2 baseline still used 1 = Send safe samples); Block at First Sight on (DisableBlockAtFirstSeen=0); cloud protection level High (MpCloudBlockLevel=2); extended cloud check of 50 s (MpBafsExtendedTimeout=50). With MAPS off, Block at First Sight, cloud-delivered protection and the ASR ransomware rule (c1db55ab) stop working. So 'Isključeno' is offered only for CIS L2 parity, and no level uses it. WindowsDefender.admx enums: SpynetReporting 0 Disabled / 1 Basic / 2 Advanced; SubmitSamplesConsent 0 Always prompt / 1 Send safe samples / 2 Never send / 3 Send all samples; MpCloudBlockLevel 0/1/2/4/6; MpBafsExtendedTimeout 0-50. The 'Disabled' state of the SpynetReporting policy deletes the value. The CIS audit accepts a missing value or 0, so writing 0 satisfies it. LocalSettingOverrideSpynetReporting=0 is CIS L1 and is part of every option. Privacy: 'Send all samples' may upload documents (e.g. Office files with macros) for analysis. For very sensitive data an admin may prefer 'Uključeno' (safe samples only).",
+      "notes": "CONFLICT between standards. CIS L2 wants 'Join Microsoft MAPS' = Disabled for privacy (v4.0.0 18.10.43.5.2; L2 also in v3.0.0 per Wazuh and in Fleet's v5.0.1 set). MSB 23H2-26H2 wants: Advanced MAPS (SpynetReporting=2); 'Send file samples' = Send all samples (SubmitSamplesConsent=3; 22H2 used 1); Block at First Sight on (DisableBlockAtFirstSeen=0); cloud protection level High (MpCloudBlockLevel=2); extended cloud check 50 s (MpBafsExtendedTimeout=50). With MAPS off, Block at First Sight, cloud-delivered protection and the ASR ransomware rule (c1db55ab) stop working, so 'Isključeno' is offered only for CIS L2 parity and no level uses it. Impact wording: the default cloud check holds a file up to 10 s and MpBafsExtendedTimeout adds up to 50 s, so a first-seen file can be held for up to about a minute, not 'a few seconds'. Detection: matchModes MpCloudBlockLevel=atLeast, because the enum 0/1/2/4/6 grows stricter (4 = High+, 6 = Zero tolerance) and the MSB check itself accepts >= 2; without it a computer at High+ or Zero tolerance would not be recognised as 'Pojačano'. WindowsDefender.admx enums: SpynetReporting 0 Disabled / 1 Basic / 2 Advanced; SubmitSamplesConsent 0 Always prompt / 1 Send safe samples / 2 Never send / 3 Send all samples; MpBafsExtendedTimeout 0-50. The 'Disabled' state of the SpynetReporting policy deletes the value; the CIS audit (Fleet, HardeningKitty '=|0') accepts a missing value or 0, so writing 0 satisfies it. LocalSettingOverrideSpynetReporting=0 is CIS L1 and is part of every option. Privacy: 'Send all samples' may upload documents (e.g. Office files with macros) for analysis; for very sensitive data an admin may prefer 'Uključeno' (safe samples only).",
       "sources": [
         "https://github.com/microsoft/mdatp-devicecontrol/blob/main/windows/WindowsDefender.admx",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_24h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_23h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_22h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml",
+        "https://github.com/wazuh/wazuh/blob/main/ruleset/sca/windows/cis_win11_enterprise.yml",
         "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/windows-11-version-26h2-security-baseline/4560382"
       ]
     },
@@ -2779,6 +2787,14 @@
             },
             {
               "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows Defender\\Scan",
+              "valueName": "DisablePackedExeScanning",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows Defender\\MpEngine",
               "valueName": "EnableFileHashComputation",
               "type": "REG_DWORD",
@@ -2796,11 +2812,11 @@
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Provjera e-pošte uključena; Brzo skeniranje nakon 7 dana bez skeniranja; Izuzete mape i datoteke provjeravaju se kod brzog skeniranja; Izračun sažetka (hash) datoteka uključen",
+          "recommendation": "Provjera e-pošte uključena; Brzo skeniranje nakon 7 dana bez skeniranja; Izuzete mape i datoteke provjeravaju se kod brzog skeniranja; Provjera sažetih (pakiranih) programa uključena; Izračun sažetka (hash) datoteka uključen",
           "satisfiedBy": [
             "on"
           ],
-          "reference": "18.10.43.13.5, 18.10.43.13.4, 18.10.43.13.1, 18.10.43.7.1"
+          "reference": "18.10.43.13.5, 18.10.43.13.4, 18.10.43.13.1, 18.10.43.13.2, 18.10.43.7.1"
         },
         {
           "standard": "MSB",
@@ -2810,12 +2826,14 @@
           ]
         }
       ],
-      "notes": "Values under Software\\Policies\\Microsoft\\Windows Defender: Scan\\DisableEmailScanning = 0 (Turn on e-mail scanning; mailbox files such as .pst/.mbx on disk). Scan\\DaysUntilAggressiveCatchupQuickScan = 7 (CIS wants exactly 'Enabled: 7'). Scan\\QuickScanIncludeExclusions = 1 (CIS L1 + MSB). MpEngine\\EnableFileHashComputation = 1 (CIS L1). DisableEmailScanning and EnableFileHashComputation were checked in WindowsDefender.admx. The two newer Scan values were checked against the CIS v4.0.0/MSB 25H2 lists and Fleet v5.0.1. 'Scan packed executables' (DisablePackedExeScanning = 0, CIS v4.0.0 18.10.43.13.2) is intentionally left out: Microsoft removed it from the 25H2 baseline as no longer functional, because packed executables are always scanned.",
+      "notes": "Values under Software\\Policies\\Microsoft\\Windows Defender: Scan\\DisableEmailScanning = 0 (Turn on e-mail scanning; mailbox files such as .pst/.mbx on disk). Scan\\DaysUntilAggressiveCatchupQuickScan = 7 (CIS wants exactly 'Enabled: 7'). Scan\\QuickScanIncludeExclusions = 1 (CIS L1 + MSB). Scan\\DisablePackedExeScanning = 0 (Scan packed executables; WindowsDefender.admx Scan_DisablePackedExeScanning, enabledValue 0). MpEngine\\EnableFileHashComputation = 1 (CIS L1; was in MSB 23H2, absent from MSB 24H2/25H2). 'Scan packed executables' is still CIS L1 (v3.0.0 18.10.42.13.1 per Wazuh; v4.0.0 18.10.43.13.2 per HardeningKitty; Fleet v5.0.1 L1). It is in the MSB 24H2 list but not in the MSB 25H2 list (Microsoft's stated reason, per the original research and not re-verified here: packed executables are always scanned, so the setting no longer has an effect); writing it is harmless and avoids a guaranteed CIS L1 failure on 'Preporučeno'. It is not an MSB item, so the MSB entry is unchanged. DisableEmailScanning, DisablePackedExeScanning and EnableFileHashComputation were checked in WindowsDefender.admx; the two newer Scan values against the CIS v4.0.0 and MSB 25H2 lists and Fleet v5.0.1.",
       "sources": [
         "https://github.com/microsoft/mdatp-devicecontrol/blob/main/windows/WindowsDefender.admx",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
-        "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml"
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_24h2_machine.csv",
+        "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml",
+        "https://github.com/wazuh/wazuh/blob/main/ruleset/sca/windows/cis_win11_enterprise.yml"
       ]
     },
     {
@@ -2886,8 +2904,8 @@
       "id": "network.firewall",
       "category": "network",
       "title": "Vatrozid uključen na svim mrežama",
-      "description": "Uključuje Windows vatrozid na mreži u domeni, privatnoj i javnoj mreži. Neželjene dolazne veze se blokiraju, a odlazni promet (internet, e-pošta) ostaje dopušten.",
-      "impact": "Obično se ništa ne mijenja. U strogom načinu Windows ne pita smije li program primati veze, pa takvi programi na javnim mrežama mogu prestati raditi.",
+      "description": "Uključuje Windows vatrozid na svim vrstama mreža: u domeni, privatnoj i javnoj. Neželjene dolazne veze se blokiraju, a odlazni promet (internet, e-pošta) ostaje dopušten.",
+      "impact": "Obično se ništa ne mijenja. U strogoj opciji Windows više ne pita smije li neki program primati veze s mreže, a na javnim mrežama (hotel, kafić) zanemaruje iznimke koje su dodali programi, pa takvi programi tamo mogu prestati raditi.",
       "impactLevel": "low",
       "requiresRestart": false,
       "options": [
@@ -3121,7 +3139,7 @@
           ]
         }
       ],
-      "notes": "Keys are the Windows Firewall with Advanced Security policy keys (PrivateProfile, not the legacy ADMX StandardProfile). They can be written through Registry.pol or Set-GPRegistryValue. 'strogo' adds DisableNotifications=1 on all profiles. On the Public profile it also adds AllowLocalPolicyMerge=0 and AllowLocalIPsecPolicyMerge=0: rules in the local store (e.g. added by app installers or netsh) are then ignored on public networks and only policy-delivered rules apply. When this is applied through LOCAL Group Policy, test apps that need inbound connections on public Wi-Fi. MSB values come from the 24H2 GPO report and the Intune 26H2 MDM baseline: inbound Block, outbound Allow, Disable Inbound Notifications=True, local rules No on Public. If a third-party firewall (AV suite) is registered in Windows Security Center, coordinate before enforcing. CIS v5 may no longer list 'Outbound connections: Allow'; DefaultOutboundAction=0 is still written so outbound traffic stays allowed.",
+      "notes": "Keys are the Windows Firewall with Advanced Security policy keys (PrivateProfile, not the legacy ADMX StandardProfile). They can be written through Registry.pol or Set-GPRegistryValue. 'strogo' adds DisableNotifications=1 on all profiles. On the Public profile it also adds AllowLocalPolicyMerge=0 and AllowLocalIPsecPolicyMerge=0: rules in the local store (added by app installers, netsh, the 'Allow an app' dialog, and also the built-in Windows rule groups such as Core Networking) are then ignored on public networks and only policy-delivered rules apply. When this is applied through LOCAL Group Policy (no policy rules are delivered), test apps that need inbound connections on public Wi-Fi and IPv6 connectivity on public networks. MSB values come from the 24H2 GPO report and the Intune 26H2 MDM baseline: inbound Block, outbound Allow, Disable Inbound Notifications=True, local rules No on Public. If a third-party firewall (AV suite) is registered in Windows Security Center, coordinate before enforcing. CIS v5 may no longer list 'Outbound connections: Allow'; DefaultOutboundAction=0 is still written so outbound traffic stays allowed.",
       "sources": [
         "https://learn.microsoft.com/en-us/intune/device-security/security-baselines/ref-windows-mdm-settings",
         "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm",
@@ -3279,7 +3297,7 @@
       "category": "network",
       "title": "Isključi zastarjeli SMB protokol",
       "description": "SMB je protokol za dijeljene mape i pisače. Stara inačica SMBv1 ima poznate sigurnosne rupe (npr. WannaCry) i treba je isključiti. Strože opcije traže i noviju inačicu SMB 3.",
-      "impact": "Vrlo stari NAS uređaji, skeneri i računala sa sustavom Windows XP ili 7 možda se neće moći spojiti na dijeljene mape.",
+      "impact": "Stariji NAS uređaji, skeneri koji spremaju dokumente u dijeljenu mapu i računala sa sustavom Windows 7 ili starijim možda se neće moći spojiti. Što je opcija stroža, to je više takvih uređaja.",
       "impactLevel": "medium",
       "requiresRestart": true,
       "options": [
@@ -3418,7 +3436,7 @@
           ]
         }
       ],
-      "notes": "SMB1=0 (LanmanServer\\Parameters) and mrxsmb10 Start=4 are the MS Security Guide values 'Configure SMB v1 server: Disabled' and 'Configure SMB v1 client driver: Enabled: Disable driver'. Both appear in the MSB 24H2 GPO report. Clean Windows 11 installs no longer include SMBv1, so on most PCs this only locks the state. The mrxsmb10 key may not exist: writing Start=4 creates a harmless stub key, and the state reader should treat a missing mrxsmb10 service as compliant. Do NOT write the pre-Win8.1 LanmanWorkstation DependOnService value. MinSmb2Dialect ('Mandate the minimum version of SMB', LanmanWorkstation/LanmanServer policy keys) is honoured only on Windows 11 24H2+ and Server 2025. 768 = 0x300 = SMB 3.0.0 (MSB); 785 = 0x311 = SMB 3.1.1 (CIS L1). The server-side minimum also blocks older MFPs/scanners that scan to a folder on this PC over SMB 2.x. MinSmb2Dialect does not disable SMB1 by itself. matchMode is exact because SMB1/Start must match exactly; a PC with 785 is reported as 'smb311'.",
+      "notes": "SMB1=0 (LanmanServer\\Parameters) and mrxsmb10 Start=4 are the MS Security Guide values 'Configure SMB v1 server: Disabled' and 'Configure SMB v1 client driver: Enabled: Disable driver'. Both appear in the MSB 24H2 GPO report. Clean Windows 11 installs no longer include SMBv1, so on most PCs this only locks the state. The mrxsmb10 key may not exist: writing Start=4 creates a harmless stub key, and the state reader should treat a missing mrxsmb10 service as compliant. Do NOT write the pre-Win8.1 LanmanWorkstation DependOnService value. MinSmb2Dialect ('Mandate the minimum version of SMB', LanmanWorkstation/LanmanServer policy keys) is honoured only on Windows 11 24H2+ and Server 2025. 768 = 0x300 = SMB 3.0.0 (MSB); 785 = 0x311 = SMB 3.1.1 (CIS L1). Level 2 deliberately stays at 'smb1-off' (deviation from MSB): the server-side minimum blocks multifunction printers/scanners that scan to a shared folder on this PC over SMB 2.x, and the client-side minimum blocks SMB 2.x-only NAS devices; both are common in small offices and fail without a clear error. Choose 'smb3' explicitly once all scanners/NAS are known to speak SMB 3. 'smb311' (level 3) additionally blocks SMB 3.0/3.0.2-only devices (Windows 8.x/Server 2012 R2, many NAS/MFP firmwares). MinSmb2Dialect does not disable SMB1 by itself. matchMode is exact because SMB1/Start must match exactly; a PC with 785 is reported as 'smb311'.",
       "sources": [
         "https://learn.microsoft.com/en-us/windows-server/storage/file-server/troubleshoot/detect-enable-and-disable-smbv1-v2-v3",
         "https://learn.microsoft.com/en-us/windows-server/storage/file-server/manage-smb-dialects",
@@ -3561,8 +3579,8 @@
       "id": "network.llmnr",
       "category": "network",
       "title": "Isključi LLMNR otkrivanje imena",
-      "description": "LLMNR je stari način traženja računala po imenu u lokalnoj mreži. Napadači ga koriste za krađu lozinki lažnim odgovorima, a DNS ga u potpunosti zamjenjuje.",
-      "impact": "Korisnici obično ništa ne primjećuju; računala se i dalje pronalaze preko DNS-a.",
+      "description": "LLMNR je stari način traženja računala po imenu u lokalnoj mreži. Napadači ga koriste za krađu lozinki lažnim odgovorima. Imena računala u pravilu pronalazi DNS, pa LLMNR većini mreža nije potreban.",
+      "impact": "Korisnici obično ništa ne primjećuju; računala se i dalje pronalaze po imenu preko DNS-a i drugih načina u lokalnoj mreži.",
       "impactLevel": "low",
       "requiresRestart": false,
       "options": [
@@ -3604,7 +3622,7 @@
           ]
         }
       ],
-      "notes": "This is the policy 'Network\\DNS Client\\Turn off multicast name resolution: Enabled'. EnableMulticast=0 disables LLMNR; some forum posts claim the opposite value, which is wrong. If a small office has no local DNS, names then resolve via NetBIOS (until network.netbios is applied) and mDNS.",
+      "notes": "This is the policy 'Network\\DNS Client\\Turn off multicast name resolution: Enabled'. EnableMulticast=0 disables LLMNR; some forum posts claim the opposite value, which is wrong. 18.6.4.4 is the v4.0.0 position (v3.0.0 had it at 18.6.4.3; the 24H2 mDNS item was inserted before it). If a small office has no local DNS, names then resolve via NetBIOS (until network.netbios 'iskljuceno' is applied) and mDNS.",
       "sources": [
         "https://www.tenable.com/audits/items/MSCT_Windows_11_24H2_v1.0.0.audit:85a80b1f55ace56bdee3e84f2c08259a",
         "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-admx-dnsclient",
@@ -3672,8 +3690,7 @@
           "satisfiedBy": [
             "public",
             "off"
-          ],
-          "reference": "18.6.4.2"
+          ]
         },
         {
           "standard": "CIS-L1",
@@ -3691,7 +3708,7 @@
           ]
         }
       ],
-      "notes": "EnableNetbios is the policy 'Network\\DNS Client\\Configure NetBIOS settings' (22H2+ ADMX). 0 = disable NetBIOS name resolution, 1 = allow, 2 = disable on public networks (the OS default, so 'javne' only locks it), 3 = learning mode. MSB 25H2+ sets 0. CIS L1 requires 'disable on public networks'; 0 is stricter and accepted. NodeType=2 (P-node) is the SecGuide setting 'NetBT NodeType configuration' and is in the MSB 24H2 report as Netbt\\Parameters NodeType=2. It stops NetBIOS broadcasts, so without a WINS server NetBIOS name resolution fails; it needs a restart. Neither value unbinds NetBIOS over TCP/IP from the adapters.",
+      "notes": "EnableNetbios is the policy 'Network\\DNS Client\\Configure NetBIOS settings' (22H2+ ADMX). 0 = disable NetBIOS name resolution, 1 = allow, 2 = disable on public networks (the OS default, so 'javne' only locks it), 3 = learning mode. MSB 25H2+ sets 0. CIS L1 requires 'disable on public networks'; 0 is stricter and accepted. The CIS item number for 'Configure NetBIOS settings' is left out on purpose: the research gave 18.6.4.2 together with 18.6.4.1 for mDNS and 18.6.4.4 for LLMNR, which cannot all be true for the same benchmark version (the DNS Client section also holds the DoH item), and it could not be re-verified; fill it in from the CIS PDF. NodeType=2 (P-node) is the SecGuide setting 'NetBT NodeType configuration' and is in the MSB 24H2 report as Netbt\\Parameters NodeType=2. It stops NetBIOS broadcasts, so without a WINS server NetBIOS name resolution fails; it needs a restart. Choosing 'javne' after 'iskljuceno' deletes NodeType (implied delete), which restores the Windows default node type. Neither value unbinds NetBIOS over TCP/IP from the adapters.",
       "sources": [
         "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/windows-11-version-25h2-security-baseline/4456231",
         "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-admx-dnsclient",
@@ -3707,7 +3724,7 @@
       "category": "network",
       "title": "Isključi mDNS otkrivanje imena",
       "description": "mDNS traži uređaje u lokalnoj mreži bez DNS poslužitelja. Isključivanje smanjuje mogućnost lažnih odgovora, ali isključuje i automatsko pronalaženje uređaja.",
-      "impact": "Automatsko pronalaženje mrežnih pisača, Chromecasta i sličnih uređaja može prestati raditi.",
+      "impact": "Automatsko pronalaženje mrežnih pisača, Chromecasta i sličnih uređaja može prestati raditi. U mreži bez DNS poslužitelja računala i NAS uređaji tada se pronalaze samo po IP adresi.",
       "impactLevel": "medium",
       "requiresRestart": true,
       "options": [
@@ -3738,11 +3755,10 @@
           "recommendation": "'Configure multicast DNS (mDNS) protocol' isključeno",
           "satisfiedBy": [
             "off"
-          ],
-          "reference": "18.6.4.1"
+          ]
         }
       ],
-      "notes": "Added control (not in the draft). This is the policy 'Configure multicast DNS (mDNS) protocol' (Windows 11 24H2+ DnsClient.admx). It is CIS L1 (18.6.4.1 in v4.0.0 and v5.0.1) and not in the MS baseline. It sits at level 3 only for two reasons: Windows uses mDNS for printer and device discovery, and once LLMNR and NetBIOS are off (level 2) mDNS is the last fallback for local names in networks without local DNS. The policy value name EnableMDNS under the DNSClient policy key comes from PolicyPicker and Tenable; please re-check against DnsClient.admx. The non-policy equivalent is Dnscache\\Parameters EnableMDNS, which is read at boot.",
+      "notes": "Added control (not in the draft). This is the policy 'Configure multicast DNS (mDNS) protocol' (Windows 11 24H2+ DnsClient.admx). It is in the CIS L1 audit files (v4.0.0 Enterprise, v5.0.0 Stand-alone) and not in the MS baseline. The CIS item number is left out on purpose: the research gave 18.6.4.1, which conflicts with its own 18.6.4.4 for LLMNR and with the DoH item that sorts first in the DNS Client section; fill it in from the CIS PDF. It sits at level 3 only for two reasons: Windows uses mDNS for printer and device discovery, and once LLMNR and NetBIOS are off (level 2) mDNS is the last fallback for local names in networks without local DNS. The policy value name EnableMDNS under the DNSClient policy key comes from PolicyPicker and Tenable; please re-check against DnsClient.admx. The non-policy equivalent is Dnscache\\Parameters EnableMDNS, which is read at boot.",
       "sources": [
         "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Enterprise_v4.0.0_L1.audit:25e597da8d196ed7b095657dab100aaa",
         "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Stand-alone_v5.0.0_L1.audit:98f4f8f136a5370e8ca9322c40e9f6c1",
@@ -4308,12 +4324,11 @@
           ]
         }
       ],
-      "notes": "No option turns RDP on. 'osnovno' and 'sigurno' leave fDenyTSConnections untouched and only harden RDP if someone enables it. 'zabranjeno' sets fDenyTSConnections=1 (CIS L2) and keeps all hardening values, so the CIS L1 items still read as compliant at level 3. DisablePasswordSaving is a client-side (mstsc) setting. NLA (UserAuthentication) and SecurityLayer are CIS-only; MSB does not set them (they are effectively OS defaults). Windows 11 Home has no RDP host, and the policies are harmless there. 'zabranjeno' affects remote-management tools that rely on inbound RDP, but not TeamViewer, AnyDesk or Quick Assist. Not included: the CIS L2 items for idle-session limit (updated in v5.1.0), COM/LPT/PnP/location/WebAuthn redirection, and single session. Also outside this control: the MS 26H2 baseline enables Administrator protection, which per secondary reports (KB5124010) can block non-admin RDP sign-ins.",
+      "notes": "No option turns RDP on. 'osnovno' and 'sigurno' leave fDenyTSConnections untouched and only harden RDP if someone enables it. 'zabranjeno' sets fDenyTSConnections=1 (CIS L2) and keeps all hardening values, so the CIS L1 items still read as compliant at level 3. DisablePasswordSaving is a client-side (mstsc) setting. NLA (UserAuthentication) and SecurityLayer are CIS-only; MSB does not set them (they are effectively OS defaults). Windows 11 Home has no RDP host, and the policies are harmless there. 'zabranjeno' affects remote-management tools that rely on inbound RDP, but not TeamViewer, AnyDesk or Quick Assist. Not included: the CIS L2 items for idle-session limit (updated in v5.1.0), COM/LPT/PnP/location/WebAuthn redirection, and single session. The MS 26H2 baseline also enables Administrator protection (system category); its effect on RDP sign-in is unverified here and should be tested separately.",
       "sources": [
         "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm",
         "https://www.stigviewer.com/stigs/microsoft_windows_11/2026-05-19/finding/V-253403",
-        "https://www.cisecurity.org/benchmark/microsoft_windows_desktop",
-        "https://windowsforum.com/news/windows-11-26h2-security-baseline-enables-administrator-protection-laps-and-rdp-risks.448173/"
+        "https://www.cisecurity.org/benchmark/microsoft_windows_desktop"
       ]
     },
     {
