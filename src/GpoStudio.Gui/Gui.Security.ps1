@@ -612,8 +612,13 @@ function Start-ComputerCheck {
         foreach ($m in @($state.Messages)) { Write-UiLog "$($state.ComputerName): $m" -Level Warning }
         $unknown = @($state.Details | Where-Object Status -eq 'Unknown').Count
         $detected = @($state.Details | Where-Object Status -eq 'Detected').Count
+        $reasons = @()
+        if (-not $state.UserIncluded) { $reasons += 'korisnički dio se na udaljenom računalu ne provjerava' }
+        if (@($state.Messages) -match 'secedit') { $reasons += 'lozinke nisu pročitane' }
+        if (@($state.Messages) -match 'auditpol') { $reasons += 'revizija nije pročitana' }
         $ui.txtStateInfo.Text = "Računalo $($state.ComputerName), provjereno $((Get-Date).ToString('dd.MM.yyyy. HH:mm')): prepoznato $detected postavki" +
-            $(if ($unknown) { ", $unknown se ne može provjeriti na udaljenom računalu (korisnički dio)" }) + ".$note"
+            $(if ($unknown) { ", $unknown se ne može provjeriti" + $(if ($reasons) { ' (' + ($reasons -join '; ') + ')' }) }) + '.' +
+            $(if ($state.UserName) { " Korisnički dio provjeren za račun $($state.UserName)." }) + $note
         $ui.rbCmpState.IsEnabled = $true
         $ui.rbCmpState.IsChecked = $true
         $ui.btnUseState.IsEnabled = $true
@@ -623,9 +628,12 @@ function Start-ComputerCheck {
 
 function Use-DetectedState {
     if (-not $Sec.Detected) { return }
+    $unknown = @($Sec.Detected.Details | Where-Object Status -eq 'Unknown').Count
     if ((Show-AuxDialog -Title 'Preuzmi stanje' -Kind Warning -Buttons @('PREUZMI', 'ODUSTANI') `
-                -Message "Odabir će se postaviti na stanje računala $($Sec.Detected.ComputerName). Postavke koje na računalu nisu postavljene bit će 'Ne mijenjaj'. Nastaviti?") -ne 'PREUZMI') { return }
-    foreach ($k in @($Sec.Detected.Selection.Keys)) { $Sec.Selection[$k] = $Sec.Detected.Selection[$k] }
+                -Message ("Odabir će se postaviti na stanje računala $($Sec.Detected.ComputerName). Postavke koje na računalu nisu postavljene bit će 'Ne mijenjaj'." +
+                $(if ($unknown) { " Postavke koje se nisu mogle provjeriti ($unknown) ostaju kako su sada odabrane." }) + ' Nastaviti?')) -ne 'PREUZMI') { return }
+    # Nepoznato stanje (npr. korisnički dio udaljenog računala) ne mijenja trenutni odabir.
+    foreach ($d in @($Sec.Detected.Details)) { if ($d.Status -ne 'Unknown') { $Sec.Selection[$d.ControlId] = $d.OptionId } }
     $Sec.Preset = "Stanje računala $($Sec.Detected.ComputerName)"
     Set-SelectionBaseline
     Update-AllControlRows

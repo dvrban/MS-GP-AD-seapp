@@ -292,7 +292,11 @@ function Invoke-GpsLocalApplyCore {
         Set-GpsSecurityPolicyCore -Security $security
         Set-GpsAuditPolicyCore -Audit $audit
 
-        if (-not $NoGpUpdate) { $null = & gpupdate.exe /target:computer /force }
+        if (-not $NoGpUpdate) {
+            $null = & gpupdate.exe /target:computer /force
+            # Korisnički dio osvježava se za račun koji pokreće primjenu; 'N' odbija moguću odjavu.
+            if ($changedScopes -contains 'User') { $null = 'N' | & gpupdate.exe /target:user /force }
+        }
         $status = 'OK'
     }
     catch {
@@ -346,7 +350,8 @@ function Get-GpsControlStateCore {
         $inf = Join-Path $env:TEMP ("gpostudio-state-{0}.inf" -f [guid]::NewGuid().ToString('N'))
         try {
             $output = & secedit.exe /export /cfg $inf /areas SECURITYPOLICY /quiet 2>&1
-            if ($LASTEXITCODE -ne 0) { $messages.Add("secedit /export nije uspio ($LASTEXITCODE): $output") }
+            # $null (a ne prazan popis) znači da se stanje ne zna, pa kontrole nisu "drukčije postavljene".
+            if ($LASTEXITCODE -ne 0) { $security = $null; $messages.Add("secedit /export nije uspio ($LASTEXITCODE): $output") }
             else {
                 $inSection = $false
                 foreach ($line in Get-Content -LiteralPath $inf -Encoding Unicode) {
@@ -363,12 +368,15 @@ function Get-GpsControlStateCore {
         $csv = Join-Path $env:TEMP ("gpostudio-state-{0}.csv" -f [guid]::NewGuid().ToString('N'))
         try {
             $output = & auditpol.exe /backup "/file:$csv" 2>&1
-            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $csv)) { $messages.Add("auditpol /backup nije uspio ($LASTEXITCODE): $output") }
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $csv)) { $audit = $null; $messages.Add("auditpol /backup nije uspio ($LASTEXITCODE): $output") }
             else {
                 $byGuid = @{}
                 foreach ($row in Import-Csv -LiteralPath $csv) {
                     $guid = [string]$row.'Subcategory GUID'
-                    if ($guid) { $byGuid[$guid.ToUpperInvariant()] = [string]$row.'Setting Value' }
+                    if (-not $guid) { continue }
+                    # Backup sadrži i revizije po korisniku (isti GUID); vrijedi sistemski redak.
+                    $guid = $guid.ToUpperInvariant()
+                    if ([string]$row.'Policy Target' -eq 'System' -or -not $byGuid.ContainsKey($guid)) { $byGuid[$guid] = [string]$row.'Setting Value' }
                 }
                 foreach ($name in @($query.audit)) {
                     $guid = if ($script:GpsAuditGuids.Contains([string]$name)) { $script:GpsAuditGuids[[string]$name] } else { $null }
@@ -388,6 +396,7 @@ function Get-GpsControlStateCore {
         Security     = $security
         Audit        = $audit
         UserIncluded = $IncludeUser
+        UserName     = if ($IncludeUser) { '{0}\{1}' -f [Environment]::UserDomainName, [Environment]::UserName } else { $null }
         Messages     = $messages
     }
 }
@@ -628,6 +637,7 @@ function Get-GpsControlState {
                 Selection    = $resolved.Selection
                 Details      = $resolved.Details
                 UserIncluded = $r.UserIncluded
+                UserName     = $r.UserName
                 Messages     = @($r.Messages)
             }
         }

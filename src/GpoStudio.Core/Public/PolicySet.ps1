@@ -16,7 +16,8 @@ function ConvertTo-GpsComparable {
     # Nakon JSON-a REG_BINARY stiže kao niz brojeva, a iz Registry.pol kao byte[].
     if ($Type -eq 'REG_BINARY' -and $Value -isnot [byte[]]) { try { $Value = [byte[]]@($Value) } catch { } }
     if ($Value -is [byte[]]) { return 'hex:' + [BitConverter]::ToString($Value) }
-    if ($Value -is [array]) { return (@($Value) | ForEach-Object { [string]$_ }) -join "`n" }
+    # Niz ili lista (REG_MULTI_SZ nakon udaljenog poziva stiže kao ArrayList).
+    if ($Value -is [System.Collections.IList] -and $Value -isnot [string]) { return (@($Value) | ForEach-Object { [string]$_ }) -join "`n" }
     return [string]$Value
 }
 

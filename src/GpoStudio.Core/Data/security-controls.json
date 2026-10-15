@@ -66,7 +66,7 @@
       "id": "defender",
       "title": "Zaštita od virusa",
       "glyph": "ZA",
-      "description": "Microsoft Defender, SmartScreen i pravila protiv tipičnih napada."
+      "description": "Microsoft Defender, SmartScreen i pravila protiv tipičnih napada. Postavke Defendera vrijede kad je Microsoft Defender glavni antivirus (bez drugog antivirusnog programa)."
     },
     {
       "id": "network",
@@ -465,6 +465,11 @@
             "LockoutBadCount": 10,
             "LockoutDuration": 10,
             "ResetLockoutCount": 10
+          },
+          "matchModes": {
+            "LockoutBadCount": "atMost",
+            "LockoutDuration": "atLeast",
+            "ResetLockoutCount": "atLeast"
           }
         },
         {
@@ -476,6 +481,11 @@
             "LockoutBadCount": 5,
             "LockoutDuration": 15,
             "ResetLockoutCount": 15
+          },
+          "matchModes": {
+            "LockoutBadCount": "atMost",
+            "LockoutDuration": "atLeast",
+            "ResetLockoutCount": "atLeast"
           }
         }
       ],
@@ -1039,7 +1049,16 @@
               "data": 3,
               "action": "Set"
             }
-          ]
+          ],
+          "matchModes": {
+            "ConfigureDeadlineForQualityUpdates": "atMostOrZero",
+            "ConfigureDeadlineForFeatureUpdates": "atMostOrZero",
+            "ConfigureDeadlineGracePeriod": "atMostOrZero",
+            "ConfigureDeadlineGracePeriodForFeatureUpdates": "atMostOrZero",
+            "SetComplianceDeadline": "exact",
+            "SetComplianceDeadlineForQU": "exact",
+            "SetComplianceDeadlineForFU": "exact"
+          }
         },
         {
           "id": "3-dana",
@@ -1102,7 +1121,16 @@
               "data": 2,
               "action": "Set"
             }
-          ]
+          ],
+          "matchModes": {
+            "ConfigureDeadlineForQualityUpdates": "atMostOrZero",
+            "ConfigureDeadlineForFeatureUpdates": "atMostOrZero",
+            "ConfigureDeadlineGracePeriod": "atMostOrZero",
+            "ConfigureDeadlineGracePeriodForFeatureUpdates": "atMostOrZero",
+            "SetComplianceDeadline": "exact",
+            "SetComplianceDeadlineForQU": "exact",
+            "SetComplianceDeadlineForFU": "exact"
+          }
         },
         {
           "id": "2-dana",
@@ -1165,7 +1193,16 @@
               "data": 1,
               "action": "Set"
             }
-          ]
+          ],
+          "matchModes": {
+            "ConfigureDeadlineForQualityUpdates": "atMostOrZero",
+            "ConfigureDeadlineForFeatureUpdates": "atMostOrZero",
+            "ConfigureDeadlineGracePeriod": "atMostOrZero",
+            "ConfigureDeadlineGracePeriodForFeatureUpdates": "atMostOrZero",
+            "SetComplianceDeadline": "exact",
+            "SetComplianceDeadlineForQU": "exact",
+            "SetComplianceDeadlineForFU": "exact"
+          }
         }
       ],
       "levels": {
@@ -1792,8 +1829,7 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml",
         "https://www.cisecurity.org/insights/blog/cis-benchmarks-september-2026-update"
-      ],
-      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
+      ]
     },
     {
       "id": "defender.removable-scan",
@@ -1848,8 +1884,7 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml"
-      ],
-      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
+      ]
     },
     {
       "id": "defender.pua",
@@ -1919,8 +1954,7 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml"
-      ],
-      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
+      ]
     },
     {
       "id": "defender.cloud",
@@ -2081,8 +2115,7 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_22h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml",
         "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/windows-11-version-26h2-security-baseline/4560382"
-      ],
-      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
+      ]
     },
     {
       "id": "defender.network-protection",
@@ -2168,8 +2201,7 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml"
-      ],
-      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
+      ]
     },
     {
       "id": "defender.asr",
@@ -2628,8 +2660,7 @@
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml",
         "https://github.com/dgulle/Security-Baselines",
         "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/windows-11-version-25h2-security-baseline/4456231"
-      ],
-      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
+      ]
     },
     {
       "id": "defender.smartscreen",
@@ -2795,8 +2826,7 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml"
-      ],
-      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
+      ]
     },
     {
       "id": "defender.hide-exclusions",
@@ -2860,8 +2890,7 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml",
         "https://github.com/dgulle/Security-Baselines"
-      ],
-      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
+      ]
     },
     {
       "id": "network.firewall",

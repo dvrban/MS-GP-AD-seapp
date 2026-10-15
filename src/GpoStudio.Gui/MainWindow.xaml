@@ -269,10 +269,10 @@
                     <DataGrid x:Name="dgCompliance" Margin="22,4,22,0">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="PODRUČJE" Binding="{Binding Category}" Width="150"/>
-                            <DataGridTextColumn Header="POSTAVKA" Binding="{Binding Control}" ElementStyle="{StaticResource CelijaPrelom}" Width="2*"/>
+                            <DataGridTextColumn Header="POSTAVKA" Binding="{Binding Control}" ElementStyle="{StaticResource CelijaPrelom}" Width="1.3*"/>
                             <DataGridTextColumn Header="STANDARD" Binding="{Binding Source}" Width="90"/>
                             <DataGridTextColumn Header="OZNAKA" Binding="{Binding Reference}" ElementStyle="{StaticResource CelijaPrelom}" Width="110"/>
-                            <DataGridTextColumn Header="PREPORUKA" Binding="{Binding Recommendation}" ElementStyle="{StaticResource CelijaPrelom}" Width="2*"/>
+                            <DataGridTextColumn Header="PREPORUKA" Binding="{Binding Recommendation}" ElementStyle="{StaticResource CelijaPrelom}" Width="2.7*"/>
                             <DataGridTextColumn Header="ODABIR / STANJE" Binding="{Binding SelectedText}" ElementStyle="{StaticResource CelijaPrelom}" Width="*"/>
                             <DataGridTemplateColumn Header="STATUS" Width="130">
                                 <DataGridTemplateColumn.CellTemplate>

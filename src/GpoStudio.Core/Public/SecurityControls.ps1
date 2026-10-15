@@ -14,6 +14,7 @@
 #>
 
 $script:GpsDataRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'Data'
+$script:GpsMatchModes = @('exact', 'atLeast', 'atMost', 'atMostOrZero')
 $script:GpsSecurityKeys = @(
     'MinimumPasswordLength', 'PasswordComplexity', 'PasswordHistorySize', 'MaximumPasswordAge', 'MinimumPasswordAge',
     'LockoutBadCount', 'LockoutDuration', 'ResetLockoutCount', 'EnableGuestAccount', 'EnableAdminAccount',
@@ -142,7 +143,9 @@ function Test-GpsControlCatalog {
             $optionIds[$oid] = $true
             if (-not (Get-GpsOptionalProperty $o 'title')) { $errors.Add("${id}/${oid}: nedostaje 'title'.") }
             $mode = Get-GpsOptionalProperty $o 'matchMode'
-            if ($mode -and $mode -notin 'exact', 'atLeast', 'atMost') { $errors.Add("${id}/${oid}: nepoznat matchMode '$mode'.") }
+            if ($mode -and $mode -notin $script:GpsMatchModes) { $errors.Add("${id}/${oid}: nepoznat matchMode '$mode'.") }
+            $modes = ConvertTo-GpsDictionary (Get-GpsOptionalProperty $o 'matchModes')
+            foreach ($k in $modes.Keys) { if ($modes[$k] -notin $script:GpsMatchModes) { $errors.Add("${id}/${oid}: nepoznat matchMode '$($modes[$k])' za '$k'.") } }
 
             $settings = @(Get-GpsOptionalProperty $o 'settings' | Where-Object { $null -ne $_ })
             $security = ConvertTo-GpsDictionary (Get-GpsOptionalProperty $o 'security')
@@ -150,6 +153,8 @@ function Test-GpsControlCatalog {
             if ($settings.Count -eq 0 -and $security.Count -eq 0 -and $audit.Count -eq 0) { $errors.Add("${id}/${oid}: opcija ništa ne postavlja.") }
             foreach ($s in $settings) {
                 $p = @{ Key = [string](Get-GpsOptionalProperty $s 'key'); ValueName = [string](Get-GpsOptionalProperty $s 'valueName') }
+                # Scope se navodi poljem 'scope'; ključ bez HKLM\/HKCU\ (stanje računala čita ključ doslovno).
+                if ($p.Key -match '^(HKLM|HKCU|HKEY_)') { $errors.Add("${id}/${oid}: ključ '$($p.Key)' ne smije počinjati s košnicom; koristite 'scope'.") }
                 foreach ($f in 'scope', 'type', 'data', 'action') { $v = Get-GpsOptionalProperty $s $f; if ($null -ne $v) { $p[$f] = $v } }
                 try { $null = New-GpsPolicySetting @p }
                 catch { $errors.Add("${id}/${oid}: $($_.Exception.Message)") }
@@ -277,6 +282,8 @@ function ConvertTo-GpsControlPolicySet {
                 $set.$section[$k] = $values[$k]
             }
         }
+        # Revizija nema stanje "nije konfigurirano": podkategorije koje uključuje samo strža opcija pri
+        # prelasku na blažu ostaju uključene (isključivanje bi ugasilo i ono što Windows bilježi po zadanom).
     }
     $set
 }
@@ -485,17 +492,32 @@ function ConvertTo-GpsAuditFlags {
 }
 
 function Test-GpsControlValue {
-    # $true / $false / $null (nepoznato) za jednu očekivanu vrijednost.
-    param($Actual, $Expected, [string]$Mode)
+    <#
+        Usporedba jedne vrijednosti. Mode: exact, atLeast (veće je strože), atMost (manje je strože,
+        0 znači isključeno pa ne odgovara), atMostOrZero (manje je strože, 0 je najstrože).
+    #>
+    param($Actual, $Expected, [string]$Mode, [string]$Type)
     if ($null -eq $Actual) { return $false }
     $a = 0.0; $e = 0.0
-    $numeric = [double]::TryParse([string]$Actual, [ref]$a) -and [double]::TryParse([string]$Expected, [ref]$e)
+    $style = [System.Globalization.NumberStyles]::Float
+    $culture = [System.Globalization.CultureInfo]::InvariantCulture
+    $numeric = $Type -notin 'REG_BINARY', 'REG_MULTI_SZ' -and
+        [double]::TryParse([string]$Actual, $style, $culture, [ref]$a) -and [double]::TryParse([string]$Expected, $style, $culture, [ref]$e)
     switch ($Mode) {
         'atLeast' { if ($numeric) { return $a -ge $e } }
         'atMost' { if ($numeric) { return $a -gt 0 -and $a -le $e } }
+        'atMostOrZero' { if ($numeric) { return $a -ge 0 -and $a -le $e } }
     }
     if ($numeric) { return $a -eq $e }
-    (ConvertTo-GpsComparable $Actual) -eq (ConvertTo-GpsComparable $Expected)
+    (ConvertTo-GpsComparable $Actual $Type) -eq (ConvertTo-GpsComparable $Expected $Type)
+}
+
+function Get-GpsMatchMode {
+    # Način usporedbe za jednu vrijednost: matchModes[ime] opcije, inače matchMode opcije.
+    param($Option, [string]$Name)
+    $modes = ConvertTo-GpsDictionary (Get-GpsOptionalProperty $Option 'matchModes')
+    foreach ($k in $modes.Keys) { if ($k -eq $Name) { return [string]$modes[$k] } }
+    [string](Get-GpsOptionalProperty $Option 'matchMode')
 }
 
 function Resolve-GpsControlState {
@@ -514,34 +536,49 @@ function Resolve-GpsControlState {
     param([Parameter(Mandatory)]$Catalog, [Parameter(Mandatory)]$State)
 
     $registry = ConvertTo-GpsDictionary (Get-GpsOptionalProperty $State 'Registry')
-    $security = ConvertTo-GpsDictionary (Get-GpsOptionalProperty $State 'Security')
-    $audit = ConvertTo-GpsDictionary (Get-GpsOptionalProperty $State 'Audit')
+    # $null znači da se dio nije mogao pročitati (za razliku od praznog popisa).
+    $security = Get-GpsOptionalProperty $State 'Security'
+    if ($null -ne $security) { $security = ConvertTo-GpsDictionary $security }
+    $audit = Get-GpsOptionalProperty $State 'Audit'
+    if ($null -ne $audit) { $audit = ConvertTo-GpsDictionary $audit }
     $selection = [ordered]@{}
     $details = foreach ($c in @($Catalog.controls)) {
         $matched = $null
         $unknown = $false
         foreach ($o in @($c.options)) {
-            $mode = [string](Get-GpsOptionalProperty $o 'matchMode')
             $ok = $true
             foreach ($s in (Get-GpsControlOptionSettings -Control $c -OptionId $o.id)) {
+                # Brisanja koja opcija podrazumijeva (vrijednosti drugih opcija) ne odlučuju: GPO može
+                # vrijednost postaviti na 0 ('Disabled'), a vrijedi zadnja (najstroža) opcija koja odgovara.
+                if ($s.implied) { continue }
                 $k = "$($s.scope)\$($s.key)\$($s.valueName)".ToLowerInvariant()
                 if (-not $registry.Contains($k)) { $unknown = $true; $ok = $false; break }
                 $r = $registry[$k]
                 $exists = [bool](Get-GpsOptionalProperty $r 'Exists')
-                if ($s.action -eq 'Delete') { if ($exists) { $ok = $false; break } else { continue } }
-                if (-not $exists -or -not (Test-GpsControlValue (Get-GpsOptionalProperty $r 'Data') $s.data $mode)) { $ok = $false; break }
+                $data = Get-GpsOptionalProperty $r 'Data'
+                if ($s.action -eq 'Delete') {
+                    if ($exists -and -not (Test-GpsControlValue $data 0 'exact')) { $ok = $false; break }
+                    continue
+                }
+                if (-not $exists -or -not (Test-GpsControlValue $data $s.data (Get-GpsMatchMode $o $s.valueName) $s.type)) { $ok = $false; break }
             }
             if ($ok) {
                 $values = ConvertTo-GpsDictionary (Get-GpsOptionalProperty $o 'security')
                 foreach ($k in $values.Keys) {
-                    if (-not $security.Contains($k) -or -not (Test-GpsControlValue $security[$k] $values[$k] $mode)) { $ok = $false; break }
+                    # Bez pročitanog [System Access] dijela (npr. secedit bez administratorskih prava) stanje je nepoznato.
+                    if ($null -eq $security) { $unknown = $true; $ok = $false; break }
+                    if (-not $security.Contains($k) -or -not (Test-GpsControlValue $security[$k] $values[$k] (Get-GpsMatchMode $o $k))) { $ok = $false; break }
                 }
             }
             if ($ok) {
                 $values = ConvertTo-GpsDictionary (Get-GpsOptionalProperty $o 'audit')
                 foreach ($k in $values.Keys) {
-                    if (-not $audit.Contains($k)) { $unknown = $true; $ok = $false; break }
-                    if ((ConvertTo-GpsAuditFlags $audit[$k]) -ne (ConvertTo-GpsAuditFlags $values[$k])) { $ok = $false; break }
+                    if ($null -eq $audit -or -not $audit.Contains($k)) { $unknown = $true; $ok = $false; break }
+                    # Očekivane zastavice su minimum: Success,Failure zadovoljava i preporuku Success.
+                    $expected = ConvertTo-GpsAuditFlags $values[$k]
+                    $actual = ConvertTo-GpsAuditFlags $audit[$k]
+                    $flagsOk = if ($expected -eq 'None') { $actual -eq 'None' } else { @($expected -split ',' | Where-Object { $actual -notmatch $_ }).Count -eq 0 }
+                    if (-not $flagsOk) { $ok = $false; break }
                 }
             }
             if ($ok) { $matched = $o }

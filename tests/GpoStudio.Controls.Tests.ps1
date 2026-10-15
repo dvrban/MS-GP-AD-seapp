@@ -214,6 +214,91 @@ Describe 'Stanje računala' {
     }
 }
 
+Describe 'Stanje računala: načini usporedbe' {
+    BeforeAll {
+        $modes = @'
+{
+  "schemaVersion": 1, "standards": [], "categories": [ { "id": "x", "title": "X" } ],
+  "controls": [
+    { "id": "t.audit", "category": "x", "title": "Revizija", "description": "d", "levels": {},
+      "options": [
+        { "id": "basic", "title": "Osnovno", "audit": { "Logon": "Success" } },
+        { "id": "extended", "title": "Prošireno", "audit": { "Logon": "Success,Failure", "Process Creation": "Success" } } ] },
+    { "id": "t.lockout", "category": "x", "title": "Zaključavanje", "description": "d", "levels": {},
+      "options": [
+        { "id": "cis", "title": "CIS", "matchMode": "exact", "matchModes": { "LockoutBadCount": "atMost", "LockoutDuration": "atLeast" },
+          "security": { "LockoutBadCount": 5, "LockoutDuration": 15 } } ] },
+    { "id": "t.deadline", "category": "x", "title": "Rok", "description": "d", "levels": {},
+      "options": [
+        { "id": "d2", "title": "2 dana", "matchMode": "atMost", "matchModes": { "Grace": "atMostOrZero" },
+          "settings": [
+            { "scope": "Machine", "key": "Software\\Policies\\T", "valueName": "Days", "type": "REG_DWORD", "data": 2 },
+            { "scope": "Machine", "key": "Software\\Policies\\T", "valueName": "Grace", "type": "REG_DWORD", "data": 1 } ] } ] }
+  ]
+}
+'@ | ConvertFrom-Json
+        function Value($d) { [pscustomobject]@{ Exists = $true; Type = 'REG_DWORD'; Data = $d } }
+        $registry = @{ 'machine\software\policies\t\days' = (Value 1); 'machine\software\policies\t\grace' = (Value 0) }
+    }
+
+    It 'katalog s matchModes je ispravan, a ključ s košnicom nije' {
+        @(Test-GpsControlCatalog -Catalog $modes).Count | Should -Be 0
+        $bad = $modes | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+        $bad.controls[2].options[0].settings[0].key = 'HKLM\Software\Policies\T'
+        $bad.controls[1].options[0].matchModes.LockoutBadCount = 'vise'
+        $errors = @(Test-GpsControlCatalog -Catalog $bad)
+        $errors -match 'košnic' | Should -Not -BeNullOrEmpty
+        $errors -match "nepoznat matchMode 'vise'" | Should -Not -BeNullOrEmpty
+    }
+
+    It 'revizija sa više zastavica zadovoljava preporuku, a matchModes vrijede po vrijednosti' {
+        $state = [pscustomobject]@{
+            Registry = $registry
+            Security = @{ LockoutBadCount = '3'; LockoutDuration = '30' }
+            Audit    = @{ Logon = 'Success,Failure'; 'Process Creation' = 'None' }
+        }
+        $r = Resolve-GpsControlState -Catalog $modes -State $state
+        $r.Selection['t.audit'] | Should -Be 'basic'
+        $r.Selection['t.lockout'] | Should -Be 'cis'
+        $r.Selection['t.deadline'] | Should -Be 'd2'
+    }
+
+    It 'nepročitan secedit ili auditpol daje Unknown, ne Other' {
+        $state = [pscustomobject]@{ Registry = $registry; Security = $null; Audit = $null }
+        $r = Resolve-GpsControlState -Catalog $modes -State $state
+        foreach ($id in 't.audit', 't.lockout') { ($r.Details | Where-Object ControlId -eq $id).Status | Should -Be 'Unknown' }
+    }
+
+    It 'blaža opcija ne isključuje podkategorije revizije (Windows ih može bilježiti po zadanom)' {
+        $basic = ConvertTo-GpsControlPolicySet -Catalog $modes -Selection ([ordered]@{ 't.audit' = 'basic' })
+        $basic.audit['Logon'] | Should -Be 'Success'
+        $basic.audit.Contains('Process Creation') | Should -BeFalse
+        $extended = ConvertTo-GpsControlPolicySet -Catalog $modes -Selection ([ordered]@{ 't.audit' = 'extended' })
+        $extended.audit['Process Creation'] | Should -Be 'Success'
+    }
+
+    It 'brojevi se uspoređuju neovisno o jeziku sustava' {
+        $culture = [Threading.Thread]::CurrentThread.CurrentCulture
+        try {
+            [Threading.Thread]::CurrentThread.CurrentCulture = [Globalization.CultureInfo]::GetCultureInfo('hr-HR')
+            & (Get-Module GpoStudio.Core) { Test-GpsControlValue '2' '1.5' 'atLeast' } | Should -BeTrue
+        }
+        finally { [Threading.Thread]::CurrentThread.CurrentCulture = $culture }
+    }
+
+    It 'vrijednost 0 koju je postavio GPO ne isključuje opciju' {
+        $state = [pscustomobject]@{
+            Registry = @{
+                "machine\$($usbKey.ToLowerInvariant())\deny_all"        = (Value 0)
+                "machine\$($usbClassKey.ToLowerInvariant())\deny_write" = (Value 1)
+                "machine\$($lockKey.ToLowerInvariant())\inactivitytimeoutsecs" = (Value 900)
+            }
+            Security = @{ MinimumPasswordLength = '14' }; Audit = @{}
+        }
+        (Resolve-GpsControlState -Catalog $catalog -State $state).Selection['usb.storage'] | Should -Be 'readonly'
+    }
+}
+
 Describe 'Izvještaj usporedbe' {
     It 'sadrži sve standarde, retke i escapea tekst' {
         $html = ConvertTo-GpsComplianceHtml -Catalog $catalog -Selection (Get-GpsControlSelection -Catalog $catalog -Level 2) -Subject 'Računalo <PC01>' -Date ([datetime]'2026-10-15 08:30')
