@@ -804,7 +804,7 @@
       "category": "updates",
       "title": "Automatska ažuriranja Windowsa",
       "description": "Windows sam preuzima i instalira sigurnosne zakrpe čim izađu, bez odgode. Tako računalo uvijek ima najnoviju zaštitu.",
-      "impact": "Ako računalo ostane uključeno preko noći, može se samo ponovno pokrenuti oko 3 sata ujutro.",
+      "impact": "Ako računalo ostane uključeno, nakon ažuriranja može se samo ponovno pokrenuti izvan radnog vremena, obično noću.",
       "impactLevel": "low",
       "requiresRestart": false,
       "options": [
@@ -967,16 +967,16 @@
           "reference": "18.10.93.2.1, 18.10.93.2.2, 18.10.93.1.1, 18.10.93.4.3"
         }
       ],
-      "notes": "The option values match what the GP editor writes when 'Configure Automatic Updates' is enabled with option 4 (auto download + scheduled install, every day 03:00, every week) or option 3 (auto download, notify to install). ScheduledInstallDay/Time are written for both options because the ADMX writes these elements whatever option is chosen, and the CIS audit reads only the registry value. The quality-update deferral is merged in here (DeferQualityUpdates=1, DeferQualityUpdatesPeriodInDays=0 = CIS 'Select when Quality Updates are received' Enabled: 0 days) so the user sees one 'patch immediately' switch. It is a WUfB policy, so WSUS-managed devices ignore it. NoAutoRebootWithLoggedOnUsers=0 is the CIS L1 'Disabled' state of a legacy policy. Microsoft says it was never built as a CSP and does not apply to Windows 11, so writing 0 only passes the CIS audit and changes nothing. Restarts are controlled by active hours and deadlines (see updates.active-hours and updates.deadlines), which Microsoft recommends over legacy restart policies. MSB (25H2/26H2) has no Windows Update settings. CIS numbers are for v4.0.0; in v5.0.x this section moved to 18.10.94 (Tenable lists 18.10.94.2.2 'Scheduled install day' for v5.0.0). AUOptions 5 and 7 (Server only) are deliberately not offered.",
+      "notes": "Option values match what the GP editor writes for 'Configure Automatic Updates' option 4 (auto download + scheduled install, every day 03:00, every week) or option 3 (auto download, notify to install). Element names were checked against the Windows 11 25H2 WindowsUpdate.admx (AutoUpdateCfg: AUOptions, AutomaticMaintenanceEnabled, ScheduledInstallDay, ScheduledInstallTime, AllowMUUpdateService, ScheduledInstall*Week). The GP editor writes the schedule elements whatever option is chosen. The quality-update deferral (DeferQualityUpdates=1, DeferQualityUpdatesPeriodInDays=0 = CIS 'Select when Quality Updates are received: Enabled 0 days') is merged in. It is a WUfB policy, so WSUS-managed devices ignore it. NoAutoRebootWithLoggedOnUsers=0 is the CIS L1 'Disabled' state of a legacy policy. If it were Enabled (1), the ADMX says the active-hours policy would stop working. IMPORTANT interaction: the ADMX explain text of 'Specify deadline for automatic updates and restarts' says it overrides 'Configure Automatic Updates'. updates.deadlines is on at every level, so updates install as soon as they are offered and restarts are attempted outside active hours (updates.active-hours). The 03:00 schedule only really matters when deadlines are not configured, so the impact text was rewritten to be true in both cases. MSB (25H2/26H2) has no Windows Update settings. CIS numbers are v4.0.0 (v3.0.0 used 18.10.92.x, v5.0.x uses 18.10.94.x). AUOptions 5 and 7 are deliberately not offered.",
       "sources": [
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/wazuh/wazuh/blob/main/ruleset/sca/windows/cis_win11_enterprise.yml",
+        "https://github.com/ansible-lockdown/Windows-11-CIS/blob/devel/tasks/section_18/section_18.10/cis_18.10.92.x.yml",
+        "https://github.com/nohuto/admx-parser/blob/main/assets/policies.json",
         "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update",
-        "https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/dd939844(v=ws.10)",
         "https://learn.microsoft.com/en-us/windows/deployment/update/waas-restart",
         "https://learn.microsoft.com/en-us/windows/deployment/update/update-policies",
-        "https://learn.microsoft.com/en-us/windows/deployment/update/avoid-legacy-policy-configurations",
-        "https://learn.microsoft.com/en-us/answers/questions/590130/wsus-updates-not-install-automatically",
-        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Enterprise_v5.0.0_L1.audit:61d496d7254dff69330a77fac86aca4d"
+        "https://learn.microsoft.com/en-us/windows/deployment/update/avoid-legacy-policy-configurations"
       ]
     },
     {
@@ -1211,16 +1211,12 @@
         "3": "2-dana"
       },
       "benchmarks": [],
-      "notes": "Neither CIS Windows 11 Enterprise nor MSB sets deadlines. Microsoft recommends them to make sure patches actually get installed (Windows Update client policies). Option titles give the quality-update deadline. The feature-update deadline is 14/7/7 days, and the grace period (days after install before a forced restart) is 3/2/1 for both. Update CSP ranges: deadlines 0-30, grace 0-7. These names are documented: ConfigureDeadlineForQualityUpdates, ConfigureDeadlineForFeatureUpdates, ConfigureDeadlineGracePeriod, ConfigureDeadlineGracePeriodForFeatureUpdates, and the legacy enable flag SetComplianceDeadline. Since Windows 11 22H2 the ADMX splits the policy in two: ComplianceDeadline (quality updates) and ComplianceDeadlineForFU (feature updates). A third-party ADMX viewer gives their enable flags as SetComplianceDeadlineForQU and SetComplianceDeadlineForFU. I found no Microsoft text confirming these two names. They are written as a precaution so that both old and new ADMX/clients see the policy as enabled. Check WindowsUpdate.admx on a 25H2/26H2 machine and drop them if they are not there. The 'don't auto-restart until end of grace period' flags (ConfigureDeadlineNoAutoReboot / ...ForQualityUpdates / ...ForFeatureUpdates) are left out on purpose: their names differ between ADMX generations, and Microsoft's update-policies doc says to leave them off so restarts are scheduled outside active hours. Once deadline plus grace has passed, the restart ignores active hours. matchMode atMost: a shorter deadline already set on the PC counts as compliant.",
+      "notes": "Neither CIS Windows 11 Enterprise nor MSB sets deadlines. Microsoft recommends them so patches actually get installed. Option titles give the quality-update deadline. The feature-update deadline is 14/7/7 days and the grace period is 3/2/1 for both. Value names are confirmed against a parse of the Windows 11 25H2 WindowsUpdate.admx. Policy ComplianceDeadline ('Specify deadline for automatic updates and restarts for quality update') = enable flag SetComplianceDeadlineForQU + ConfigureDeadlineForQualityUpdates (0-30) + ConfigureDeadlineGracePeriod (0-7) + boolean ConfigureDeadlineNoAutoRebootForQualityUpdates. Policy ComplianceDeadlineForFU = SetComplianceDeadlineForFU + ConfigureDeadlineForFeatureUpdates (0-30) + ConfigureDeadlineGracePeriodForFeatureUpdates (0-7) + ConfigureDeadlineNoAutoRebootForFeatureUpdates. All are DWORD (enum elements). The single flag SetComplianceDeadline belongs to the older pre-split ADMX and is NOT in the 25H2 ADMX. It is kept only for clients and central stores that still use the old template. Side effect: a PC configured with the current GP editor has no SetComplianceDeadline, so state detection reports 'not matching' and GPMC shows it as an extra registry setting. Drop it if older templates and Windows 10 do not matter. The NoAutoReboot booleans are left out. Absent means 0: Windows may restart automatically outside active hours before the deadline, which is what Microsoft recommends. Per the ADMX explain text, this policy overrides 'Configure Automatic Updates', 'Always automatically restart at the scheduled time', 'Specify deadline before auto restart' and the engaged-restart policy. Once deadline plus grace period has passed, the restart ignores active hours. matchMode atMost: a shorter deadline already set on the PC counts as compliant. A deadline or grace period of 0 (stricter) reads as not matching, because atMost requires a value above 0.",
       "sources": [
+        "https://github.com/nohuto/admx-parser/blob/main/assets/policies.json",
         "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update",
         "https://learn.microsoft.com/en-us/windows/deployment/update/wufb-compliancedeadlines",
-        "https://learn.microsoft.com/en-us/windows/deployment/update/update-policies",
-        "https://learn.microsoft.com/en-us/answers/questions/5870805/force-install-update-with-deadline-without-reboot",
-        "https://winaero.com/set-deadlines-automatic-updates-restarts-windows-10/",
-        "https://www.windowscentral.com/how-configure-deadline-automatic-updates-and-restarts-windows-10-may-2019-update",
-        "https://gpedit.tplant.com.au/en-us/policy/WindowsUpdate/ComplianceDeadline/",
-        "https://gpedit.tplant.com.au/en-us/policy/WindowsUpdate/ComplianceDeadlineForFU/"
+        "https://learn.microsoft.com/en-us/windows/deployment/update/update-policies"
       ]
     },
     {
@@ -1228,8 +1224,8 @@
       "category": "updates",
       "title": "Bez restarta u radno vrijeme",
       "description": "Windows neće sam ponovno pokretati računalo između 7 i 19 sati. Ažuriranja se dovršavaju izvan tog vremena.",
-      "impact": "Korisnici ništa ne primjećuju; restart se događa navečer ili noću, osim kad istekne rok za ažuriranje.",
-      "impactLevel": "none",
+      "impact": "Restart se događa navečer ili noću (osim kad istekne rok za ažuriranje), a korisnici u postavkama ne mogu sami mijenjati radno vrijeme.",
+      "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
@@ -1270,11 +1266,11 @@
         "3": "7-19"
       },
       "benchmarks": [],
-      "notes": "GP 'Turn off auto-restart for updates during active hours' (SetActiveHours=1; ActiveHoursStart/End as hours 0-23). Windows 10 1703 and later allow up to 18 active hours; 7-19 is 12. Not in CIS or MSB. Added as the usability partner of updates.deadlines and updates.automatic, because Microsoft recommends deadlines + active hours instead of legacy restart policies. Once deadline plus grace period has passed, Windows restarts regardless of active hours.",
+      "notes": "GP 'Turn off auto-restart for updates during active hours' (SetActiveHours=1; ActiveHoursStart/End enum 0-23), checked against the 25H2 WindowsUpdate.admx. The default maximum range is 18 hours; 7-19 is 12. Per the ADMX explain text, the policy has no effect if 'No auto-restart with logged on users' or 'Always automatically restart at scheduled time' is enabled. updates.automatic writes the former as 0 (Disabled), so there is no conflict. While the policy is set, it replaces the user's own active-hours choice in Settings, and users cannot change it. That is why impactLevel is low rather than none. Not in CIS or MSB. Once deadline plus grace period has passed, Windows restarts regardless of active hours.",
       "sources": [
+        "https://github.com/nohuto/admx-parser/blob/main/assets/policies.json",
         "https://learn.microsoft.com/en-us/windows/deployment/update/waas-restart",
-        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update",
-        "https://www.elevenforum.com/t/set-active-hours-for-windows-update-in-windows-11.3436/"
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update"
       ]
     },
     {
@@ -1297,14 +1293,6 @@
               "valueName": "DeferFeatureUpdates",
               "type": "REG_DWORD",
               "data": 1,
-              "action": "Set"
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
-              "valueName": "BranchReadinessLevel",
-              "type": "REG_DWORD",
-              "data": 16,
               "action": "Set"
             },
             {
@@ -1333,13 +1321,14 @@
           "reference": "18.10.93.4.2"
         }
       ],
-      "notes": "GP 'Select when Preview Builds and Feature Updates are received' writes DeferFeatureUpdates=1, BranchReadinessLevel and DeferFeatureUpdatesPeriodInDays (max 365). BranchReadinessLevel=16 is what the GP editor writes for the General Availability (formerly Semi-Annual) channel; since 1903 the two semi-annual values were merged into 16. The HardeningKitty CIS lists use BranchReadinessLevel=2 (Insider Dev/Fast), which looks like an error in the list; CIS only requires 'Enabled: 180 or more days'. With atLeast, 365 days or BranchReadinessLevel 32 also pass. Deferrals are ignored when a Target Release Version policy is set, and on WSUS-managed devices. The quality-update deferral (0 days, CIS 18.10.93.4.3) is in updates.automatic. Not in MSB.",
+      "notes": "GP 'Select when Preview Builds and Feature Updates are received'. In the current Windows 11 WindowsUpdate.admx (25H2) this policy has only DeferFeatureUpdates (1/0), DeferFeatureUpdatesPeriodInDays (0-365) and PauseFeatureUpdatesStartTime. The BranchReadinessLevel element moved to 'Manage preview builds' (Dev 2, Beta 4, Release Preview 8, RP quality-only 64). BranchReadinessLevel is therefore no longer written, for three reasons. GA deferral does not need it. A PC configured with the GP editor would not have it (false 'not matching'). And under atLeast a higher value such as 128 (Canary channel in the Update CSP) or 64 would wrongly count as compliant. CIS v3 implementations that quote the benchmark (Wazuh SCA, Ansible Lockdown) check only DeferFeatureUpdates=1 and DeferFeatureUpdatesPeriodInDays>=180. HardeningKitty's BranchReadinessLevel=2 (Dev channel) is an error in the list and must never be written. With atLeast, 181-365 days also pass. Deferrals are ignored when a Target Release Version policy is set, and on WSUS-managed devices. The quality-update deferral (0 days, CIS 18.10.93.4.3) is in updates.automatic. Not in MSB.",
       "sources": [
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/wazuh/wazuh/blob/main/ruleset/sca/windows/cis_win11_enterprise.yml",
+        "https://github.com/ansible-lockdown/Windows-11-CIS/blob/devel/tasks/section_18/section_18.10/cis_18.10.92.x.yml",
+        "https://github.com/nohuto/admx-parser/blob/main/assets/policies.json",
         "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update",
-        "https://learn.microsoft.com/en-us/windows/deployment/update/waas-configure-wufb",
-        "https://learn.microsoft.com/en-us/answers/questions/1046601/why-do-we-get-preview-update-22h2-when-gpo-is-set",
-        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-15487.html"
+        "https://learn.microsoft.com/en-us/windows/deployment/update/waas-configure-wufb"
       ]
     },
     {
@@ -1359,9 +1348,9 @@
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
-              "valueName": "ManagePreviewBuilds",
+              "valueName": "ManagePreviewBuildsPolicyValue",
               "type": "REG_DWORD",
-              "data": 0,
+              "data": 1,
               "action": "Set"
             },
             {
@@ -1399,23 +1388,22 @@
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Upravljanje probnim verzijama (Manage preview builds): Disabled; Neobavezna ažuriranja (Enable optional updates): Disabled; Novosti iz servisiranja koje su po zadanom isključene: Disabled",
+          "recommendation": "Probne (Insider) verzije onemogućene ('Manage preview builds': Disabled); Neobavezna ažuriranja isključena ('Enable optional updates': Disabled); Novosti iz servisiranja koje su po zadanom isključene ostaju isključene",
           "satisfiedBy": [
             "on"
           ],
-          "reference": "18.10.93.4.1, 18.10.93.4.4, 18.10.93.2.4"
+          "reference": "18.10.93.4.1, 18.10.93.4.4, 18.10.93.2.3"
         }
       ],
-      "notes": "Three CIS L1 items merged into one switch. (1) Manage preview builds: CIS Windows 11 Enterprise has recommended 'Disabled' (ManagePreviewBuilds=0) since v2.0.0 (Tenable changelog rev 1.3). Syxsense shows the same 'Disabled' wording under the v5 number 18.10.94.4.1. HardeningKitty's v4 list instead checks ManagePreviewBuilds=1 + ManagePreviewBuildsPolicyValue=0 ('Enabled: Disable preview builds', the older Windows 10 wording). Both states block Insider builds, but a PC set up that way will read as not matching. (2) Enable optional updates = Disabled: the ADMX enable flag is SetAllowOptionalContent (0 = disabled). AllowOptionalContent=0 (CSP 'don't receive optional updates') is also written because the HardeningKitty CIS check reads that value. (3) Enable features introduced via servicing that are off by default = Disabled: AllowTemporaryEnterpriseFeatureControl=0, which is the default behaviour. In CIS v5.0.1, item (3) is numbered 18.10.94.2.3. Not in MSB.",
+      "notes": "Three CIS L1 items merged into one switch. (1) Manage preview builds = Disabled. In the Windows 11 WindowsUpdate.admx the policy valueName is ManagePreviewBuildsPolicyValue, with enabledValue 2 and disabledValue 1; the BranchReadinessLevel element is used only when the policy is enabled. So 'Disabled' = ManagePreviewBuildsPolicyValue=1. In the Update CSP, 1 means 'disable preview builds once the next release is public'; per the ADMX text, devices on a pre-release build opt out and stay on the next GA feature update. Wazuh SCA and Ansible Lockdown (both CIS v3.0.0) check or write exactly ManagePreviewBuildsPolicyValue=1. The earlier ManagePreviewBuilds=0 was the old Windows 10 ADMX enable flag: Windows does not treat it as a preview-build block, and the CIS audit does not check it. HardeningKitty's v4 list still checks the Windows 10 form (ManagePreviewBuilds=1 + ManagePreviewBuildsPolicyValue=0); a PC set up that way reads as not matching. (2) Enable optional updates = Disabled: GP 'Disabled' writes SetAllowOptionalContent=0. AllowOptionalContent=0 (CSP: don't receive optional updates) is also written, because CIS audits (Wazuh, HardeningKitty) read that value. (3) Enable features introduced via servicing that are off by default = Disabled: AllowTemporaryEnterpriseFeatureControl=0. CIS number for (3): the CIS v3.0.0 text (Wazuh SCA, Ansible Lockdown) numbers it 18.10.92.2.3, and Tenable numbers it 18.10.94.2.3 for v5.0.1, so the v4.0.0 number is 18.10.93.2.3. The HardeningKitty v3 and v4 lists swap it with 'Remove access to Pause updates'. Not in MSB.",
       "sources": [
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/wazuh/wazuh/blob/main/ruleset/sca/windows/cis_win11_enterprise.yml",
+        "https://github.com/ansible-lockdown/Windows-11-CIS/blob/devel/tasks/section_18/section_18.10/cis_18.10.92.x.yml",
+        "https://github.com/nohuto/admx-parser/blob/main/assets/policies.json",
         "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update",
-        "https://www.tenable.com/audits/CIS_Microsoft_Windows_11_Enterprise_v2.0.0_L1/changelog/1.3",
-        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-15506.html",
         "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Enterprise_v5.0.1_L1.audit:11317093eac5c77955fb79e59f539eca",
-        "https://learn.microsoft.com/en-us/windows-insider/business/manage-builds",
-        "https://www.deskmodder.de/blog/2023/11/23/windows-11-optionale-updates-ueber-eine-neue-gruppenrichtlinie-regeln/",
-        "https://petervanderwoude.nl/post/enabling-optional-windows-updates/"
+        "https://learn.microsoft.com/en-us/windows-insider/business/manage-builds"
       ]
     },
     {
@@ -1455,14 +1443,16 @@
           "satisfiedBy": [
             "on"
           ],
-          "reference": "18.10.93.2.3"
+          "reference": "18.10.93.2.4"
         }
       ],
-      "notes": "GP 'Remove access to \"Pause updates\" feature' (SetDisablePauseUXAccess=1). Not in MSB. In CIS v5.0.1, number 18.10.94.2.3 belongs to 'Enable features introduced via servicing...', so this item was renumbered or removed in v5 (not checked). Level 1 leaves it unset so small offices are not surprised.",
+      "notes": "GP 'Remove access to \"Pause updates\" feature' (SetDisablePauseUXAccess=1), checked in the 25H2 WindowsUpdate.admx. CIS number: the CIS v3.0.0 text (Wazuh SCA, Ansible Lockdown) has this item as 18.10.92.2.4 and 'Enable features introduced via servicing' as 18.10.92.2.3. Tenable shows 18.10.94.2.3 = 'Enable features...' for v5.0.1. So the item was not removed in v5; the HardeningKitty v3 and v4 lists simply swap the two numbers. v4.0.0 = 18.10.93.2.4 (v5.x is presumably 18.10.94.2.4, not checked). Not in MSB. Level 1 leaves it unset so small offices are not surprised.",
       "sources": [
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
-        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update",
-        "https://www.tenable.com/audits/items/CIS_MS_Windows_11_Enterprise_Level_1_v1.0.0.audit:be57e17a83bf2e8dc263a4f8a00a34f3"
+        "https://github.com/wazuh/wazuh/blob/main/ruleset/sca/windows/cis_win11_enterprise.yml",
+        "https://github.com/ansible-lockdown/Windows-11-CIS/blob/devel/tasks/section_18/section_18.10/cis_18.10.92.x.yml",
+        "https://github.com/nohuto/admx-parser/blob/main/assets/policies.json",
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update"
       ]
     },
     {
@@ -5704,7 +5694,7 @@
       "id": "privacy.feedback-logs",
       "category": "privacy",
       "title": "Bez anketa i dodatnih zapisa",
-      "description": "Windows više ne traži od korisnika ocjene i povratne informacije. Microsoftu šalje i manje dodatnih zapisa i ispisa memorije nakon rušenja.",
+      "description": "Windows više ne traži od korisnika ocjene i povratne informacije. Microsoftu šalje i manje dodatnih podataka o greškama i rušenjima programa.",
       "impact": "Korisnici više ne vide skočne ankete za povratne informacije.",
       "impactLevel": "none",
       "requiresRestart": false,
@@ -5765,16 +5755,18 @@
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Ne prikazivati obavijesti za povratne informacije; Ograničiti prikupljanje dijagnostičkih zapisa; Ograničiti prikupljanje ispisa memorije (dump); Isključiti preuzimanje postavki s usluge OneSettings; Bilježiti upite prema usluzi OneSettings",
+          "recommendation": "Ne prikazivati obavijesti za povratne informacije; Ograničiti prikupljanje dijagnostičkih zapisa; Ograničiti prikupljanje podataka o rušenju (memory dump); Isključiti preuzimanje postavki s usluge OneSettings; Bilježiti upite prema usluzi OneSettings",
           "satisfiedBy": [
             "on"
           ],
           "reference": "18.10.16.4, 18.10.16.6, 18.10.16.7, 18.10.16.3, 18.10.16.5"
         }
       ],
-      "notes": "Five CIS L1 'Data Collection and Preview Builds' items merged into one switch. All values are DWORD 1 under Software\\Policies\\Microsoft\\Windows\\DataCollection. DisableOneSettingsDownloads stops Windows downloading diagnostic configuration from Microsoft's OneSettings service. CIS rates the impact as minimal, but if a Microsoft diagnostics or reporting feature misbehaves, check this value first. Not in MSB. Works independently of the AllowTelemetry level chosen in privacy.telemetry.",
+      "notes": "Five CIS L1 'Data Collection and Preview Builds' items merged into one switch. All values are DWORD 1 under Software\\Policies\\Microsoft\\Windows\\DataCollection (DataCollection.admx; DoNotShowFeedbackNotifications comes from FeedbackNotifications.admx but uses the same key). DisableOneSettingsDownloads stops Windows downloading diagnostic configuration from Microsoft's OneSettings service. If a Microsoft diagnostics or reporting feature misbehaves, check this value first. The description was reworded because 'ispis memorije' (memory dump) is jargon for office users. Not in MSB. Works independently of the AllowTelemetry level chosen in privacy.telemetry.",
       "sources": [
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/wazuh/wazuh/blob/main/ruleset/sca/windows/cis_win11_enterprise.yml",
+        "https://github.com/nohuto/admx-parser/blob/main/assets/policies.json",
         "https://learn.microsoft.com/en-us/windows/privacy/configure-windows-diagnostic-data-in-your-organization"
       ]
     },
@@ -5912,14 +5904,15 @@
           ]
         }
       ],
-      "notes": "Cloud Content policies. Only Enterprise/Education honour DisableWindowsConsumerFeatures ('Turn off Microsoft consumer experiences'); Pro has ignored it since 1607. DisableThirdPartySuggestions is a User policy and works on Pro. In this area MSB 25H2 and 26H2 contain only the consumer-experiences and third-party-suggestions settings (Intune JSON: Experience/AllowWindowsConsumerFeatures=0, AllowThirdPartySuggestionsInWindowsSpotlight=0). The Spotlight lock-screen/desktop items are in privacy.spotlight.",
+      "notes": "Cloud Content policies (CloudContent.admx). Only Enterprise and Education honour DisableWindowsConsumerFeatures ('Turn off Microsoft consumer experiences'); Pro has ignored it since 1607. DisableThirdPartySuggestions is a User policy. In this area MSB 25H2 (HardeningKitty GPO list) contains only the consumer-experiences and third-party-suggestions settings. The '26H2' evidence is a community Intune export (dgulle/Security-Baselines, JSON createdDateTime 2025-02-17), not a Microsoft download, so treat it as corroboration only. The Spotlight lock-screen and desktop items are in privacy.spotlight. Gap for maintainers: CIS L1 18.10.72.1 'Allow widgets' = Disabled (Machine, Software\\Policies\\Microsoft\\Dsh, AllowNewsAndInterests=0) is not covered by any control in the catalog. It removes the Widgets board (news and ads feed), so it should be a separate, visible control rather than hidden in this switch.",
       "sources": [
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_user.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_user.csv",
         "https://github.com/dgulle/Security-Baselines/tree/master/Windows%20Baseline%2026H2",
-        "https://technet.microsoft.com/itpro/windows/configure/windows-spotlight"
+        "https://github.com/wazuh/wazuh/blob/main/ruleset/sca/windows/cis_win11_enterprise.yml",
+        "https://github.com/nohuto/admx-parser/blob/main/assets/policies.json"
       ],
       "requirement": "Puni učinak na Windows 11 Enterprise i Education; Pro poštuje samo prijedloge trećih strana."
     },
@@ -6104,6 +6097,14 @@
               "action": "Set"
             },
             {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\System",
+              "valueName": "DisableLockScreenAppNotifications",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
               "scope": "User",
               "key": "Software\\Policies\\Microsoft\\Windows\\CurrentVersion\\PushNotifications",
               "valueName": "NoToastApplicationNotificationOnLockScreen",
@@ -6131,11 +6132,11 @@
         },
         {
           "standard": "CIS-L1",
-          "recommendation": "Bez skočnih obavijesti na zaključanom zaslonu",
+          "recommendation": "Bez obavijesti aplikacija na zaključanom zaslonu (za cijelo računalo); Bez skočnih obavijesti na zaključanom zaslonu",
           "satisfiedBy": [
             "strict"
           ],
-          "reference": "19.5.1.1"
+          "reference": "18.9.28.5, 19.5.1.1"
         },
         {
           "standard": "MSB",
@@ -6153,12 +6154,14 @@
           ]
         }
       ],
-      "notes": "LetAppsActivateWithVoiceAboveLock=2 means 'Force Deny' (App Privacy). NoToastApplicationNotificationOnLockScreen is a User policy (Start Menu and Taskbar > Notifications). The related machine policy 'Turn off app notifications on the lock screen' (System\\Logon, DisableLockScreenAppNotifications=1, CIS L1 18.9.28.5) is left out so it does not overlap with a logon/lock category owned by another group. Add it here if no other group covers it. AllowCortanaAboveLock sits here rather than in privacy.search because it is about what the lock screen exposes.",
+      "notes": "LetAppsActivateWithVoiceAboveLock=2 means 'Force Deny' (AppPrivacy.admx enum 0/1/2). NoToastApplicationNotificationOnLockScreen is a User policy (WPN.admx, Start Menu and Taskbar > Notifications). Added to 'strict': the machine policy 'System > Logon > Turn off app notifications on the lock screen' (Logon.admx, Software\\Policies\\Microsoft\\Windows\\System, DisableLockScreenAppNotifications=1). It is CIS L1 18.9.28.5 in v4.0.0 (HardeningKitty) and v3.0.0 (Wazuh). No other control in the catalog covered it (it was only mentioned in these notes), so the CIS L1 comparison had a gap. As a machine policy it also covers users who sign in for the first time. Not in MSB. AllowCortanaAboveLock sits here rather than in privacy.search because it is about what the lock screen exposes.",
       "sources": [
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_user.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_user.csv",
+        "https://github.com/wazuh/wazuh/blob/main/ruleset/sca/windows/cis_win11_enterprise.yml",
+        "https://github.com/nohuto/admx-parser/blob/main/assets/policies.json",
         "https://github.com/dgulle/Security-Baselines/tree/master/Windows%20Baseline%2026H2"
       ]
     },
@@ -6212,7 +6215,7 @@
       "category": "privacy",
       "title": "Pretraživanje bez Cortane",
       "description": "Isključuje Cortanu i zabranjuje pretraživanju da koristi lokaciju računala. Strogi način isključuje i rezultate iz oblaka i istaknute teme u pretraživanju.",
-      "impact": "Pretraživanje datoteka i aplikacija na računalu radi kao i prije.",
+      "impact": "Pretraživanje datoteka i aplikacija na računalu radi kao i prije; u strogom načinu u Windows pretraživanju nema dokumenata iz OneDrivea, SharePointa i Outlooka.",
       "impactLevel": "low",
       "requiresRestart": false,
       "options": [
@@ -6303,9 +6306,11 @@
           "reference": "18.10.59.2, 18.10.59.7"
         }
       ],
-      "notes": "Windows Search policies under Software\\Policies\\Microsoft\\Windows\\Windows Search. Current Windows 11 builds no longer ship the Cortana app; CIS still audits AllowCortana and setting it does no harm. 'Samo lokalno' (AllowCloudSearch=0) removes OneDrive/SharePoint/Outlook work-account results from Windows Search, so say this in the UI for Microsoft 365 offices. Search policy changes may need a sign-out before they show. In this area MSB only sets AllowIndexingEncryptedStoresOrItems=0, which is a security setting rather than privacy and is not part of this group.",
+      "notes": "Windows Search policies under Software\\Policies\\Microsoft\\Windows\\Windows Search (Search.admx; AllowCloudSearch is an enum 0/1/2, the others are 1/0 flags). Current Windows 11 builds no longer ship the Cortana app; CIS still audits AllowCortana and setting it does no harm. 'Samo lokalno' (AllowCloudSearch=0) removes OneDrive, SharePoint and Outlook (Microsoft 365 account) results from Windows Search. The impact text now says so, because the previous text ('radi kao i prije') was only true for 'Bez Cortane'. Search policy changes may need a sign-out before they show. In this area MSB only sets AllowIndexingEncryptedStoresOrItems=0, which is a security setting and not part of this group.",
       "sources": [
-        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv"
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/wazuh/wazuh/blob/main/ruleset/sca/windows/cis_win11_enterprise.yml",
+        "https://github.com/nohuto/admx-parser/blob/main/assets/policies.json"
       ]
     },
     {

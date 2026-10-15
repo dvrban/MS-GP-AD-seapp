@@ -99,7 +99,11 @@ function Show-UiChanges {
     $rows = [System.Collections.Generic.List[object]]::new()
     $failed = 0
     # Računalo koje nije odgovorilo (WinRM) ne vraća rezultat; to je greška, a ne uspjeh.
-    $answered = @($Results | Where-Object { $_ } | ForEach-Object { ([string]$_.ComputerName).Split('.')[0] })
+    # Invoke-Command dodaje PSComputerName (ime kako je upisano); ComputerName je NetBIOS ime (najviše 15 znakova).
+    $answered = @($Results | Where-Object { $_ } | ForEach-Object {
+            ([string]$_.ComputerName).Split('.')[0]
+            if ($_.PSObject.Properties['PSComputerName']) { ([string]$_.PSComputerName).Split('.')[0] }
+        })
     foreach ($e in @($Expected | Where-Object { $_ })) {
         if ($answered -notcontains $e.Split('.')[0]) { $failed++; Write-UiLog "${e}: nije odgovorilo (provjerite WinRM i mrežu)." -Level Error }
     }
@@ -263,7 +267,10 @@ function Invoke-UiRestore {
     } -OnSuccess {
         param($backups, $computer)
         $list = @($backups | Where-Object { $_ })
-        if (-not $list) { $null = Show-AuxDialog -Message 'Na ciljanom računalu nema sigurnosnih kopija GPO Studija.' -Kind Warning; return }
+        if (-not $list) {
+            if ($Gui.LastJobErrors) { $null = Show-AuxDialog -Kind Danger -Message 'Računalo nije odgovorilo (WinRM ili mreža), pa se popis sigurnosnih kopija nije mogao dohvatiti. Pogledajte Dnevnik.'; return }
+            $null = Show-AuxDialog -Message 'Na ciljanom računalu nema sigurnosnih kopija GPO Studija.' -Kind Warning; return
+        }
         $choice = Show-AuxList -Title 'Vrati prethodno stanje' -Message 'Odaberite sigurnosnu kopiju. Vraća se stanje lokalnog GP-a, lozinki i revizije iz trenutka kopije.' `
             -Items $list -Display { '{0:dd.MM.yyyy. HH:mm}   ·   {1}   ·   {2}' -f $_.Created, $_.ComputerName, (Split-Path $_.BackupPath -Leaf) } -OkText 'VRATI'
         if (-not $choice) { return }

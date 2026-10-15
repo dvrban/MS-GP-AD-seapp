@@ -383,7 +383,8 @@ $Gui.JobTimer.Add_Tick({
             Set-UiBusy $false
             $Gui.LastJobErrors = $job.PowerShell.Streams.Error.Count
             if ($job.OnSuccess) { & $job.OnSuccess @($output) $job.Context }
-            Write-UiLog "$($job.Title): gotovo ($([int]((Get-Date) - $job.Started).TotalSeconds) s)." -Level Ok
+            if ($Gui.LastJobErrors) { Write-UiLog "$($job.Title): gotovo uz greške ($($Gui.LastJobErrors)), pogledajte retke iznad." -Level Warning }
+            else { Write-UiLog "$($job.Title): gotovo ($([int]((Get-Date) - $job.Started).TotalSeconds) s)." -Level Ok }
         }
         catch {
             Set-UiBusy $false
