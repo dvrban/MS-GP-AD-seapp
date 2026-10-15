@@ -184,7 +184,9 @@ function Restore-GpsRegistrySnapshotCore {
     <# Vraća vrijednosti iz Save-GpsRegistrySnapshotCore: postojeće upisuje, a nepostojeće briše. #>
     param([Parameter(Mandatory)][string]$Path)
     $count = 0
-    foreach ($e in @(Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json)) {
+    # Windows PowerShell 5.1: ConvertFrom-Json vraća JSON niz kao jedan objekt; foreach nad varijablom ga razmata.
+    $entries = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
+    foreach ($e in $entries) {
         if (-not $e) { continue }
         $base = Get-GpsRegistryHive $e.scope
         try {
