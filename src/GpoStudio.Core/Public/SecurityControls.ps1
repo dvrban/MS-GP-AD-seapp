@@ -326,6 +326,7 @@ function Get-GpsControlCompliance {
             Id        = [string]$std.id
             Title     = $std.title
             Source    = Get-GpsOptionalProperty $std 'source'
+            Note      = Get-GpsOptionalProperty $std 'note'
             Total     = $rows.Count
             Satisfied = $ok
             Score     = if ($rows.Count) { [int][math]::Round(100 * $ok / $rows.Count) } else { 0 }
@@ -606,7 +607,7 @@ function ConvertTo-GpsComplianceHtml {
 .tile{border:1px solid var(--line);padding:12px 14px;background:#f9f9fb}.tile h3{margin:0;font:700 11px/1.2 "Segoe UI",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .tile .n{font:700 28px/1.2 Bahnschrift,"Segoe UI",sans-serif;margin:4px 0}.bar{height:8px;background:var(--bar)}.bar span{display:block;height:100%}
 .good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}.bg-good{background:var(--good)}.bg-warn{background:var(--warn)}.bg-bad{background:var(--bad)}
-table{width:100%;border-collapse:collapse;font-size:13px}th{background:var(--th);color:#fff;text-align:left;font-weight:600;letter-spacing:.04em;padding:7px 8px;font-size:11px;text-transform:uppercase}
+table{width:100%;border-collapse:collapse;font-size:13px}td.ref{font-family:Consolas,monospace;font-size:11px;color:#5d6478;max-width:96px}th{background:var(--th);color:#fff;text-align:left;font-weight:600;letter-spacing:.04em;padding:7px 8px;font-size:11px;text-transform:uppercase}
 td{padding:6px 8px;border-bottom:1px solid #e1e3e9;vertical-align:top}tr:nth-child(even) td{background:var(--zebra)}td.s{font-weight:700;white-space:nowrap}
 .note{margin-top:28px;padding:10px 14px;border-left:3px solid #3d6fb6;background:#f3f6fb;color:var(--muted);font-size:12.5px}
 .foot{padding:12px 28px 18px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
@@ -627,10 +628,11 @@ td{padding:6px 8px;border-bottom:1px solid #e1e3e9;vertical-align:top}tr:nth-chi
     foreach ($r in $results) {
         $null = $sb.Append("<h2>$(& $enc $r.Title)</h2>`n")
         if ($r.Source) { $null = $sb.Append("<p style=""margin:0 0 8px;color:#585c68"">$(& $enc $r.Source)</p>`n") }
-        $null = $sb.Append("<table><thead><tr><th>Područje</th><th>Postavka</th><th>Preporuka</th><th>Odabir / stanje</th><th>Status</th></tr></thead><tbody>`n")
+        if ($r.Note) { $null = $sb.Append("<p style=""margin:-4px 0 8px;color:#7a7f8c;font-size:12px"">$(& $enc $r.Note)</p>`n") }
+        $null = $sb.Append("<table><thead><tr><th>Područje</th><th>Postavka</th><th>Oznaka</th><th>Preporuka</th><th>Odabir / stanje</th><th>Status</th></tr></thead><tbody>`n")
         foreach ($row in @($r.Rows | Sort-Object @{ Expression = { switch ($_.Status) { 'Deviates' { 0 } 'NotSet' { 1 } default { 2 } } } }, Category, Control)) {
             $selected = if ($row.Selected) { $row.Selected } else { $NotSetText }
-            $null = $sb.Append("<tr><td>$(& $enc $row.Category)</td><td>$(& $enc $row.Control)</td><td>$(& $enc $row.Recommendation)</td><td>$(& $enc $selected)</td>")
+            $null = $sb.Append("<tr><td>$(& $enc $row.Category)</td><td>$(& $enc $row.Control)</td><td class=""ref"">$(& $enc $row.Reference)</td><td>$(& $enc $row.Recommendation)</td><td>$(& $enc $selected)</td>")
             $null = $sb.Append("<td class=""s $($statusClass[$row.Status])"">$($statusWord[$row.Status])</td></tr>`n")
         }
         $null = $sb.Append("</tbody></table>`n")

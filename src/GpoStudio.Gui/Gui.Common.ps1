@@ -391,6 +391,31 @@ $Gui.JobTimer.Add_Tick({
         }
     })
 
+# Stupci tablica sa širinom "*" (zvjezdica): WPF ih računa tek nakon događaja Loaded i ponekad ih
+# ostavi na nekoliko piksela (tablica napunjena dok je stranica skrivena, prozor izvan zaslona).
+# Zato ih preračunavamo iz stvarne širine tablice pri svakoj promjeni veličine.
+$Gui.GridStars = @{}
+
+function Register-AuxGridStarColumns([System.Windows.Controls.DataGrid]$Grid) {
+    $stars = @(foreach ($col in $Grid.Columns) { if ($col.Width.IsStar) { [pscustomobject]@{ Column = $col; Weight = $col.Width.Value } } })
+    if (-not $stars) { return }
+    $Gui.GridStars[$Grid.Name] = $stars
+    $Grid.Add_SizeChanged({
+            $stars = $Gui.GridStars[$this.Name]
+            $fixed = 0.0
+            foreach ($col in $this.Columns) {
+                if (@($stars | Where-Object { $_.Column -eq $col }).Count) { continue }
+                $fixed += if ($col.Width.IsAbsolute) { $col.Width.Value } else { $col.ActualWidth }
+            }
+            $total = ($stars | Measure-Object -Property Weight -Sum).Sum
+            # Rezerva za okvir i okomiti klizač.
+            $available = $this.ActualWidth - $fixed - 24
+            foreach ($s in $stars) {
+                $s.Column.Width = [System.Windows.Controls.DataGridLength]::new([math]::Max(70, [math]::Floor($available * $s.Weight / $total)))
+            }
+        })
+}
+
 function Start-UiJob {
     param(
         [Parameter(Mandatory)][string]$Title,

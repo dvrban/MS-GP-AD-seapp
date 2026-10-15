@@ -265,12 +265,13 @@
                         <TextBlock x:Name="txtStateInfo" Style="{StaticResource Sitno}" Margin="0,8,0,0"/>
                         <UniformGrid x:Name="pnlScoresCompare" Columns="3" Margin="0,12,0,0"/>
                     </StackPanel>
-                    <TextBlock DockPanel.Dock="Bottom" Style="{StaticResource Nagovjestaj}" Margin="22,6,22,10" x:Name="txtCompareNote"/>
+                    <TextBlock DockPanel.Dock="Bottom" Style="{StaticResource Nagovjestaj}" Margin="22,6,22,10" TextWrapping="Wrap" x:Name="txtCompareNote"/>
                     <DataGrid x:Name="dgCompliance" Margin="22,4,22,0">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="PODRUČJE" Binding="{Binding Category}" Width="150"/>
                             <DataGridTextColumn Header="POSTAVKA" Binding="{Binding Control}" Width="2*"/>
                             <DataGridTextColumn Header="STANDARD" Binding="{Binding Source}" Width="90"/>
+                            <DataGridTextColumn Header="OZNAKA" Binding="{Binding Reference}" Width="110"/>
                             <DataGridTextColumn Header="PREPORUKA" Binding="{Binding Recommendation}" Width="2*"/>
                             <DataGridTextColumn Header="ODABIR / STANJE" Binding="{Binding SelectedText}" Width="*"/>
                             <DataGridTemplateColumn Header="STATUS" Width="130">

@@ -26,6 +26,7 @@ $Sec = @{
     Standard       = 'CIS-L1'
     TilesOverview  = @{}
     TilesCompare   = @{}
+    CompareNote    = ''
 }
 
 #region Pomoćne funkcije
@@ -136,10 +137,14 @@ function Initialize-SecurityUi {
     # Pločice ocjene na pregledu i na usporedbi
     foreach ($std in @($Sec.Catalog.standards)) {
         $short = Get-StandardShortName $std
-        $t1 = New-AuxScoreTile -Title $short -Subtitle ([string](Get-GpsOptionalProperty $std 'source'))
+        # Podnaslov pločice: kratka verzija standarda (npr. v5.0.1), cijeli naziv u opisu alata.
+        $subtitle = [string](Get-GpsOptionalProperty $std 'version')
+        if (-not $subtitle) { $subtitle = [string](Get-GpsOptionalProperty $std 'source') }
+        $t1 = New-AuxScoreTile -Title $short -Subtitle $subtitle
         $null = $ui.pnlScoresOverview.Children.Add($t1.Root)
         $Sec.TilesOverview[$std.id] = $t1
-        $t2 = New-AuxScoreTile -Title $short -Subtitle ([string](Get-GpsOptionalProperty $std 'source'))
+        $t2 = New-AuxScoreTile -Title $short -Subtitle $subtitle
+        foreach ($t in $t1, $t2) { $t.Root.ToolTip = [string](Get-GpsOptionalProperty $std 'source') }
         $null = $ui.pnlScoresCompare.Children.Add($t2.Root)
         $Sec.TilesCompare[$std.id] = $t2
 
@@ -153,7 +158,7 @@ function Initialize-SecurityUi {
         $rb.Add_Checked({ $Sec.Standard = $this.Tag; Update-ComparePage })
         $null = $ui.pnlStandardFilter.Children.Add($rb)
     }
-    $ui.txtCompareNote.Text = "Katalog $([string](Get-GpsOptionalProperty $Sec.Catalog 'catalogVersion')). " +
+    $Sec.CompareNote = "Katalog $([string](Get-GpsOptionalProperty $Sec.Catalog 'catalogVersion')). " +
         'Standardi sadrže stotine preporuka; ovdje se uspoređuju samo one koje GPO Studio može postaviti. Rezultat nije potvrda sukladnosti.'
 
     $ui.lbCategories.SelectedIndex = 0
@@ -190,6 +195,8 @@ function New-ControlRow($Control) {
     $null = $left.Children.Add((New-AuxText $Control.description 'TekstPrigusen' '0,3,0,0'))
     $impact = [string](Get-GpsOptionalProperty $Control 'impact')
     if ($impact) { $null = $left.Children.Add((New-AuxText "Utjecaj: $impact" 'Sitno' '0,4,0,0')) }
+    $requirement = [string](Get-GpsOptionalProperty $Control 'requirement')
+    if ($requirement) { $null = $left.Children.Add((New-AuxText "Uvjet: $requirement" 'Sitno' '0,2,0,0')) }
 
     $tags = [System.Windows.Controls.WrapPanel]::new()
     if ($first) {
@@ -203,6 +210,7 @@ function New-ControlRow($Control) {
         $text = switch ([string]$b.standard) { 'CIS-L1' { 'CIS L1' } 'CIS-L2' { 'CIS L2' } 'MSB' { 'MS BASELINE' } default { [string]$b.standard } }
         $null = $tags.Children.Add((New-AuxTag $text 'Neutral' "$($text): $($b.recommendation)"))
     }
+    if ($requirement) { $null = $tags.Children.Add((New-AuxTag 'UVJET' 'Info' $requirement)) }
     if (Get-GpsOptionalProperty $Control 'requiresRestart') { $null = $tags.Children.Add((New-AuxTag 'RESTART' 'Restart' 'Promjena djeluje nakon ponovnog pokretanja računala.')) }
     if (Test-ControlUsesLocalOnly $Control) { $null = $tags.Children.Add((New-AuxTag 'SAMO LOKALNO' 'Neutral' 'Lozinke i revizija primjenjuju se na lokalni GP; u domenskom GPO-u još nisu podržane.')) }
     $manual = New-AuxTag 'IZVAN RAZINE' 'Info'
@@ -391,7 +399,7 @@ function Update-Summary {
 
         $row = [System.Windows.Controls.Grid]::new()
         $row.Margin = '0,0,0,7'
-        foreach ($w in '150', '*', '58') {
+        foreach ($w in '180', '*', '58') {
             $cd = [System.Windows.Controls.ColumnDefinition]::new()
             $cd.Width = if ($w -eq '*') { [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star) } else { [System.Windows.GridLength]::new([double]$w) }
             $row.ColumnDefinitions.Add($cd)
@@ -443,12 +451,14 @@ function Update-ComparePage {
             Category       = $row.Category
             Control        = $row.Control
             Source         = switch ($row.Source) { 'CIS-L1' { 'CIS L1' } 'CIS-L2' { 'CIS L2' } 'MSB' { 'MS BASELINE' } default { $row.Source } }
+            Reference      = $row.Reference
             Recommendation = $row.Recommendation
             SelectedText   = if ($row.Selected) { $row.Selected } else { $notSetText }
             Status         = $row.Status
             StatusText     = $StatusTexts[$row.Status]
         }
     }
+    $ui.txtCompareNote.Text = $Sec.CompareNote + $(if ($current.Note) { ' ' + $current.Note })
     $ui.dgCompliance.ItemsSource = @($rows | Sort-Object @{ Expression = { switch ($_.Status) { 'Deviates' { 0 } 'NotSet' { 1 } default { 2 } } } }, Category)
 }
 

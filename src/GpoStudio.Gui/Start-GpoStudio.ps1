@@ -135,6 +135,8 @@ $SearchTimer = [System.Windows.Threading.DispatcherTimer]::new()
 $SearchTimer.Interval = [TimeSpan]::FromMilliseconds(250)
 $SearchTimer.Add_Tick({ $SearchTimer.Stop(); Update-ControlFilter })
 $ui.txtControlSearch.Add_TextChanged({ $SearchTimer.Stop(); $SearchTimer.Start() })
+foreach ($grid in 'dgCompliance', 'dgChanges', 'dgSettings') { Register-AuxGridStarColumns $ui[$grid] }
+
 # Kartice preseta: broj stupaca prema širini (oko 340 px po kartici).
 $ui.pnlPresets.Add_SizeChanged({
         $columns = [int][math]::Max(1, [math]::Floor($ui.pnlPresets.ActualWidth / 340))
