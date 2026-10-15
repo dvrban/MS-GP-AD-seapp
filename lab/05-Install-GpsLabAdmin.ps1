@@ -117,4 +117,4 @@ if ($TrustedHost) {
 }
 
 Write-Host ''
-Write-Host 'Sljedeći korak: checkpoint "Clean" na hostu (docs/TESTNI-LAB.md, 3.8), zatim lab\Test-GpsLabSmoke.ps1 (poglavlje 4).' -ForegroundColor Cyan
+Write-Host 'Sljedeći korak: checkpoint na hostu ("Clean" pri izgradnji, "Clean-v2" pri nadogradnji; docs/TESTNI-LAB.md, 3.8 i 3.9), zatim lab\Test-GpsLabSmoke.ps1 (poglavlje 4).' -ForegroundColor Cyan

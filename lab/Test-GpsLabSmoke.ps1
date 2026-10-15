@@ -208,7 +208,7 @@ if ('Local' -in $Area) {
     Invoke-LabStep 'L4' 'Vrijednosti su u registryju nakon gpupdate (HKLM i HKCU)' {
         $p = Get-ItemProperty -Path $labRegPath -ErrorAction SilentlyContinue
         Assert-Lab ($p -and $p.TestDword -eq 1 -and $p.TestString -eq $text) "Registry: TestDword=$($p.TestDword), TestString=$($p.TestString)"
-        # Set-GpsLocalPolicy osvježava samo računalo; korisnički dio se primjenjuje pri prijavi ili ovako.
+        # Set-GpsLocalPolicy osvježava i korisnički dio (za račun koji ga pokreće); ponovno osvježavanje to potvrđuje.
         $null = gpupdate.exe /target:user /force
         $u = Get-ItemProperty -Path "HKCU:\$labKey" -ErrorAction SilentlyContinue
         Assert-Lab ($u -and $u.TestUser -eq $text) "HKCU: TestUser=$($u.TestUser)"

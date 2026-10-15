@@ -263,48 +263,63 @@ STANDALONE01 ne trebaju ništa, jer GPO Studio pri primjeni šalje potreban kod 
 skripte (`lab\01`–`05`) se nisu mijenjale, pa lab ne treba graditi ponovno.
 
 1. **Na hostu vratite sve VM-ove na *Clean*** (poglavlje 8), da nadogradnja krene od čistog stanja,
-   bez postavki iz ranijih testova. S dva DC-a provjerite SYSVOL (poglavlje 8).
-2. **Kopirajte novi ZIP na ADMIN01** (npr. preuzet na host u `D:\GpoStudio.zip`):
+   bez postavki iz ranijih testova. Vraćanje briše i sve što je na VM-ovima nastalo nakon checkpointa
+   (vlastiti preseti, sigurnosne kopije, `lab-results-*.json`); što vam treba, prije toga kopirajte s
+   ADMIN01. S dva DC-a provjerite SYSVOL (poglavlje 8) i ne nastavljajte dok nije spreman na oba DC-a.
+   Za samu nadogradnju dovoljni su DC01 i ADMIN01; na hostu s malo memorije ostale ne palite odmah.
+2. **Kopirajte novi ZIP na ADMIN01** (npr. preuzet na host u `D:\GpoStudio.zip`). Integracijska usluga
+   *Guest Service Interface* traži se po Id-u, jer je na lokaliziranom hostu naziv preveden:
 
    ```powershell
-   Enable-VMIntegrationService -VMName GPS-ADMIN01 -Name 'Guest Service Interface'
+   Get-VMIntegrationService -VMName GPS-ADMIN01 | Where-Object { $_.Id -match '6C09BB55-D683-4DA0-8931-C9BF705F6480' } |
+       Enable-VMIntegrationService
+   Start-Sleep -Seconds 5
    Copy-VMFile -Name GPS-ADMIN01 -SourcePath D:\GpoStudio.zip -DestinationPath C:\Lab\GpoStudio.zip `
        -FileSource Host -CreateFullPath -Force
    ```
 
-3. **Na ADMIN01** (prijava `GPSLAB\gps.admin`, povišeni Windows PowerShell 5.1) zatvorite GPO Studio
-   i zamijenite staru verziju. Brisanje stare mape osigurava da ne ostanu stare datoteke; vlastiti
-   preseti, sigurnosne kopije i revizijski zapis su u `C:\ProgramData\GpoStudio` i ostaju.
+3. **Na ADMIN01** (prijava `GPSLAB\gps.admin`, povišeni **Windows PowerShell 5.1**, ne PowerShell 7)
+   zatvorite GPO Studio i zamijenite staru verziju. Brisanje stare mape osigurava da ne ostanu stare
+   datoteke; `C:\ProgramData\GpoStudio` se ne briše.
 
    ```powershell
-   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
    cd C:\
-   Remove-Item C:\GpoStudio -Recurse -Force
+   Remove-Item C:\GpoStudio -Recurse -Force -ErrorAction SilentlyContinue
    C:\Lab\05-Install-GpsLabAdmin.ps1 -RepoZip C:\Lab\GpoStudio.zip
+   (Import-PowerShellDataFile C:\GpoStudio\src\GpoStudio.Core\GpoStudio.Core.psd1).ModuleVersion   # nova verzija, npr. 0.2.0
    ```
 
    Skripta preskače ono što je već instalirano (RSAT, PowerShell 7, Pester), raspakira ZIP u
-   `C:\GpoStudio`, otključa datoteke i pokrene Pester testove: zadnji redak mora biti
-   *Pester: … prošlo, 0 palo*. Provjera verzije:
-
-   ```powershell
-   (Import-PowerShellDataFile C:\GpoStudio\src\GpoStudio.Core\GpoStudio.Core.psd1).ModuleVersion   # 0.2.0
-   ```
+   `C:\GpoStudio`, otključa datoteke i pokrene Pester testove: redak *Pester: … prošlo, 0 palo* mora
+   biti zelen. Završnu poruku skripte (*Sljedeći korak: checkpoint "Clean" …*) pri nadogradnji
+   zanemarite: ne radi se novi *Clean*, nego *Clean-v2* (korak 4). Ako je `C:\GpoStudio` git klon,
+   umjesto brisanja i ZIP-a osvježite ga (`git -C C:\GpoStudio pull`) i pokrenite skriptu bez `-RepoZip`.
 
 4. **Na hostu napravite novi checkpoint** svih VM-ova i ubuduće vraćajte njega (stari *Clean* ima
-   staru verziju GPO Studija):
+   staru verziju GPO Studija). Checkpoint upaljenih VM-ova sprema i njihovu memoriju (ukupno nekoliko
+   desetaka GB), pa prije toga provjerite slobodan prostor na disku hosta.
 
    ```powershell
    Get-VM GPS-* | Checkpoint-VM -SnapshotName Clean-v2
    ```
 
-5. **Smoke test** (poglavlje 4) mora proći kao i prije, a zatim slijede ručni GUI testovi (5.1).
+5. **Smoke test** (poglavlje 4) mora proći kao i prije (za njega moraju raditi svi VM-ovi), a zatim
+   slijede ručni GUI testovi (5.1).
 
-Razinu *Strogo* najprije isprobajte na WS01 (cilj *Druga računala*), a ne na ADMIN01: zabranjuje
-udaljenu radnu površinu (Enhanced Session tada može prestati raditi; u prozoru VM-a isključite
+Primjena razine *Preporučeno* na ADMIN01 odmah uvodi strožu udaljenu radnu površinu (Enhanced Session
+može tražiti lozinku i ne dijeli diskove; kopiraj/zalijepi i dalje radi) i UAC potvrdu na sigurnoj
+radnoj površini, a nakon restarta i zaključavanje zaslona nakon 15 minuta, zaštitu LSA i obavezno
+potpisivanje SMB-a.
+
+Razinu *Strogo* isprobajte na WS01 (cilj *Druga računala*), a ne na ADMIN01. Dio postavki vrijedi tek
+nakon restarta WS01 (`Invoke-Command -ComputerName WS01 { Restart-Computer -Force }`). Tada WS01
+zabranjuje udaljenu radnu površinu (Enhanced Session može prestati raditi; u prozoru VM-a isključite
 *View → Enhanced Session*), traži Ctrl+Alt+Del (u konzoli VM-a Ctrl+Alt+End ili gumb na alatnoj
-traci), skriva zadnjeg korisnika (upišite `GPSLAB\gps.admin`), uključuje zaštitu administratora i
-trajnu zaštitu LSA. Najbrži povratak na čisto stanje je checkpoint *Clean-v2* za sve VM-ove zajedno.
+traci), skriva zadnjeg korisnika (upišite `GPSLAB\gps.admin`) i uključuje zaštitu administratora.
+Trajnu zaštitu LSA (zaključanu u UEFI-ju) *Vrati prethodno stanje* ne može isključiti, pa je jedini
+potpuni povratak checkpoint *Clean-v2* za sve VM-ove zajedno. Isto vrijedi ako ADMIN01 nakon toga više
+ne može doći do WS01.
 
 ---
 
@@ -403,12 +418,12 @@ sigurnosne postavke.
 | G4 | `Set-ExecutionPolicy Restricted -Scope LocalMachine` u `powershell.exe`, zatim pokretanje iz `pwsh` gdje je politika RemoteSigned | GUI se ipak otvara (politika se prosljeđuje); zatim vratite `Set-ExecutionPolicy RemoteSigned -Scope LocalMachine` | |
 | G5 | pokretanje kao standardni korisnik (bez *Run as administrator*) | čip *STANDARDNI KORISNIK*; u *Dnevniku* upozorenje da primjena traži administratora | |
 | G6 | *Pregled*: redom kliknite *Osnovno*, *Strogo*, *Preporučeno* | mijenjaju se broj postavki, sažetak po područjima i postoci usklađenosti; *Osnovno* ima najmanje postavki | |
-| G7 | *Sigurnosne postavke* → *USB i prijenosni mediji* → za *USB diskovi* odaberite *Zabranjeno* | redak dobiva oznaku *IZVAN RAZINE* i napomenu *Razina Preporučeno predlaže: Bez pokretanja programa*; naslov na *Pregledu* je *Prilagođeno (temelj: Preporučeno)* | |
+| G7 | *Sigurnosne postavke* → *USB i prijenosni mediji* → za *USB memorije i memorijske kartice* odaberite *Zabranjeno* | redak dobiva oznaku *IZVAN RAZINE* i napomenu *Razina Preporučeno predlaže: Bez pokretanja programa*; naslov na *Pregledu* je *Prilagođeno (temelj: Preporučeno)* | |
 | G8 | promijenite razinu na *Pregledu* dok postoji ručna promjena iz G7 | pitanje *Imate ručne promjene…*; *Odustani* ostavlja odabir, *Promijeni razinu* ga poništava | |
 | G9 | *Sigurnosne postavke*: pretraga *lozinka*, zatim filtri *Uključene* i *Izvan razine*; *Vrati na razinu* | pretraga prikazuje postavke iz više područja; filtri prikazuju samo odgovarajuće retke; *Vrati na razinu* uklanja ručne promjene | |
-| G10 | *Pregled* → *Brzi odabir* → *Javno računalo / kiosk* | naslov *Preset: Javno računalo / kiosk* (bez oznake *prilagođeno*); u području USB odabrano *Zabranjeno*, *Isključena Microsoft Trgovina* ima kvačicu | |
+| G10 | *Pregled* → *Brzi odabir* → *Javno računalo / kiosk* | naslov *Preset: Javno računalo / kiosk* (bez oznake *prilagođeno*); za *USB memorije i memorijske kartice* odabrano *Zabranjeno*, a u području *Preglednik i aplikacije* za *Microsoft Store* odabrano *Isključen* | |
 | G11 | *Preseti* → *Spremi trenutni odabir*, naziv *Lab test*; zatim *Izvezi…* u Dokumente, *Obriši*, *Uvezi preset* iz Dokumenata | kartica *VLASTITI PRESET* nastaje, nestaje i vraća se; datoteka postoji u `C:\ProgramData\GpoStudio\Presets` | |
-| G12 | razina *Preporučeno*, cilj *Ovo računalo*: *Pregledaj promjene* | stranica *Promjene* s nazivima postavki (npr. *Vatrozid uključen: Uključeno*), statusima *DODAJE SE* / *BEZ PROMJENE* i retcima *POSTAVLJA SE* za lozinke i reviziju; ništa se ne mijenja | |
+| G12 | razina *Preporučeno*, cilj *Ovo računalo*: *Pregledaj promjene* | stranica *Promjene* s nazivima postavki (npr. *Vatrozid uključen na svim mrežama: Uključen, strogo*), statusima *DODAJE SE* / *BEZ PROMJENE* i retcima *POSTAVLJA SE* za lozinke i reviziju; ništa se ne mijenja | |
 | G13 | *Primijeni* → *Primijeni* | potvrda navodi cilj; *Primijenjene promjene* i u *Dnevniku* putanja sigurnosne kopije; `net accounts` pokazuje *Minimum password length: 14*; `Get-ItemProperty HKLM:\Software\Policies\Microsoft\WindowsFirewall\PublicProfile` pokazuje `EnableFirewall = 1` | |
 | G14 | *Usporedba* → *Provjeri računalo* (prije i poslije G13 na svježem checkpointu) | izvor *Stanje računala*; nakon G13 postotci su znatno viši nego prije; tablica pokazuje *U REDU* / *ODSTUPA* / *NIJE POSTAVLJENO* | |
 | G15 | *Usporedba* → *Izvezi izvještaj*; zatim *Preuzmi kao odabir* | HTML izvještaj se otvara u pregledniku (svijetla tema, tablice po standardu); nakon preuzimanja naslov odabira je *Stanje računala ADMIN01* | |
@@ -497,8 +512,10 @@ Korisni prilozi:
   STANDALONE01 koristite cmdlete s `-Credential` (kao smoke test).
 - **ADMX elementi tipa `list`** nisu podržani: politika se dodaje bez njih, uz upozorenje. Ne koristite
   takve politike za stvarne postavke.
-- **Korisničke postavke (User scope)** kod lokalne primjene: *Primijeni* i `Set-GpsLocalPolicy`
-  pokreću samo `gpupdate /target:computer`, pa se korisničke postavke primjenjuju pri sljedećoj
+- **Korisničke postavke (User scope)** kod lokalne primjene: kad se promijeni korisnički dio,
+  *Primijeni* i `Set-GpsLocalPolicy` nakon `gpupdate /target:computer` pokreću i
+  `gpupdate /target:user /force /wait:60`, ali samo za račun koji pokreće primjenu (na drugim
+  računalima to je račun WinRM sesije). Ostali korisnici dobivaju korisničke postavke pri sljedećoj
   prijavi ili nakon `gpupdate /target:user /force`. U domeni, korisničke postavke u GPO-u povezanom
   na OU s računalima (kao `OU=Pilot`) ne primjenjuju se na korisnike; to je standardno ponašanje
   Group Policyja (bez loopbacka).
@@ -541,8 +558,11 @@ Ako SYSVOL nije spreman ni na jednom DC-u, na DC01 je uvijek potrebna autoritati
 a DC02 se zatim sinkronizira neautoritativno, prema Microsoftovom članku *How to force
 authoritative and non-authoritative synchronization for DFSR-replicated SYSVOL* (na DC01:
 `msDFSR-Options=1` na objektu *SYSVOL Subscription*, zatim `msDFSR-Enabled` FALSE/TRUE i
-`dfsrdiag pollad`). Ponovna izgradnja DC02 ne pomaže dok DC01 nema SYSVOL. Nakon popravka
-napravite novi checkpoint *Clean*, inače se problem ponavlja pri svakom vraćanju.
+`dfsrdiag pollad`). Ponovna izgradnja DC02 ne pomaže dok DC01 nema SYSVOL.
+Nakon popravka zamijenite checkpoint koji vraćate (prije nadogradnje *Clean*, nakon nje *Clean-v2*),
+inače se problem ponavlja pri svakom vraćanju: prvo obrišite stari, da dva checkpointa nemaju isto ime
+(npr. `Get-VM GPS-* | Remove-VMCheckpoint -Name Clean-v2`), zatim
+`Get-VM GPS-* | Checkpoint-VM -SnapshotName Clean-v2`.
 
 Evaluacijske verzije: Windows 11 Enterprise vrijedi 90 dana, a Windows Server 180 dana. Preostalo
 vrijeme pokazuje `slmgr /dlv`. Kad istekne, lab izgradite ponovno.
