@@ -790,53 +790,6 @@
       ]
     },
     {
-      "id": "accounts.anonymous-sid-lookup",
-      "category": "accounts",
-      "title": "Bez anonimnog otkrivanja računa",
-      "description": "Anonimni korisnici s mreže ne mogu doznati imena korisničkih računa, npr. pravo ime administratorskog računa.",
-      "impact": "Korisnici ništa ne primjećuju.",
-      "impactLevel": "none",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "on",
-          "title": "Zabranjeno",
-          "matchMode": "exact",
-          "settings": [],
-          "security": {
-            "LSAAnonymousNameLookup": 0
-          }
-        }
-      ],
-      "levels": {
-        "1": "on",
-        "2": "on",
-        "3": "on"
-      },
-      "benchmarks": [
-        {
-          "standard": "CIS-L1",
-          "recommendation": "Isključeno anonimno prevođenje SID/ime",
-          "satisfiedBy": [
-            "on"
-          ],
-          "reference": "2.3.10.1"
-        },
-        {
-          "standard": "MSB",
-          "recommendation": "Isključeno anonimno prevođenje SID/ime",
-          "satisfiedBy": [
-            "on"
-          ]
-        }
-      ],
-      "notes": "'Network access: Allow anonymous SID/Name translation'. Placed under accounts because it is a secedit [System Access] key; deduplicate by id if the network group also emits it. Windows default is already Disabled.",
-      "sources": [
-        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
-        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv"
-      ]
-    },
-    {
       "id": "updates.automatic",
       "category": "updates",
       "title": "Automatska ažuriranja Windowsa",
@@ -2904,103 +2857,257 @@
     {
       "id": "network.firewall",
       "category": "network",
-      "title": "Vatrozid uključen",
-      "description": "Windows vatrozid je uključen na svim mrežama i blokira neželjene dolazne veze.",
-      "impact": "Korisnici ništa ne primjećuju.",
-      "impactLevel": "none",
+      "title": "Vatrozid uključen na svim mrežama",
+      "description": "Uključuje Windows vatrozid na mreži u domeni, privatnoj i javnoj mreži. Neželjene dolazne veze se blokiraju, a odlazni promet (internet, e-pošta) ostaje dopušten.",
+      "impact": "Obično se ništa ne mijenja. U strogom načinu Windows ne pita smije li program primati veze, pa takvi programi na javnim mrežama mogu prestati raditi.",
+      "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
           "id": "on",
-          "title": "Uključeno",
+          "title": "Uključen",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile",
               "valueName": "EnableFirewall",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile",
               "valueName": "DefaultInboundAction",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile",
               "valueName": "DefaultOutboundAction",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 0,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile",
               "valueName": "EnableFirewall",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile",
               "valueName": "DefaultInboundAction",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile",
               "valueName": "DefaultOutboundAction",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 0,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile",
               "valueName": "EnableFirewall",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile",
               "valueName": "DefaultInboundAction",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile",
               "valueName": "DefaultOutboundAction",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "strict",
+          "title": "Uključen, strogo",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile",
+              "valueName": "EnableFirewall",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile",
+              "valueName": "DefaultInboundAction",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile",
+              "valueName": "DefaultOutboundAction",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile",
+              "valueName": "DisableNotifications",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile",
+              "valueName": "EnableFirewall",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile",
+              "valueName": "DefaultInboundAction",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile",
+              "valueName": "DefaultOutboundAction",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile",
+              "valueName": "DisableNotifications",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile",
+              "valueName": "EnableFirewall",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile",
+              "valueName": "DefaultInboundAction",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile",
+              "valueName": "DefaultOutboundAction",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile",
+              "valueName": "DisableNotifications",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile",
+              "valueName": "AllowLocalPolicyMerge",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile",
+              "valueName": "AllowLocalIPsecPolicyMerge",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
         "1": "on",
-        "2": "on",
-        "3": "on"
+        "2": "strict",
+        "3": "strict"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Uključen za sve profile; dolazno blokiraj, odlazno dopusti",
+          "recommendation": "Vatrozid uključen na profilima domena, privatno i javno; Dolazne veze: blokiraj (zadano) na sva tri profila",
           "satisfiedBy": [
-            "on"
+            "on",
+            "strict"
+          ],
+          "reference": "9.1.1, 9.2.1, 9.3.1, 9.1.2, 9.2.2, 9.3.2"
+        },
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Ne prikazuj obavijest kad je program blokiran; Na javnoj mreži ne primjenjuj lokalna pravila vatrozida ni lokalna pravila sigurnosti veze",
+          "satisfiedBy": [
+            "strict"
+          ],
+          "reference": "9.1.3, 9.2.3, 9.3.3, 9.3.4, 9.3.5"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Uključen na svim profilima, dolazno blokirano, odlazno dopušteno, bez obavijesti; na javnoj mreži zanemaruje lokalna pravila",
+          "satisfiedBy": [
+            "strict"
           ]
         }
+      ],
+      "notes": "Keys are the Windows Firewall with Advanced Security policy keys (PrivateProfile, not the legacy ADMX StandardProfile). They can be written through Registry.pol or Set-GPRegistryValue. 'strogo' adds DisableNotifications=1 on all profiles. On the Public profile it also adds AllowLocalPolicyMerge=0 and AllowLocalIPsecPolicyMerge=0: rules in the local store (e.g. added by app installers or netsh) are then ignored on public networks and only policy-delivered rules apply. When this is applied through LOCAL Group Policy, test apps that need inbound connections on public Wi-Fi. MSB values come from the 24H2 GPO report and the Intune 26H2 MDM baseline: inbound Block, outbound Allow, Disable Inbound Notifications=True, local rules No on Public. If a third-party firewall (AV suite) is registered in Windows Security Center, coordinate before enforcing. CIS v5 may no longer list 'Outbound connections: Allow'; DefaultOutboundAction=0 is still written so outbound traffic stays allowed.",
+      "sources": [
+        "https://learn.microsoft.com/en-us/intune/device-security/security-baselines/ref-windows-mdm-settings",
+        "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm",
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/firewall-csp",
+        "https://www.cisecurity.org/benchmark/microsoft_windows_desktop",
+        "https://www.tenable.com/audits/items/CIS_MS_Windows_10_Enterprise_Level_1_Bitlocker_v1.2.0.audit:e3623f8b5637f50ba098de0163ff8f71"
       ]
     },
     {
       "id": "network.firewall-log",
       "category": "network",
-      "title": "Zapis vatrozida",
-      "description": "Vatrozid bilježi blokirane i dopuštene veze, što pomaže pri istrazi incidenta.",
-      "impact": "Korisnici ništa ne primjećuju; zapis zauzima do 16 MB po mrežnom profilu.",
+      "title": "Zapisivanje prometa vatrozida",
+      "description": "Vatrozid zapisuje blokirane i dopuštene veze u datoteku, do 16 MB po vrsti mreže. Zapis pomaže kad treba istražiti napad ili problem s mrežom.",
+      "impact": "Korisnici ništa ne primjećuju.",
       "impactLevel": "none",
       "requiresRestart": false,
       "options": [
@@ -3012,162 +3119,98 @@
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile\\Logging",
+              "valueName": "LogFilePath",
+              "type": "REG_SZ",
+              "data": "%SystemRoot%\\System32\\logfiles\\firewall\\domainfw.log",
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile\\Logging",
               "valueName": "LogFileSize",
               "type": "REG_DWORD",
-              "data": 16384
+              "data": 16384,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile\\Logging",
               "valueName": "LogDroppedPackets",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile\\Logging",
               "valueName": "LogSuccessfulConnections",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging",
+              "valueName": "LogFilePath",
+              "type": "REG_SZ",
+              "data": "%SystemRoot%\\System32\\logfiles\\firewall\\privatefw.log",
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging",
               "valueName": "LogFileSize",
               "type": "REG_DWORD",
-              "data": 16384
+              "data": 16384,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging",
               "valueName": "LogDroppedPackets",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging",
               "valueName": "LogSuccessfulConnections",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\\Logging",
+              "valueName": "LogFilePath",
+              "type": "REG_SZ",
+              "data": "%SystemRoot%\\System32\\logfiles\\firewall\\publicfw.log",
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\\Logging",
               "valueName": "LogFileSize",
               "type": "REG_DWORD",
-              "data": 16384
+              "data": 16384,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\\Logging",
               "valueName": "LogDroppedPackets",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\\Logging",
               "valueName": "LogSuccessfulConnections",
               "type": "REG_DWORD",
-              "data": 1
-            }
-          ]
-        }
-      ],
-      "levels": {
-        "1": null,
-        "2": null,
-        "3": "on"
-      },
-      "benchmarks": [
-        {
-          "standard": "CIS-L1",
-          "recommendation": "Veličina 16384 KB ili više, bilježi odbačene i uspješne veze",
-          "satisfiedBy": [
-            "on"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "network.smb1",
-      "category": "network",
-      "title": "Isključen zastarjeli SMBv1",
-      "description": "SMB verzije 1 je star protokol za dijeljenje datoteka koji su iskoristili ransomware napadi poput WannaCry.",
-      "impact": "Vrlo stari NAS uređaji i pisači koji znaju samo SMBv1 neće raditi.",
-      "impactLevel": "low",
-      "requiresRestart": true,
-      "options": [
-        {
-          "id": "off",
-          "title": "Isključeno",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters",
-              "valueName": "SMB1",
-              "type": "REG_DWORD",
-              "data": 0
-            },
-            {
-              "scope": "Machine",
-              "key": "SYSTEM\\CurrentControlSet\\Services\\mrxsmb10",
-              "valueName": "Start",
-              "type": "REG_DWORD",
-              "data": 4
-            }
-          ]
-        }
-      ],
-      "levels": {
-        "1": "off",
-        "2": "off",
-        "3": "off"
-      },
-      "benchmarks": [
-        {
-          "standard": "CIS-L1",
-          "recommendation": "SMBv1 klijent i poslužitelj isključeni",
-          "satisfiedBy": [
-            "off"
-          ]
-        },
-        {
-          "standard": "MSB",
-          "recommendation": "SMBv1 klijent i poslužitelj isključeni",
-          "satisfiedBy": [
-            "off"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "network.smb-signing",
-      "category": "network",
-      "title": "Potpisivanje SMB prometa",
-      "description": "Promet prema dijeljenim mapama se digitalno potpisuje, pa ga nitko na mreži ne može neopaženo mijenjati.",
-      "impact": "Stari NAS uređaji bez podrške za potpisivanje mogu prestati raditi.",
-      "impactLevel": "medium",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "on",
-          "title": "Obavezno",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters",
-              "valueName": "RequireSecuritySignature",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters",
-              "valueName": "RequireSecuritySignature",
-              "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             }
           ]
         }
@@ -3180,39 +3223,333 @@
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Uvijek potpisuj (klijent i poslužitelj)",
+          "recommendation": "Na sva tri profila: ime datoteke zapisa postavljeno, veličina 16.384 KB ili više, bilježi odbačene pakete i uspješne veze",
           "satisfiedBy": [
             "on"
-          ]
+          ],
+          "reference": "9.1.4-9.1.7, 9.2.4-9.2.7, 9.3.6-9.3.9"
         },
         {
           "standard": "MSB",
-          "recommendation": "Uvijek potpisuj (klijent i poslužitelj)",
+          "recommendation": "Veličina zapisa 16.384 KB, bilježi odbačene pakete i uspješne veze",
           "satisfiedBy": [
             "on"
           ]
         }
+      ],
+      "notes": "matchMode atLeast is meant for LogFileSize: a larger log is fine, and CIS asks for 16,384 KB or greater. LogDroppedPackets and LogSuccessfulConnections are already at their maximum value (1). LogFilePath is a string: the state reader must compare it exactly or only check that it is present, never numerically. CIS v5.x only requires that a log name is configured (v3/v4 required these exact paths). MSB sets the size and both logging flags but no custom path. Microsoft recommends at least 20 MB (max 32,767 KB), so a larger size is acceptable. The default folder %SystemRoot%\\System32\\LogFiles\\Firewall already carries the MpsSvc write ACL.",
+      "sources": [
+        "https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/configure-logging",
+        "https://www.tenable.com/audits/items/MSCT_Windows_11_22H2_v1.0.0.audit:3df081bffb49a1d7f0fff725cd4351de",
+        "https://learn.microsoft.com/en-us/intune/device-security/security-baselines/ref-windows-mdm-settings",
+        "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm",
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-15036.html"
+      ]
+    },
+    {
+      "id": "network.smb-version",
+      "category": "network",
+      "title": "Isključi zastarjeli SMB protokol",
+      "description": "SMB je protokol za dijeljene mape i pisače. Stara inačica SMBv1 ima poznate sigurnosne rupe (npr. WannaCry) i treba je isključiti. Strože opcije traže i noviju inačicu SMB 3.",
+      "impact": "Vrlo stari NAS uređaji, skeneri i računala sa sustavom Windows XP ili 7 možda se neće moći spojiti na dijeljene mape.",
+      "impactLevel": "medium",
+      "requiresRestart": true,
+      "options": [
+        {
+          "id": "smb1-off",
+          "title": "Bez SMBv1",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\LanmanServer\\Parameters",
+              "valueName": "SMB1",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\mrxsmb10",
+              "valueName": "Start",
+              "type": "REG_DWORD",
+              "data": 4,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "smb3",
+          "title": "SMB 3.0 i noviji",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\LanmanServer\\Parameters",
+              "valueName": "SMB1",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\mrxsmb10",
+              "valueName": "Start",
+              "type": "REG_DWORD",
+              "data": 4,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\LanmanWorkstation",
+              "valueName": "MinSmb2Dialect",
+              "type": "REG_DWORD",
+              "data": 768,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\LanmanServer",
+              "valueName": "MinSmb2Dialect",
+              "type": "REG_DWORD",
+              "data": 768,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "smb311",
+          "title": "Samo SMB 3.1.1",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\LanmanServer\\Parameters",
+              "valueName": "SMB1",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\mrxsmb10",
+              "valueName": "Start",
+              "type": "REG_DWORD",
+              "data": 4,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\LanmanWorkstation",
+              "valueName": "MinSmb2Dialect",
+              "type": "REG_DWORD",
+              "data": 785,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\LanmanServer",
+              "valueName": "MinSmb2Dialect",
+              "type": "REG_DWORD",
+              "data": 785,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "smb1-off",
+        "2": "smb1-off",
+        "3": "smb311"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "SMBv1 klijent isključen ('Configure SMB v1 client driver': Disable driver); SMBv1 poslužitelj isključen",
+          "satisfiedBy": [
+            "smb1-off",
+            "smb3",
+            "smb311"
+          ],
+          "reference": "18.4.2, 18.4.3"
+        },
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Najniža dopuštena inačica SMB 3.1.1 (poslužitelj i klijent)",
+          "satisfiedBy": [
+            "smb311"
+          ],
+          "reference": "18.6.7.6, 18.6.8.6"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "SMBv1 isključen; najniža inačica SMB 3.0.0 (od 24H2)",
+          "satisfiedBy": [
+            "smb3",
+            "smb311"
+          ]
+        }
+      ],
+      "notes": "SMB1=0 (LanmanServer\\Parameters) and mrxsmb10 Start=4 are the MS Security Guide values 'Configure SMB v1 server: Disabled' and 'Configure SMB v1 client driver: Enabled: Disable driver'. Both appear in the MSB 24H2 GPO report. Clean Windows 11 installs no longer include SMBv1, so on most PCs this only locks the state. The mrxsmb10 key may not exist: writing Start=4 creates a harmless stub key, and the state reader should treat a missing mrxsmb10 service as compliant. Do NOT write the pre-Win8.1 LanmanWorkstation DependOnService value. MinSmb2Dialect ('Mandate the minimum version of SMB', LanmanWorkstation/LanmanServer policy keys) is honoured only on Windows 11 24H2+ and Server 2025. 768 = 0x300 = SMB 3.0.0 (MSB); 785 = 0x311 = SMB 3.1.1 (CIS L1). The server-side minimum also blocks older MFPs/scanners that scan to a folder on this PC over SMB 2.x. MinSmb2Dialect does not disable SMB1 by itself. matchMode is exact because SMB1/Start must match exactly; a PC with 785 is reported as 'smb311'.",
+      "sources": [
+        "https://learn.microsoft.com/en-us/windows-server/storage/file-server/troubleshoot/detect-enable-and-disable-smbv1-v2-v3",
+        "https://learn.microsoft.com/en-us/windows-server/storage/file-server/manage-smb-dialects",
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-lanmanworkstation",
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-lanmanserver",
+        "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/windows-11-version-24h2-security-baseline/4252801",
+        "https://www.tenable.com/audits/items/MSCT_Windows_11_24H2_v1.0.0.audit:9414c20bac7316b32de52349b2a23a0a",
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Enterprise_v4.0.0_L1.audit:03a11797661b7eafe59f29fa68fef70b",
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Enterprise_v4.0.0_L1.audit:108f2c25ba9899272c967d4ac892c390",
+        "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm"
+      ]
+    },
+    {
+      "id": "network.smb-signing",
+      "category": "network",
+      "title": "Obavezno potpisivanje SMB prometa",
+      "description": "Promet prema dijeljenim mapama digitalno se potpisuje, pa ga napadač u mreži ne može neprimjetno mijenjati ili preusmjeriti. Lozinke se nikad ne šalju nešifrirane.",
+      "impact": "Kopiranje s NAS-a može biti malo sporije. Vrlo stari NAS uređaji bez potpisivanja i mape bez lozinke prestat će raditi.",
+      "impactLevel": "medium",
+      "requiresRestart": true,
+      "options": [
+        {
+          "id": "required",
+          "title": "Obavezno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters",
+              "valueName": "RequireSecuritySignature",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\LanmanServer\\Parameters",
+              "valueName": "RequireSecuritySignature",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters",
+              "valueName": "EnablePlainTextPassword",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "required",
+        "3": "required"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Klijent uvijek potpisuje SMB promet; Ne šalji nešifriranu lozinku SMB poslužiteljima drugih proizvođača; Poslužitelj uvijek traži potpisani SMB promet",
+          "satisfiedBy": [
+            "required"
+          ],
+          "reference": "2.3.8.1, 2.3.8.2, 2.3.9.2"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Potpisivanje uvijek obavezno za klijent i poslužitelj; nešifrirana lozinka zabranjena",
+          "satisfiedBy": [
+            "required"
+          ]
+        }
+      ],
+      "notes": "These are the Security Options 'Microsoft network client/server: Digitally sign communications (always)' and 'Microsoft network client: Send unencrypted password to third-party SMB servers'. They can be written through Registry.pol and also exist in secedit [Registry Values]. Windows 11 24H2+ already requires SMB signing by default for inbound and outbound connections (Pro/Enterprise/Education); this locks the behaviour and applies it to older builds. Signing is incompatible with guest (passwordless) sessions, so expect old NAS devices with guest shares to fail. CIS v5 removed the '(if server agrees)' and '(if client agrees)' items, which only affect SMB1. Their removal shifted the numbering: 2.3.8.2 is now the plaintext-password item and 2.3.9.3 is 'Disconnect clients when logon hours expire'. EnableSecuritySignature is therefore not written.",
+      "sources": [
+        "https://techcommunity.microsoft.com/blog/filecab/smb-security-hardening-in-windows-server-2025--windows-11/4226591",
+        "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm",
+        "https://www.cisecurity.org/benchmark/microsoft_windows_desktop"
+      ]
+    },
+    {
+      "id": "network.smb-guest",
+      "category": "network",
+      "title": "Zabrani gostujući pristup mapama",
+      "description": "Windows se neće spajati na dijeljene mape koje ne traže korisničko ime i lozinku. Takve veze napadač lako lažira i preko njih podmeće zlonamjerne datoteke.",
+      "impact": "Dijeljene mape bez lozinke na starim NAS uređajima prestat će raditi dok se na njima ne postave korisnički računi.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "blocked",
+          "title": "Zabranjeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\LanmanWorkstation",
+              "valueName": "AllowInsecureGuestAuth",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "blocked",
+        "3": "blocked"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "'Enable insecure guest logons' isključeno",
+          "satisfiedBy": [
+            "blocked"
+          ],
+          "reference": "18.6.8.4"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Nesigurne gostujuće prijave isključene",
+          "satisfiedBy": [
+            "blocked"
+          ]
+        }
+      ],
+      "notes": "Added control (not in the draft). This is the policy 'Network\\Lanman Workstation\\Enable insecure guest logons: Disabled'. It is already the default on Enterprise/Education since 1709 and on Pro since 24H2, so here it mainly locks the state on older Pro builds. It belongs with network.smb-signing, because guest sessions cannot be signed.",
+      "sources": [
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-lanmanworkstation",
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Stand-alone_v5.0.0_L1.audit:42d7af78983791b925aeec1e35b460a4",
+        "https://www.tenable.com/audits/items/MSCT_Windows_11_22H2_v1.0.0.audit:5bdcd94784474d82ddb1308d2a0c58d6",
+        "https://www.stigviewer.com/stigs/microsoft-windows-11-security-technical-implementation-guide/2025-05-15/finding/V-253360",
+        "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm"
       ]
     },
     {
       "id": "network.llmnr",
       "category": "network",
-      "title": "Isključen LLMNR",
-      "description": "LLMNR je stari način pronalaska računala u mreži koji napadači koriste za krađu lozinki.",
-      "impact": "Korisnici ništa ne primjećuju u mreži s DNS-om.",
-      "impactLevel": "none",
+      "title": "Isključi LLMNR otkrivanje imena",
+      "description": "LLMNR je stari način traženja računala po imenu u lokalnoj mreži. Napadači ga koriste za krađu lozinki lažnim odgovorima, a DNS ga u potpunosti zamjenjuje.",
+      "impact": "Korisnici obično ništa ne primjećuju; računala se i dalje pronalaze preko DNS-a.",
+      "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
           "id": "off",
           "title": "Isključeno",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows NT\\DNSClient",
               "valueName": "EnableMulticast",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 0,
+              "action": "Set"
             }
           ]
         }
@@ -3225,77 +3562,464 @@
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Isključeno",
+          "recommendation": "'Turn off multicast name resolution' uključeno (LLMNR isključen)",
+          "satisfiedBy": [
+            "off"
+          ],
+          "reference": "18.6.4.4"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "LLMNR isključen",
           "satisfiedBy": [
             "off"
           ]
         }
+      ],
+      "notes": "This is the policy 'Network\\DNS Client\\Turn off multicast name resolution: Enabled'. EnableMulticast=0 disables LLMNR; some forum posts claim the opposite value, which is wrong. If a small office has no local DNS, names then resolve via NetBIOS (until network.netbios is applied) and mDNS.",
+      "sources": [
+        "https://www.tenable.com/audits/items/MSCT_Windows_11_24H2_v1.0.0.audit:85a80b1f55ace56bdee3e84f2c08259a",
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-admx-dnsclient",
+        "https://techcommunity.microsoft.com/blog/networkingblog/aligning-on-mdns-ramping-down-netbios-name-resolution-and-llmnr/3290816",
+        "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm"
       ]
     },
     {
       "id": "network.netbios",
       "category": "network",
-      "title": "NetBIOS samo preko poslužitelja",
-      "description": "Računalo ne odgovara na NetBIOS upite cijeloj mreži (P-node), što zatvara još jedan put za krađu lozinki.",
-      "impact": "U mreži bez WINS poslužitelja ne radi pronalaženje računala po starom NetBIOS imenu.",
-      "impactLevel": "low",
+      "title": "Isključi NetBIOS otkrivanje imena",
+      "description": "NetBIOS je zastarjeli način pronalaženja računala slanjem upita cijeloj mreži. Isključivanje sprječava napade lažnim odgovorima i krađu lozinki.",
+      "impact": "Ako u mreži nema DNS poslužitelja, stari uređaji se možda neće pronaći po imenu (npr. \\\\NAS), nego samo po IP adresi.",
+      "impactLevel": "medium",
       "requiresRestart": true,
       "options": [
         {
-          "id": "pnode",
-          "title": "P-node",
+          "id": "public",
+          "title": "Na javnim mrežama",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
-              "key": "SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\DNSClient",
+              "valueName": "EnableNetbios",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "off",
+          "title": "Potpuno isključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\DNSClient",
+              "valueName": "EnableNetbios",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\NetBT\\Parameters",
               "valueName": "NodeType",
               "type": "REG_DWORD",
-              "data": 2
+              "data": 2,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "public",
+        "2": "public",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "'Configure NetBIOS settings': NetBIOS isključen barem na javnim mrežama",
+          "satisfiedBy": [
+            "public",
+            "off"
+          ],
+          "reference": "18.6.4.2"
+        },
+        {
+          "standard": "CIS-L1",
+          "recommendation": "NetBT NodeType: P-node (bez emitiranja upita cijeloj mreži)",
+          "satisfiedBy": [
+            "off"
+          ],
+          "reference": "18.4.6"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "NodeType P-node i NetBIOS razrješavanje imena isključeno na svim mrežama (od 25H2)",
+          "satisfiedBy": [
+            "off"
+          ]
+        }
+      ],
+      "notes": "EnableNetbios is the policy 'Network\\DNS Client\\Configure NetBIOS settings' (22H2+ ADMX). 0 = disable NetBIOS name resolution, 1 = allow, 2 = disable on public networks (the OS default, so 'javne' only locks it), 3 = learning mode. MSB 25H2+ sets 0. CIS L1 requires 'disable on public networks'; 0 is stricter and accepted. NodeType=2 (P-node) is the SecGuide setting 'NetBT NodeType configuration' and is in the MSB 24H2 report as Netbt\\Parameters NodeType=2. It stops NetBIOS broadcasts, so without a WINS server NetBIOS name resolution fails; it needs a restart. Neither value unbinds NetBIOS over TCP/IP from the adapters.",
+      "sources": [
+        "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/windows-11-version-25h2-security-baseline/4456231",
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-admx-dnsclient",
+        "https://techcommunity.microsoft.com/blog/networkingblog/aligning-on-mdns-ramping-down-netbios-name-resolution-and-llmnr/3290816",
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_10_Enterprise_v5.0.0_L1.audit:ab8f18121c374a3f779a9d739b08f3a3",
+        "https://www.tenable.com/audits/items/MSCT_Windows_Server_2025_DC_v1.0.0.audit:34ddd3c2e45867a5ac8847579731f3a1",
+        "https://www.tenable.com/audits/items/MSCT_Windows_11_v1.0.0.audit:8275cf344c54e4f150c4cc52931b2788",
+        "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm"
+      ]
+    },
+    {
+      "id": "network.mdns",
+      "category": "network",
+      "title": "Isključi mDNS otkrivanje imena",
+      "description": "mDNS traži uređaje u lokalnoj mreži bez DNS poslužitelja. Isključivanje smanjuje mogućnost lažnih odgovora, ali isključuje i automatsko pronalaženje uređaja.",
+      "impact": "Automatsko pronalaženje mrežnih pisača, Chromecasta i sličnih uređaja može prestati raditi.",
+      "impactLevel": "medium",
+      "requiresRestart": true,
+      "options": [
+        {
+          "id": "off",
+          "title": "Isključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\DNSClient",
+              "valueName": "EnableMDNS",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
         "1": null,
-        "2": "pnode",
-        "3": "pnode"
+        "2": null,
+        "3": "off"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "P-node (NodeType = 2)",
+          "recommendation": "'Configure multicast DNS (mDNS) protocol' isključeno",
           "satisfiedBy": [
-            "pnode"
-          ]
+            "off"
+          ],
+          "reference": "18.6.4.1"
         }
+      ],
+      "notes": "Added control (not in the draft). This is the policy 'Configure multicast DNS (mDNS) protocol' (Windows 11 24H2+ DnsClient.admx). It is CIS L1 (18.6.4.1 in v4.0.0 and v5.0.1) and not in the MS baseline. It sits at level 3 only for two reasons: Windows uses mDNS for printer and device discovery, and once LLMNR and NetBIOS are off (level 2) mDNS is the last fallback for local names in networks without local DNS. The policy value name EnableMDNS under the DNSClient policy key comes from PolicyPicker and Tenable; please re-check against DnsClient.admx. The non-policy equivalent is Dnscache\\Parameters EnableMDNS, which is read at boot.",
+      "sources": [
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Enterprise_v4.0.0_L1.audit:25e597da8d196ed7b095657dab100aaa",
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Stand-alone_v5.0.0_L1.audit:98f4f8f136a5370e8ca9322c40e9f6c1",
+        "https://policypicker.app/policy/windows/network/dns-client/configure-multicast-dns-mdns-protocol-a84770a8a85d",
+        "https://techcommunity.microsoft.com/blog/networkingblog/aligning-on-mdns-ramping-down-netbios-name-resolution-and-llmnr/3290816"
       ]
     },
     {
       "id": "network.anonymous",
       "category": "network",
-      "title": "Zabrana anonimnog popisivanja",
-      "description": "Anonimni korisnik iz mreže ne može dobiti popis korisničkih računa i dijeljenih mapa.",
+      "title": "Zabrani anonimno izlistavanje podataka",
+      "description": "Anonimni korisnici iz mreže ne mogu dobiti popis korisničkih računa i dijeljenih mapa ovog računala. Napadači takve popise koriste za pripremu napada.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "blocked",
+          "title": "Zabranjeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "RestrictAnonymousSAM",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "RestrictAnonymous",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "EveryoneIncludesAnonymous",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "RestrictRemoteSAM",
+              "type": "REG_SZ",
+              "data": "O:BAG:BAD:(A;;RC;;;BA)",
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\LanmanServer\\Parameters",
+              "valueName": "RestrictNullSessAccess",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ],
+          "security": {
+            "LSAAnonymousNameLookup": 0
+          }
+        }
+      ],
+      "levels": {
+        "1": "blocked",
+        "2": "blocked",
+        "3": "blocked"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Zabrani anonimno prevođenje SID/ime, anonimno izlistavanje računa i dijeljenih mapa, anonimni pristup cijevima i dijeljenjima; udaljeni SAM samo za administratore",
+          "satisfiedBy": [
+            "blocked"
+          ],
+          "reference": "2.3.10.1, 2.3.10.2, 2.3.10.3, 2.3.10.5, 2.3.10.9, 2.3.10.10"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Zabrana anonimnog izlistavanja računa i dijeljenih mapa, ograničen anonimni pristup cijevima i dijeljenjima, udaljeni SAM samo za administratore",
+          "satisfiedBy": [
+            "blocked"
+          ]
+        }
+      ],
+      "notes": "Security Options covered: 'Do not allow anonymous enumeration of SAM accounts' (RestrictAnonymousSAM), '... of SAM accounts and shares' (RestrictAnonymous), 'Let Everyone permissions apply to anonymous users: Disabled', 'Restrict anonymous access to Named Pipes and Shares', 'Restrict clients allowed to make remote calls to SAM: Administrators: Remote Access: Allow' (SDDL O:BAG:BAD:(A;;RC;;;BA)) and 'Allow anonymous SID/Name translation: Disabled' (secedit LSAAnonymousNameLookup). Most are already Windows defaults; RestrictAnonymous=1 is the main real change. Only very old (NT4-era) browse or trust scenarios might break. EveryoneIncludesAnonymous and LSAAnonymousNameLookup are CIS-only. The v5.0.1 excerpt cut off the value for 2.3.10.5; 'Disabled' is assumed, as in all earlier versions.",
+      "sources": [
+        "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm",
+        "https://www.cisecurity.org/benchmark/microsoft_windows_desktop"
+      ]
+    },
+    {
+      "id": "network.ntlm",
+      "category": "network",
+      "title": "Samo sigurna NTLMv2 prijava",
+      "description": "Za mrežnu prijavu računalo koristi samo noviju inačicu NTLMv2 i odbija stare LM i NTLM prijave koje se lako razbijaju. Slabi LM sažeci lozinki se ne spremaju.",
+      "impact": "Vrlo stari uređaji, npr. skeneri koji spremaju dokumente u dijeljenu mapu ovog računala, mogu se prestati prijavljivati.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "ntlmv2",
+          "title": "Samo NTLMv2",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "LmCompatibilityLevel",
+              "type": "REG_DWORD",
+              "data": 5,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "NoLMHash",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Control\\Lsa\\MSV1_0",
+              "valueName": "NTLMMinClientSec",
+              "type": "REG_DWORD",
+              "data": 537395200,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Control\\Lsa\\MSV1_0",
+              "valueName": "NTLMMinServerSec",
+              "type": "REG_DWORD",
+              "data": 537395200,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "ntlmv2",
+        "3": "ntlmv2"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "LAN Manager razina provjere: šalji samo NTLMv2, odbij LM i NTLM; Najmanja NTLM SSP zaštita (klijent i poslužitelj): NTLMv2 sesija i 128-bitno šifriranje",
+          "satisfiedBy": [
+            "ntlmv2"
+          ],
+          "reference": "2.3.11.6, 2.3.11.9, 2.3.11.10"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Samo NTLMv2 (odbij LM i NTLM), bez spremanja LM sažetka, NTLMv2 sesija i 128-bitno šifriranje",
+          "satisfiedBy": [
+            "ntlmv2"
+          ]
+        }
+      ],
+      "notes": "LmCompatibilityLevel 5 = 'Send NTLMv2 response only. Refuse LM & NTLM'. In CIS v5.x it is 2.3.11.6; in v3/v4 it was 2.3.11.7. NTLMMinClientSec/NTLMMinServerSec 537395200 (0x20080000) = 'Require NTLMv2 session security, Require 128-bit encryption'. NoLMHash=1 is the OS default. CIS v5.x dropped 'Do not store LAN Manager hash value' (it was 2.3.11.5 in v4.0.0; that slot is now 'Force logoff when logon hours expire'), but MSB 24H2 and DISA STIG WN11-SO-000195 still require it. The NTLM SSP items were not visible in the MSB 24H2 report excerpt I could read. They have been part of every Windows baseline, but re-check them in the SCT 26H2 package. Kerberos is unaffected. The 'refuse' part only matters when this PC acts as the server (shares on the PC, scan-to-folder).",
+      "sources": [
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Enterprise_v4.0.0_L1.audit:beb045b6ac86cf20be3444470a38b8e9",
+        "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm",
+        "https://www.stigviewer.com/stigs/microsoft_windows_11/2026-02-12/finding/V-253461",
+        "https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/network-security-do-not-store-lan-manager-hash-value-on-next-password-change"
+      ]
+    },
+    {
+      "id": "network.hardened-paths",
+      "category": "network",
+      "title": "Zaštićen pristup domenskim skriptama",
+      "description": "Kad je računalo u domeni, provjerava da skripte prijave i pravila grupe stvarno dolaze s domenskog kontrolera. Tako lažni poslužitelj ne može podmetnuti zlonamjerne postavke.",
       "impact": "Korisnici ništa ne primjećuju.",
       "impactLevel": "none",
       "requiresRestart": false,
       "options": [
         {
-          "id": "on",
-          "title": "Uključeno",
+          "id": "signed",
+          "title": "Provjera i potpis",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
-              "key": "SYSTEM\\CurrentControlSet\\Control\\Lsa",
-              "valueName": "RestrictAnonymousSAM",
-              "type": "REG_DWORD",
-              "data": 1
+              "key": "Software\\Policies\\Microsoft\\Windows\\NetworkProvider\\HardenedPaths",
+              "valueName": "\\\\*\\NETLOGON",
+              "type": "REG_SZ",
+              "data": "RequireMutualAuthentication=1, RequireIntegrity=1",
+              "action": "Set"
             },
             {
               "scope": "Machine",
-              "key": "SYSTEM\\CurrentControlSet\\Control\\Lsa",
-              "valueName": "RestrictAnonymous",
+              "key": "Software\\Policies\\Microsoft\\Windows\\NetworkProvider\\HardenedPaths",
+              "valueName": "\\\\*\\SYSVOL",
+              "type": "REG_SZ",
+              "data": "RequireMutualAuthentication=1, RequireIntegrity=1",
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "encrypted",
+          "title": "Potpis i šifriranje",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\NetworkProvider\\HardenedPaths",
+              "valueName": "\\\\*\\NETLOGON",
+              "type": "REG_SZ",
+              "data": "RequireMutualAuthentication=1, RequireIntegrity=1, RequirePrivacy=1",
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\NetworkProvider\\HardenedPaths",
+              "valueName": "\\\\*\\SYSVOL",
+              "type": "REG_SZ",
+              "data": "RequireMutualAuthentication=1, RequireIntegrity=1, RequirePrivacy=1",
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "signed",
+        "2": "encrypted",
+        "3": "encrypted"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Hardened UNC Paths za NETLOGON i SYSVOL: međusobna provjera, integritet i privatnost (šifriranje)",
+          "satisfiedBy": [
+            "encrypted"
+          ],
+          "reference": "18.6.14.1"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Hardened UNC Paths za NETLOGON i SYSVOL: međusobna provjera i integritet",
+          "satisfiedBy": [
+            "signed",
+            "encrypted"
+          ]
+        }
+      ],
+      "notes": "Added control (not in the draft). This is the policy 'Network\\Network Provider\\Hardened UNC Paths' (MS15-011). Value names are the literal UNC patterns \\\\*\\NETLOGON and \\\\*\\SYSVOL. It only has an effect on domain-joined PCs and is harmless in a workgroup. RequirePrivacy=1 needs SMB 3 encryption on the domain controllers (Server 2012+). CIS v5 requires privacy; MSB and DISA STIG require only mutual authentication and integrity. Windows 10+ already applies mutual auth and integrity to these paths by default, so 'potpis' mainly locks it.",
+      "sources": [
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Stand-alone_v5.0.0_L1_BL.audit:8ffec185a2439b5b5ba5250653d40b55",
+        "https://www.stigviewer.com/stigs/microsoft_windows_11/2026-05-19/finding/V-253362",
+        "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm"
+      ]
+    },
+    {
+      "id": "network.tcpip-hardening",
+      "category": "network",
+      "title": "Zaštita od preusmjeravanja prometa",
+      "description": "Isključuje stare mrežne značajke (izvorno usmjeravanje i ICMP preusmjeravanje) kojima napadač može preusmjeriti promet. Računalo ignorira i lažne zahtjeve za oslobađanje NetBIOS imena.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": true,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\Tcpip6\\Parameters",
+              "valueName": "DisableIPSourceRouting",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+              "valueName": "DisableIPSourceRouting",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+              "valueName": "EnableICMPRedirect",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Services\\NetBT\\Parameters",
+              "valueName": "NoNameReleaseOnDemand",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
             }
           ]
         }
@@ -3308,194 +4032,321 @@
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Uključeno za račune i dijeljene mape",
+          "recommendation": "Izvorno usmjeravanje potpuno isključeno (IPv4 i IPv6); ICMP preusmjeravanja isključena; Ignoriraj zahtjeve za oslobađanje NetBIOS imena osim od WINS poslužitelja",
           "satisfiedBy": [
             "on"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "network.ntlm",
-      "category": "network",
-      "title": "Samo NTLMv2 prijava",
-      "description": "Računalo odbija stare, slabe načine prijave (LM i NTLMv1) i ne sprema lozinke u starom LM obliku.",
-      "impact": "Vrlo stari uređaji i sustavi (prije Windowsa Vista) se ne mogu prijaviti.",
-      "impactLevel": "low",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "on",
-          "title": "Uključeno",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "SYSTEM\\CurrentControlSet\\Control\\Lsa",
-              "valueName": "LmCompatibilityLevel",
-              "type": "REG_DWORD",
-              "data": 5
-            },
-            {
-              "scope": "Machine",
-              "key": "SYSTEM\\CurrentControlSet\\Control\\Lsa",
-              "valueName": "NoLMHash",
-              "type": "REG_DWORD",
-              "data": 1
-            }
-          ]
-        }
-      ],
-      "levels": {
-        "1": null,
-        "2": "on",
-        "3": "on"
-      },
-      "benchmarks": [
-        {
-          "standard": "CIS-L1",
-          "recommendation": "Samo NTLMv2, odbij LM i NTLM; ne spremaj LM hash",
-          "satisfiedBy": [
-            "on"
-          ]
+          ],
+          "reference": "18.5.2, 18.5.3, 18.5.5, 18.5.7"
         },
         {
           "standard": "MSB",
-          "recommendation": "Samo NTLMv2, odbij LM i NTLM",
+          "recommendation": "Izvorno usmjeravanje isključeno (IPv4/IPv6), ICMP preusmjeravanja isključena, NoNameReleaseOnDemand uključen",
           "satisfiedBy": [
             "on"
           ]
         }
+      ],
+      "notes": "Added control (not in the draft). These are the MSS (Legacy) settings from MSS-legacy.admx in the Security Compliance Toolkit. DisableIPSourceRouting 2 = highest protection (source routing completely disabled). The values are read at TCP/IP and NetBT start, so a restart is needed. The CIS numbers (18.5.2/3/5/7) are the same in v3.0.0, v4.0.0 and v5.0.1. MSB presence was confirmed via the Intune 24H2 baseline and the MSCT Windows 11 audit; I could not see it in the GPO report excerpt.",
+      "sources": [
+        "https://learn.microsoft.com/en-us/intune/intune-service/protect/security-baseline-settings-mdm-all",
+        "https://www.tenable.com/audits/items/MSCT_Windows_11_v1.0.0.audit:14e8b161dbb5b454850d2dfd73fce635",
+        "https://www.microsoft.com/en-us/download/details.aspx?id=55319"
       ]
     },
     {
-      "id": "network.rdp",
+      "id": "network.remote-desktop",
       "category": "network",
       "title": "Udaljena radna površina (RDP)",
-      "description": "Udaljeno spajanje na računalo. Ako se koristi, mora biti zaštićeno provjerom prije spajanja (NLA) i šifriranjem.",
-      "impact": "Ako se zabrani, nitko se ne može spojiti na računalo preko udaljene radne površine.",
-      "impactLevel": "high",
+      "description": "Određuje smije li se netko spojiti na ovo računalo preko Udaljene radne površine i uz koju zaštitu. Sigurne opcije traže provjeru korisnika prije spajanja i šifriranu vezu.",
+      "impact": "Ovisno o izboru: lozinka se upisuje pri svakom spajanju, lokalni diskovi se ne prenose u sesiju ili je spajanje na ovo računalo potpuno onemogućeno.",
+      "impactLevel": "medium",
       "requiresRestart": false,
       "options": [
         {
-          "id": "secure",
-          "title": "Zaštićeno (NLA)",
+          "id": "basic",
+          "title": "Osnovna zaštita",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
               "valueName": "UserAuthentication",
               "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
-              "valueName": "MinEncryptionLevel",
-              "type": "REG_DWORD",
-              "data": 3
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
-              "valueName": "fPromptForPassword",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
-              "valueName": "fEncryptRPCTraffic",
-              "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
               "valueName": "SecurityLayer",
               "type": "REG_DWORD",
-              "data": 2
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "MinEncryptionLevel",
+              "type": "REG_DWORD",
+              "data": 3,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "fEncryptRPCTraffic",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
             }
           ]
         },
         {
-          "id": "off",
+          "id": "secure",
+          "title": "Sigurno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "UserAuthentication",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "SecurityLayer",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "MinEncryptionLevel",
+              "type": "REG_DWORD",
+              "data": 3,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "fEncryptRPCTraffic",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "fPromptForPassword",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "DisablePasswordSaving",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "fDisableCdm",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "blocked",
           "title": "Zabranjeno",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
               "valueName": "fDenyTSConnections",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "UserAuthentication",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "SecurityLayer",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "MinEncryptionLevel",
+              "type": "REG_DWORD",
+              "data": 3,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "fEncryptRPCTraffic",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "fPromptForPassword",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "DisablePasswordSaving",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
+              "valueName": "fDisableCdm",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
-        "1": "secure",
+        "1": "basic",
         "2": "secure",
-        "3": "off"
+        "3": "blocked"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "NLA, visoko šifriranje, lozinka pri spajanju",
+          "recommendation": "Ne dopuštaj spremanje lozinki u klijentu Udaljene radne površine; Ne dopuštaj preusmjeravanje lokalnih diskova u sesiju; Uvijek traži lozinku pri spajanju",
           "satisfiedBy": [
-            "secure"
-          ]
+            "secure",
+            "blocked"
+          ],
+          "reference": "18.10.57.2.3, 18.10.57.3.3.3, 18.10.57.3.9.1"
+        },
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Obavezna sigurna RPC komunikacija; Sigurnosni sloj: SSL (TLS); Provjera korisnika prije spajanja (NLA); Razina šifriranja veze: visoka",
+          "satisfiedBy": [
+            "basic",
+            "secure",
+            "blocked"
+          ],
+          "reference": "18.10.57.3.9.2, 18.10.57.3.9.3, 18.10.57.3.9.4, 18.10.57.3.9.5"
         },
         {
           "standard": "CIS-L2",
-          "recommendation": "Zabranjeno",
+          "recommendation": "Spajanje preko Udaljene radne površine onemogućeno",
           "satisfiedBy": [
-            "off"
+            "blocked"
+          ],
+          "reference": "18.10.57.3.2.1"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Bez spremanja lozinki, bez preusmjeravanja diskova, uvijek traži lozinku, sigurni RPC, visoka razina šifriranja",
+          "satisfiedBy": [
+            "secure",
+            "blocked"
           ]
         }
+      ],
+      "notes": "No option turns RDP on. 'osnovno' and 'sigurno' leave fDenyTSConnections untouched and only harden RDP if someone enables it. 'zabranjeno' sets fDenyTSConnections=1 (CIS L2) and keeps all hardening values, so the CIS L1 items still read as compliant at level 3. DisablePasswordSaving is a client-side (mstsc) setting. NLA (UserAuthentication) and SecurityLayer are CIS-only; MSB does not set them (they are effectively OS defaults). Windows 11 Home has no RDP host, and the policies are harmless there. 'zabranjeno' affects remote-management tools that rely on inbound RDP, but not TeamViewer, AnyDesk or Quick Assist. Not included: the CIS L2 items for idle-session limit (updated in v5.1.0), COM/LPT/PnP/location/WebAuthn redirection, and single session. Also outside this control: the MS 26H2 baseline enables Administrator protection, which per secondary reports (KB5124010) can block non-admin RDP sign-ins.",
+      "sources": [
+        "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm",
+        "https://www.stigviewer.com/stigs/microsoft_windows_11/2026-05-19/finding/V-253403",
+        "https://www.cisecurity.org/benchmark/microsoft_windows_desktop",
+        "https://windowsforum.com/news/windows-11-26h2-security-baseline-enables-administrator-protection-laps-and-rdp-risks.448173/"
       ]
     },
     {
       "id": "network.remote-assistance",
       "category": "network",
-      "title": "Isključena udaljena pomoć",
-      "description": "Windows udaljena pomoć (Remote Assistance) je isključena. Za podršku koristite alat koji odobri IT.",
-      "impact": "Korisnik ne može pozvati pomoć preko ugrađene Windows udaljene pomoći.",
+      "title": "Isključi Windows Udaljenu pomoć",
+      "description": "Isključuje staru Windows značajku Udaljena pomoć (Remote Assistance), i kad korisnik sam traži pomoć i kad je netko nudi. Prevaranti je koriste za lažnu 'tehničku podršku'.",
+      "impact": "Korisnici ništa ne primjećuju; Brza pomoć (Quick Assist), TeamViewer i AnyDesk i dalje rade.",
       "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
           "id": "off",
           "title": "Isključeno",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
               "valueName": "fAllowToGetHelp",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 0,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows NT\\Terminal Services",
               "valueName": "fAllowUnsolicited",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 0,
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
-        "1": null,
+        "1": "off",
         "2": "off",
         "3": "off"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Isključena traženja i nuđenja pomoći",
+          "recommendation": "'Configure Offer Remote Assistance' isključeno; 'Configure Solicited Remote Assistance' isključeno",
+          "satisfiedBy": [
+            "off"
+          ],
+          "reference": "18.9.37.1, 18.9.37.2"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Zatražena udaljena pomoć isključena",
           "satisfiedBy": [
             "off"
           ]
         }
+      ],
+      "notes": "These are the policies 'System\\Remote Assistance\\Configure Offer Remote Assistance: Disabled' (fAllowUnsolicited=0) and 'Configure Solicited Remote Assistance: Disabled' (fAllowToGetHelp=0). MSB configures only Solicited; Offer is CIS-only and already disabled by default. CIS numbering moved from 18.9.35.x (v3/v4) to 18.9.37.x (v5.0.1). Quick Assist is a separate app and is not controlled by these policies.",
+      "sources": [
+        "https://www.tenable.com/audits/items/MSCT_Windows_11_v1.0.0.audit:9512e96dc59cd9c57517d5c32389ec7d",
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-remoteassistance",
+        "https://www.tenable.com/audits/items/CIS_MS_InTune_for_Windows_10_Level_1_Next_Generation_Windows_Security_v1.1.0.audit:5e5e562527f73084c396bd73669c9012",
+        "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm"
       ]
     },
     {

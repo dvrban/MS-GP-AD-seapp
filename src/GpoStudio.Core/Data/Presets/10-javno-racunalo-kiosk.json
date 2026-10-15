@@ -9,7 +9,7 @@
     "accounts.auto-lock": "min-5",
     "apps.store": "off",
     "apps.wsh": "off",
-    "network.rdp": "off",
+    "network.remote-desktop": "blocked",
     "privacy.location": "off",
     "apps.office-macros": "signed"
   }

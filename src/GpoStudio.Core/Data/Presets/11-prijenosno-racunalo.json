@@ -7,6 +7,6 @@
     "usb.bitlocker-write": "on",
     "accounts.auto-lock": "min-5",
     "network.firewall-log": "on",
-    "network.rdp": "off"
+    "network.remote-desktop": "blocked"
   }
 }
