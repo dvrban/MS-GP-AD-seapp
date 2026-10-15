@@ -41,14 +41,27 @@ function Test-UiTarget($Target) {
     $true
 }
 
-function Get-UiActivePolicySet {
+function Get-UiActivePolicySet([switch]$Domain) {
     # Napredna stranica radi sa svojim Policy Setom, sve ostale sa sigurnosnim postavkama.
     if ($ui.pgNapredno.Visibility -eq 'Visible') {
         $set = Get-UiAdvancedPolicySet
-        return [pscustomobject]@{ Set = $set; Source = "napredni Policy Set '$($set.name)'"; Lookup = @{} }
+        return [pscustomobject]@{ Set = $set; Source = "napredni Policy Set '$($set.name)'"; Lookup = @{}; Skipped = @() }
     }
     $title = Get-SelectionTitle
-    $set = ConvertTo-GpsControlPolicySet -Catalog $Sec.Catalog -Selection $Sec.Selection -Name "GPO Studio: $title" `
+    # Domenski GPO zasad ne prima lozinke ni reviziju: takve kontrole se izostavljaju cijele, da se ne
+    # objavi samo dio (npr. "prednost podkategorija revizije" bez samih podkategorija).
+    $selection = $Sec.Selection
+    $skipped = @()
+    if ($Domain) {
+        $selection = [ordered]@{}
+        foreach ($c in @($Sec.Catalog.controls)) {
+            $optionId = $Sec.Selection[$c.id]
+            $o = if ($optionId) { Get-GpsControlOption $c $optionId } else { $null }
+            if ($o -and ((Get-GpsOptionalProperty $o 'security') -or (Get-GpsOptionalProperty $o 'audit'))) { $skipped += $c.title; $optionId = $null }
+            $selection[$c.id] = $optionId
+        }
+    }
+    $set = ConvertTo-GpsControlPolicySet -Catalog $Sec.Catalog -Selection $selection -Name "GPO Studio: $title" `
         -Description "Sigurnosne postavke iz GPO Studija ($title)." -WarningVariable buildWarnings -WarningAction SilentlyContinue
     foreach ($w in $buildWarnings) { Write-UiLog "$w" -Level Warning }
 
@@ -56,13 +69,13 @@ function Get-UiActivePolicySet {
     $lookup = @{}
     foreach ($s in $set.settings) { $lookup["reg|$($s.scope)\$($s.key)\$($s.valueName)".ToLowerInvariant()] = $s.displayName }
     foreach ($c in @($Sec.Catalog.controls)) {
-        $optionId = $Sec.Selection[$c.id]
+        $optionId = $selection[$c.id]
         if (-not $optionId) { continue }
         $o = Get-GpsControlOption $c $optionId
         foreach ($k in (Get-GpsOptionalProperty $o 'security' | ForEach-Object { $_.PSObject.Properties.Name })) { $lookup["sec|$k"] = "$($c.title): $($o.title)" }
         foreach ($k in (Get-GpsOptionalProperty $o 'audit' | ForEach-Object { $_.PSObject.Properties.Name })) { $lookup["aud|$k"] = "$($c.title): $($o.title)" }
     }
-    [pscustomobject]@{ Set = $set; Source = "sigurnosne postavke ($title)"; Lookup = $lookup }
+    [pscustomobject]@{ Set = $set; Source = "sigurnosne postavke ($title)"; Lookup = $lookup; Skipped = $skipped }
 }
 
 function Test-UiPolicySetEmpty($Set) {
@@ -128,7 +141,7 @@ function Show-UiChanges {
 function Invoke-UiPolicyAction([switch]$Apply) {
     $target = Get-UiTarget
     if (-not (Test-UiTarget $target)) { return }
-    $active = Get-UiActivePolicySet
+    $active = Get-UiActivePolicySet -Domain:($target.Mode -eq 'Domain')
     $set = $active.Set
     if (Test-UiPolicySetEmpty $set) {
         $null = Show-AuxDialog -Message 'Nema postavki za primjenu. Odaberite razinu ili uključite postavke.' -Kind Warning
@@ -152,12 +165,12 @@ function Invoke-UiPolicyAction([switch]$Apply) {
         return
     }
 
-    $skipped = @($set.security.Keys) + @($set.audit.Keys)
+    $skipped = @($active.Skipped) + @(if ($set.security.Count -or $set.audit.Count) { 'lozinke i revizija iz naprednog Policy Seta' })
     $question = "Objaviti $($active.Source) u domenski GPO '$($target.Gpo)'?"
     if ($target.Link) { $question += "`nPovezivanje na: $($target.Link)" }
     if ($target.Group) { $question += "`nPrimjenjuje se samo na grupu: $($target.Group)" }
     $question += "`n`nPostojeći GPO se prije promjene sprema u sigurnosnu kopiju."
-    if ($skipped.Count) { $question += "`n`nPostavke lozinki i revizije ($($skipped.Count)) u domenskom GPO-u još nisu podržane i neće se objaviti." }
+    if ($skipped.Count) { $question += "`n`nLozinke i revizija u domenskom GPO-u još nisu podržane; ne objavljuje se: $($skipped -join ', ')." }
     if ($Apply -and (Show-AuxDialog -Title 'Objava GPO-a' -Kind Warning -Buttons @('OBJAVI', 'ODUSTANI') -Message $question) -ne 'OBJAVI') { return }
 
     $cmd = "Publish-GpsDomainPolicy -PolicySet `$set -GpoName '$($target.Gpo)'" + $(if ($target.Domain) { " -Domain $($target.Domain)" }) +

@@ -7,7 +7,7 @@
 $LevelNames = @{ 0 = 'Bez razine'; 1 = 'Osnovno'; 2 = 'Preporučeno'; 3 = 'Strogo' }
 $LevelBrushNames = @{ 1 = 'Cyan'; 2 = 'Green'; 3 = 'Amber' }
 $LevelTagKinds = @{ 1 = 'Osnovno'; 2 = 'Preporuceno'; 3 = 'Strogo' }
-$StatusTexts = @{ OK = 'U REDU'; Deviates = 'ODSTUPA'; NotSet = 'NIJE POSTAVLJENO' }
+$StatusTexts = @{ OK = 'U REDU'; Deviates = 'ODSTUPA'; NotSet = 'NIJE POSTAVLJENO'; Unknown = 'NIJE PROVJERENO' }
 
 $Sec = @{
     Catalog        = $null
@@ -440,7 +440,8 @@ function Update-Summary {
 function Update-ComparePage {
     $useState = [bool]$ui.rbCmpState.IsChecked -and $Sec.Detected
     $selection = if ($useState) { $Sec.Detected.Selection } else { $Sec.Selection }
-    $results = @(Get-GpsControlCompliance -Catalog $Sec.Catalog -Selection $selection)
+    $details = if ($useState) { @($Sec.Detected.Details) } else { $null }
+    $results = @(Get-GpsControlCompliance -Catalog $Sec.Catalog -Selection $selection -Details $details)
     foreach ($r in $results) {
         if ($Sec.TilesCompare.ContainsKey($r.Id)) { Update-AuxScoreTile $Sec.TilesCompare[$r.Id] $r.Score $r.Satisfied $r.Total }
     }
@@ -459,7 +460,7 @@ function Update-ComparePage {
         }
     }
     $ui.txtCompareNote.Text = $Sec.CompareNote + $(if ($current.Note) { ' ' + $current.Note })
-    $ui.dgCompliance.ItemsSource = @($rows | Sort-Object @{ Expression = { switch ($_.Status) { 'Deviates' { 0 } 'NotSet' { 1 } default { 2 } } } }, Category)
+    $ui.dgCompliance.ItemsSource = @($rows | Sort-Object @{ Expression = { switch ($_.Status) { 'Deviates' { 0 } 'NotSet' { 1 } 'Unknown' { 2 } default { 3 } } } }, Category)
 }
 
 function Update-ActionSource {
@@ -652,7 +653,8 @@ function Export-UiComplianceReport {
     $name = if ($useState) { "GPO Studio - $($Sec.Detected.ComputerName)" } else { 'GPO Studio - odabir' }
     $dlg = [Microsoft.Win32.SaveFileDialog]@{ Filter = 'HTML izvještaj (*.html)|*.html'; FileName = ("{0} {1:yyyy-MM-dd}.html" -f $name, (Get-Date)) }
     if (-not $dlg.ShowDialog($window)) { return }
-    $html = ConvertTo-GpsComplianceHtml -Catalog $Sec.Catalog -Selection $selection -Subject $subject -NotSetText $(if ($useState) { 'Nije postavljeno' } else { 'Ne mijenja se' })
+    $html = ConvertTo-GpsComplianceHtml -Catalog $Sec.Catalog -Selection $selection -Subject $subject -NotSetText $(if ($useState) { 'Nije postavljeno' } else { 'Ne mijenja se' }) `
+        -Details $(if ($useState) { @($Sec.Detected.Details) } else { $null })
     [IO.File]::WriteAllText($dlg.FileName, $html, [Text.UTF8Encoding]::new($true))
     Write-UiLog "Izvještaj spremljen: $($dlg.FileName)" -Level Ok
     try { Start-Process -FilePath $dlg.FileName } catch { }

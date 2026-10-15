@@ -299,6 +299,49 @@ Describe 'Stanje računala: načini usporedbe' {
     }
 }
 
+Describe 'Usporedba: više preporuka i otkriveno stanje' {
+    It 'svaka preporuka istog standarda je zaseban redak' {
+        $c2 = Get-Content -LiteralPath $fixture -Raw -Encoding UTF8 | ConvertFrom-Json
+        # Druga, stroža CIS L1 preporuka za USB: zadovoljava je samo 'blocked'.
+        $c2.controls[2].benchmarks += [pscustomobject]@{ standard = 'CIS-L1'; recommendation = 'Zabranjeno'; satisfiedBy = @('blocked'); reference = '9.9' }
+        $sel = [ordered]@{ 'usb.storage' = 'readonly' }
+        $l1 = Get-GpsControlCompliance -Catalog $c2 -Selection $sel | Where-Object Id -eq 'CIS-L1'
+        $usb = @($l1.Rows | Where-Object ControlId -eq 'usb.storage')
+        $usb.Count | Should -Be 1
+        $usb[0].Status | Should -Be 'Deviates'
+        $l2 = Get-GpsControlCompliance -Catalog $c2 -Selection $sel | Where-Object Id -eq 'CIS-L2'
+        @($l2.Rows | Where-Object ControlId -eq 'usb.storage').Status | Should -Be @('OK', 'Deviates')
+    }
+
+    It 'otkriveno slabije stanje (Other) je odstupanje, a nepoznato nije provjereno' {
+        $details = @(
+            [pscustomobject]@{ ControlId = 'accounts.password-length'; Status = 'Other' }
+            [pscustomobject]@{ ControlId = 'accounts.audit-logon'; Status = 'Unknown' }
+        )
+        $r = Get-GpsControlCompliance -Catalog $catalog -Selection ([ordered]@{}) -Details $details | Where-Object Id -eq 'CIS-L1'
+        ($r.Rows | Where-Object ControlId -eq 'accounts.password-length').Status | Should -Be 'Deviates'
+        ($r.Rows | Where-Object ControlId -eq 'accounts.password-length').Selected | Should -Be 'Drukčije postavljeno'
+        ($r.Rows | Where-Object ControlId -eq 'accounts.audit-logon').Status | Should -Be 'Unknown'
+        ($r.Rows | Where-Object ControlId -eq 'accounts.screen-lock').Status | Should -Be 'NotSet'
+    }
+
+    It 'katalog bez naslova kategorije ili teksta preporuke nije ispravan' {
+        $bad = Get-Content -LiteralPath $fixture -Raw -Encoding UTF8 | ConvertFrom-Json
+        $bad.categories[0].PSObject.Properties.Remove('title')
+        $bad.controls[0].benchmarks[0].PSObject.Properties.Remove('recommendation')
+        $errors = @(Test-GpsControlCatalog -Catalog $bad)
+        $errors -match "Kategorija 'accounts' nema" | Should -Not -BeNullOrEmpty
+        $errors -match "nema 'recommendation'" | Should -Not -BeNullOrEmpty
+    }
+
+    It 'izvoz preseta stvara mapu koja ne postoji' {
+        $preset = New-GpsControlPreset -Catalog $catalog -Name 'Mapa' -Level 2 -Selection (Get-GpsControlSelection -Catalog $catalog -Level 2)
+        $path = Join-Path $TestDrive 'nova\mapa\preset.json'
+        Export-GpsControlPreset -Preset $preset -Path $path | Should -Be $path
+        Test-Path -LiteralPath $path | Should -BeTrue
+    }
+}
+
 Describe 'Izvještaj usporedbe' {
     It 'sadrži sve standarde, retke i escapea tekst' {
         $html = ConvertTo-GpsComplianceHtml -Catalog $catalog -Selection (Get-GpsControlSelection -Catalog $catalog -Level 2) -Subject 'Računalo <PC01>' -Date ([datetime]'2026-10-15 08:30')

@@ -110,12 +110,19 @@ function Test-GpsControlCatalog {
     if ((Get-GpsOptionalProperty $Catalog 'schemaVersion') -ne 1) { $errors.Add('schemaVersion mora biti 1.') }
 
     $standards = @{}
-    foreach ($s in @(Get-GpsOptionalProperty $Catalog 'standards')) { if ($s) { $standards[[string]$s.id] = $s } }
+    foreach ($s in @(Get-GpsOptionalProperty $Catalog 'standards')) {
+        if (-not $s) { continue }
+        $sid = [string](Get-GpsOptionalProperty $s 'id')
+        if (-not $sid -or -not (Get-GpsOptionalProperty $s 'title')) { $errors.Add("Standard '$sid' nema id ili title.") }
+        $standards[$sid] = $s
+    }
     $categories = @{}
     foreach ($c in @(Get-GpsOptionalProperty $Catalog 'categories')) {
         if (-not $c) { continue }
-        if ($categories.ContainsKey([string]$c.id)) { $errors.Add("Kategorija '$($c.id)' je navedena dvaput.") }
-        $categories[[string]$c.id] = $c
+        $cid = [string](Get-GpsOptionalProperty $c 'id')
+        if (-not $cid -or -not (Get-GpsOptionalProperty $c 'title')) { $errors.Add("Kategorija '$cid' nema id ili title.") }
+        if ($categories.ContainsKey($cid)) { $errors.Add("Kategorija '$cid' je navedena dvaput.") }
+        $categories[$cid] = $c
     }
 
     $controlIds = @{}
@@ -152,9 +159,10 @@ function Test-GpsControlCatalog {
             $audit = ConvertTo-GpsDictionary (Get-GpsOptionalProperty $o 'audit')
             if ($settings.Count -eq 0 -and $security.Count -eq 0 -and $audit.Count -eq 0) { $errors.Add("${id}/${oid}: opcija ništa ne postavlja.") }
             foreach ($s in $settings) {
+                if ($null -eq (Get-GpsOptionalProperty $s 'valueName')) { $errors.Add("${id}/${oid}: postavka bez 'valueName'.") }
                 $p = @{ Key = [string](Get-GpsOptionalProperty $s 'key'); ValueName = [string](Get-GpsOptionalProperty $s 'valueName') }
                 # Scope se navodi poljem 'scope'; ključ bez HKLM\/HKCU\ (stanje računala čita ključ doslovno).
-                if ($p.Key -match '^(HKLM|HKCU|HKEY_)') { $errors.Add("${id}/${oid}: ključ '$($p.Key)' ne smije počinjati s košnicom; koristite 'scope'.") }
+                if ($p.Key -match '^(HKLM|HKCU|HKEY_)' -or $p.Key -match '\\$') { $errors.Add("${id}/${oid}: ključ '$($p.Key)' ne smije počinjati s košnicom ni završavati s '\'; koristite 'scope'.") }
                 foreach ($f in 'scope', 'type', 'data', 'action') { $v = Get-GpsOptionalProperty $s $f; if ($null -ne $v) { $p[$f] = $v } }
                 try { $null = New-GpsPolicySetting @p }
                 catch { $errors.Add("${id}/${oid}: $($_.Exception.Message)") }
@@ -179,7 +187,8 @@ function Test-GpsControlCatalog {
         }
         foreach ($b in @(Get-GpsOptionalProperty $c 'benchmarks')) {
             if (-not $b) { continue }
-            if (-not $standards.ContainsKey([string]$b.standard)) { $errors.Add("${id}: nepoznat standard '$($b.standard)'.") }
+            if (-not $standards.ContainsKey([string](Get-GpsOptionalProperty $b 'standard'))) { $errors.Add("${id}: nepoznat standard '$(Get-GpsOptionalProperty $b 'standard')'.") }
+            if (-not (Get-GpsOptionalProperty $b 'recommendation')) { $errors.Add("${id}: preporuka '$(Get-GpsOptionalProperty $b 'standard')' nema 'recommendation'.") }
             $satisfied = @(Get-GpsOptionalProperty $b 'satisfiedBy')
             if ($satisfied.Count -eq 0) { $errors.Add("${id}: preporuka '$($b.standard)' nema satisfiedBy.") }
             foreach ($sid in $satisfied) { if (-not $optionIds.ContainsKey([string]$sid)) { $errors.Add("${id}: satisfiedBy upućuje na nepostojeću opciju '$sid'.") } }
@@ -299,32 +308,45 @@ function Get-GpsControlCompliance {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]$Catalog,
-        [Parameter(Mandatory)][System.Collections.IDictionary]$Selection
+        [Parameter(Mandatory)][System.Collections.IDictionary]$Selection,
+        # Details iz Resolve-GpsControlState: 'Other' (postavljeno slabije od svih opcija) je odstupanje,
+        # 'Unknown' (nije se moglo pročitati) se prikazuje kao neprovjereno.
+        [object[]]$Details
     )
     $categoryTitles = @{}
     foreach ($cat in @($Catalog.categories)) { $categoryTitles[$cat.id] = $cat.title }
+    $detailStatus = @{}
+    foreach ($d in @($Details | Where-Object { $_ })) { $detailStatus[[string]$d.ControlId] = [string]$d.Status }
 
     foreach ($std in @($Catalog.standards)) {
         $family = @([string]$std.id) + @(Get-GpsOptionalProperty $std 'includes' | Where-Object { $_ } | ForEach-Object { [string]$_ })
+        # Svaka preporuka (zapis u benchmarks) je jedan redak: kontrola može pokrivati više stavki istog
+        # standarda s različitim zahtjevima (npr. CIS L1 traži jedno za javne mreže, drugo za NetBIOS čvor).
         $rows = foreach ($c in @($Catalog.controls)) {
             $entries = @(Get-GpsOptionalProperty $c 'benchmarks' | Where-Object { $_ -and [string]$_.standard -in $family })
             if ($entries.Count -eq 0) { continue }
-            # Vlastita preporuka standarda ima prednost pred naslijeđenom (npr. CIS L2 pred L1).
-            $entry = @($entries | Where-Object { [string]$_.standard -eq [string]$std.id }) + $entries | Select-Object -First 1
             $selected = if ($Selection.Contains($c.id)) { $Selection[$c.id] } else { $null }
             $option = if ($selected) { Get-GpsControlOption $c ([string]$selected) } else { $null }
-            $status = if (-not $selected) { 'NotSet' } elseif ([string]$selected -in @($entry.satisfiedBy | ForEach-Object { [string]$_ })) { 'OK' } else { 'Deviates' }
-            [pscustomobject]@{
-                StandardId     = [string]$std.id
-                Source         = [string]$entry.standard
-                ControlId      = $c.id
-                Control        = $c.title
-                Category       = $categoryTitles[$c.category]
-                Recommendation = $entry.recommendation
-                Reference      = Get-GpsOptionalProperty $entry 'reference'
-                Selected       = if ($option) { $option.title } else { $null }
-                SelectedId     = if ($option) { $option.id } else { $null }
-                Status         = $status
+            $detail = $detailStatus[[string]$c.id]
+            foreach ($entry in $entries) {
+                $status = if ($selected) {
+                    if ([string]$selected -in @($entry.satisfiedBy | ForEach-Object { [string]$_ })) { 'OK' } else { 'Deviates' }
+                }
+                elseif ($detail -eq 'Other') { 'Deviates' }
+                elseif ($detail -eq 'Unknown') { 'Unknown' }
+                else { 'NotSet' }
+                [pscustomobject]@{
+                    StandardId     = [string]$std.id
+                    Source         = [string]$entry.standard
+                    ControlId      = $c.id
+                    Control        = $c.title
+                    Category       = $categoryTitles[$c.category]
+                    Recommendation = $entry.recommendation
+                    Reference      = Get-GpsOptionalProperty $entry 'reference'
+                    Selected       = if ($option) { $option.title } elseif ($detail -eq 'Other') { 'Drukčije postavljeno' } elseif ($detail -eq 'Unknown') { 'Nije provjereno' } else { $null }
+                    SelectedId     = if ($option) { $option.id } else { $null }
+                    Status         = $status
+                }
             }
         }
         $rows = @($rows)
@@ -446,13 +468,15 @@ function Export-GpsControlPreset {
         $Path = Join-Path $folder "$fileName.json"
     }
     if ((Test-Path -LiteralPath $Path) -and -not $Force) { throw "Datoteka '$Path' već postoji." }
+    $parent = Split-Path -Parent $Path
+    if ($parent -and -not (Test-Path -LiteralPath $parent)) { $null = New-Item -ItemType Directory -Path $parent -Force -ErrorAction Stop }
     [ordered]@{
         schemaVersion = 1
         name          = $Preset.Name
         description   = $Preset.Description
         level         = $Preset.Level
         changes       = $Preset.Changes
-    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $Path -Encoding UTF8
+    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $Path -Encoding UTF8 -ErrorAction Stop
     $Path
 }
 
@@ -618,12 +642,13 @@ function ConvertTo-GpsComplianceHtml {
         [Parameter(Mandatory)][System.Collections.IDictionary]$Selection,
         [string]$Subject = 'Odabir sigurnosnih postavki',
         [datetime]$Date = (Get-Date),
-        [string]$NotSetText = 'Ne mijenja se'
+        [string]$NotSetText = 'Ne mijenja se',
+        [object[]]$Details
     )
     $enc = { param($t) [System.Net.WebUtility]::HtmlEncode([string]$t) }
-    $statusWord = @{ OK = 'U REDU'; Deviates = 'ODSTUPA'; NotSet = 'NIJE POSTAVLJENO' }
-    $statusClass = @{ OK = 'good'; Deviates = 'bad'; NotSet = 'warn' }
-    $results = @(Get-GpsControlCompliance -Catalog $Catalog -Selection $Selection)
+    $statusWord = @{ OK = 'U REDU'; Deviates = 'ODSTUPA'; NotSet = 'NIJE POSTAVLJENO'; Unknown = 'NIJE PROVJERENO' }
+    $statusClass = @{ OK = 'good'; Deviates = 'bad'; NotSet = 'warn'; Unknown = 'muted' }
+    $results = @(Get-GpsControlCompliance -Catalog $Catalog -Selection $Selection -Details $Details)
     $enabled = @($Selection.Values | Where-Object { $_ }).Count
 
     $sb = [System.Text.StringBuilder]::new()
@@ -643,7 +668,7 @@ function ConvertTo-GpsComplianceHtml {
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 .tile{border:1px solid var(--line);padding:12px 14px;background:#f9f9fb}.tile h3{margin:0;font:700 11px/1.2 "Segoe UI",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .tile .n{font:700 28px/1.2 Bahnschrift,"Segoe UI",sans-serif;margin:4px 0}.bar{height:8px;background:var(--bar)}.bar span{display:block;height:100%}
-.good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}.bg-good{background:var(--good)}.bg-warn{background:var(--warn)}.bg-bad{background:var(--bad)}
+.good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}.muted{color:var(--muted)}.bg-good{background:var(--good)}.bg-warn{background:var(--warn)}.bg-bad{background:var(--bad)}
 table{width:100%;border-collapse:collapse;font-size:13px}td.ref{font-family:Consolas,monospace;font-size:11px;color:#5d6478;max-width:96px}th{background:var(--th);color:#fff;text-align:left;font-weight:600;letter-spacing:.04em;padding:7px 8px;font-size:11px;text-transform:uppercase}
 td{padding:6px 8px;border-bottom:1px solid #e1e3e9;vertical-align:top}tr:nth-child(even) td{background:var(--zebra)}td.s{font-weight:700;white-space:nowrap}
 .note{margin-top:28px;padding:10px 14px;border-left:3px solid #3d6fb6;background:#f3f6fb;color:var(--muted);font-size:12.5px}
