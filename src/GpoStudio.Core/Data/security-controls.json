@@ -4516,7 +4516,7 @@
       "category": "apps",
       "title": "Sigurnosne postavke Edgea",
       "description": "Primjenjuje Microsoftove preporučene sigurnosne postavke za Edge: jaču izolaciju stranica, bolju zaštitu spremljenih lozinki i kolačića te zabranu nastavka na stranice s neispravnim certifikatom.",
-      "impact": "Korisnik ne može zaobići upozorenje o neispravnom certifikatu ni koristiti osnovnu (Basic) prijavu, što može smetati na web sučelju rutera ili pisača; opcija Strogo blokira i uklanja sva proširenja preglednika.",
+      "impact": "Korisnik ne može zaobići upozorenje o neispravnom certifikatu ni koristiti osnovnu (Basic) prijavu, što može smetati na web sučelju rutera ili pisača; opcija Strogo blokira sva proširenja preglednika i isključuje već instalirana.",
       "impactLevel": "high",
       "requiresRestart": false,
       "options": [
@@ -4853,7 +4853,7 @@
           ]
         }
       ],
-      "notes": "ADDED beyond the draft list: every non-SmartScreen setting of the Edge v151 baseline. Five settings are new in v151 compared with v139: BrowserCodeIntegritySetting=2, EnhanceSecurityMode=1 ('Balanced'), NetworkServiceSandboxEnabled=1, ProcessIsolationEnabled=1 and RendererAppContainerEnabled=1. They come from the HardeningKitty dev-repo v151 list and could not be cross-checked on Microsoft Learn. BrowserCodeIntegritySetting and DynamicCodeSettings can break third-party software that injects DLLs into Edge, such as some AV, DLP or accessibility tools. AuthSchemes='ntlm,negotiate' removes Basic and Digest completely, even over HTTPS. That breaks many router, NAS and printer admin pages. ExtensionInstallBlocklist '*' (key ...\\Edge\\ExtensionInstallBlocklist, value name '1') also disables extensions that are already installed, such as password managers. The baseline expects an ExtensionInstallAllowlist for approved extensions; GPO Studio does not offer one yet. Edge ignores some policies on unmanaged devices (not domain-joined, not MDM). None of these settings is known to be in that group, but check edge://policy.",
+      "notes": "ADDED beyond the draft list: every non-SmartScreen setting of the Edge v151 baseline. Five settings are new in v151 compared with v139: BrowserCodeIntegritySetting=2, EnhanceSecurityMode=1 ('Balanced'), NetworkServiceSandboxEnabled=1, ProcessIsolationEnabled=1 and RendererAppContainerEnabled=1. They come from the HardeningKitty dev-repo v151 list and could not be cross-checked on Microsoft Learn. BrowserCodeIntegritySetting and DynamicCodeSettings can break third-party software that injects DLLs into Edge, such as some AV, DLP or accessibility tools. AuthSchemes='ntlm,negotiate' removes Basic and Digest completely, even over HTTPS. That breaks many router, NAS and printer admin pages. NativeMessagingUserLevelHosts=0 can break desktop-app integration of extensions whose helper is installed per user, for example some password managers. ExtensionInstallBlocklist '*' (key ...\\Edge\\ExtensionInstallBlocklist, value name '1') also disables extensions that are already installed, such as password managers. They are disabled, not uninstalled, and come back when the blocklist entry is removed; force-installed extensions (ExtensionInstallForcelist) are exempt. The baseline expects an ExtensionInstallAllowlist for approved extensions; GPO Studio does not offer one yet. The sandbox and process settings (SitePerProcess, RendererAppContainerEnabled, NetworkServiceSandboxEnabled, BrowserCodeIntegritySetting, DynamicCodeSettings, ApplicationBoundEncryptionEnabled, ProcessIsolationEnabled) take effect only after Edge is fully closed and reopened, not on a policy refresh. No Windows restart is needed. Edge ignores some policies on unmanaged devices (not domain-joined, not MDM). None of these settings is known to be in that group, but check edge://policy.",
       "sources": [
         "https://raw.githubusercontent.com/0x6d69636b/windows_hardening/master/lists/finding_list_msft_security_baseline_edge_151_machine.csv",
         "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_msft_security_baseline_edge_139_machine.csv",
@@ -5285,9 +5285,9 @@
       "id": "apps.store",
       "category": "apps",
       "title": "Microsoft Store",
-      "description": "Određuje smiju li korisnici sami instalirati aplikacije iz Microsoft Storea. U obje opcije aplikacije se automatski ažuriraju, a Windows ne nudi nadogradnju sustava preko Storea.",
-      "impact": "Uz opciju Isključen korisnici ne mogu otvoriti Store ni tražiti aplikaciju u Storeu za nepoznate vrste datoteka.",
-      "impactLevel": "medium",
+      "description": "Određuje smiju li korisnici sami instalirati aplikacije iz Microsoft Storea. Automatsko ažuriranje aplikacija ostaje uključeno, a Windows ne nudi nadogradnju sustava preko Storea.",
+      "impact": "Uz opciju Isključen korisnici ne mogu otvoriti Store (samo Windows Enterprise i Education), a ugrađene aplikacije možda se više neće same ažurirati.",
+      "impactLevel": "high",
       "requiresRestart": false,
       "options": [
         {
@@ -5377,7 +5377,7 @@
           "reference": "18.10.66.4, 18.9.20.1.1"
         }
       ],
-      "notes": "Only Windows Enterprise and Education honor RemoveWindowsStore; Pro ignores it. NoUseStoreOpenWith, AutoDownload and DisableOSUpgrade work on all editions. AutoDownload=4 is the CIS 'Disabled' state of 'Turn off Automatic Download and Install of updates', which keeps app auto-update on; 2 would turn it off. Not used: CIS 18.10.66.1 (L2) 'Disable all apps from Microsoft Store' (DisableStoreApps=1 per CIS audit data). Its semantics are counter-intuitive and it needs testing before it is offered. CIS v3.0.0 also had 'Only display the private store' (RequirePrivateStoreOnly); v4.0.0 removed it. MSB does not configure the Store. Not verified: whether inbox and Store app updates continue while RemoveWindowsStore=1. Test this on a pilot machine.",
+      "notes": "Only Windows Enterprise and Education honor RemoveWindowsStore; Pro ignores it. On Pro, option 'off' only adds NoUseStoreOpenWith. NoUseStoreOpenWith, AutoDownload and DisableOSUpgrade work on all editions. AutoDownload=4 is the CIS 'Disabled' state of 'Turn off Automatic Download and Install of updates', which keeps app auto-update on; 2 would turn it off. UPDATE RISK of 'off': the ADMX help text of 'Turn off the Store application' says access to the Store is required for installing app updates. Microsoft Learn ('Configure access to Microsoft Store') also warns that enabling it turns off app updates from Microsoft Store. Both were recalled from memory and not re-fetched in this session; confirm on a pilot machine. So 'off' can stop updates of inbox and Store apps on Enterprise/Education: App Installer/winget, image and video codecs, Notepad, Paint, Snipping Tool. That is a security cost. Use level 3 'off' only where app updates come from another channel (Intune/MDM, or winget running as SYSTEM); otherwise choose 'allowed'. Not used: CIS 18.10.66.1 (L2) 'Disable all apps from Microsoft Store' (DisableStoreApps=1 per CIS audit data). Its semantics are counter-intuitive and it needs testing before it is offered. CIS v3.0.0 also had 'Only display the private store' (RequirePrivateStoreOnly); v4.0.0 removed it. MSB does not configure the Store.",
       "sources": [
         "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://raw.githubusercontent.com/ansible-lockdown/Windows-11-CIS/devel/tasks/section_18/section_18.10/cis_18.10.65.x.yml",
@@ -5406,6 +5406,14 @@
               "type": "REG_DWORD",
               "data": 0,
               "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\WOW6432Node\\Microsoft\\Windows Script Host\\Settings",
+              "valueName": "Enabled",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
             }
           ]
         },
@@ -5421,6 +5429,14 @@
               "type": "REG_DWORD",
               "data": 0,
               "action": "Delete"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\WOW6432Node\\Microsoft\\Windows Script Host\\Settings",
+              "valueName": "Enabled",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Delete"
             }
           ]
         }
@@ -5431,7 +5447,7 @@
         "3": "off"
       },
       "benchmarks": [],
-      "notes": "Not part of CIS Windows 11 or the Microsoft baselines. The key is NOT under Policies, so writing it through Registry.pol tattoos the value: removing the setting from the GPO does not restore it. That is why there is an explicit 'on' option (action Delete) to undo it. Type: common hardening scripts use REG_DWORD 0. WSH's own values in this key (DisplayLogo, UseWINSAFER) are REG_SZ, and REG_SZ \"0\" is also widely reported to work. Test on a pilot machine. A per-user value under HKCU\\Software\\Microsoft\\Windows Script Host\\Settings may override it unless IgnoreUserSettings is set (not verified). Breaks: .vbs/.js/.wsf logon scripts, slmgr.vbs and ospp.vbs (activation), some vendor installers and printer scripts such as prnport.vbs. Does not block VBScript inside Office or mshta. Microsoft is deprecating VBScript (Feature on Demand, planned to be disabled by default), so this setting will break less over time.",
+      "notes": "Not part of CIS Windows 11 or the Microsoft baselines. The key is NOT under Policies, so writing it through Registry.pol tattoos the value: removing the setting from the GPO does not restore it. That is why there is an explicit 'on' option (action Delete) to undo it. 32-bit host: every Windows 11 is 64-bit (x64 or ARM64) and also ships a 32-bit WSH in %SystemRoot%\\SysWOW64 (wscript.exe, cscript.exe). A 32-bit process reading HKLM\\Software\\Microsoft\\Windows Script Host\\Settings is redirected to HKLM\\Software\\WOW6432Node\\..., because this key is not on the WOW64 shared-key list. With only the 64-bit value, double-click (which uses System32\\wscript.exe) is blocked, but a shortcut, HTA or script that calls SysWOW64\\wscript.exe still runs. Both views are therefore set by 'off' and deleted by 'on'. The registry CSE runs as a 64-bit process and writes the literal WOW6432Node path. Confirm on a pilot machine that SysWOW64\\wscript.exe reports 'Windows Script Host access is disabled'. Type: common hardening scripts use REG_DWORD 0. WSH's own values in this key (DisplayLogo, UseWINSAFER) are REG_SZ, and REG_SZ \"0\" is also widely reported to work. Test on a pilot machine. A per-user value under HKCU\\Software\\Microsoft\\Windows Script Host\\Settings may override it unless IgnoreUserSettings is set in HKLM. This was not verified and is not added. Breaks: .vbs/.js/.wsf logon scripts, slmgr.vbs and ospp.vbs (activation), some vendor installers and printer scripts such as prnport.vbs. Does not block VBScript inside Office or mshta. Microsoft is deprecating VBScript (Feature on Demand, planned to be disabled by default), so this setting will break less over time.",
       "sources": [
         "https://raw.githubusercontent.com/Disassembler0/Win10-Initial-Setup-Script/master/Win10.psm1"
       ]
@@ -7287,13 +7303,13 @@
         },
         {
           "standard": "MSB",
-          "recommendation": "23 potkategorije napredne revizije prema Windows 11 baselineu (podskup CIS popisa; Sensitive Privilege Use samo Uspjeh).",
+          "recommendation": "Microsoftova preporuka: 23 vrste sigurnosnih zapisa (uži popis od CIS-ovog). Korištenje posebnih ovlasti bilježi samo uspješne pokušaje.",
           "satisfiedBy": [
             "extended"
           ]
         }
       ],
-      "notes": "Audit values follow CIS v4.0.0 section 17; every item there is Level 1. CIS words some items as 'include Success' or 'include Failure'. So for audit, matchMode 'atLeast' should mean: the actual flags must be a SUPERSET of ours (Success,Failure satisfies Success). Option 'basic' is the logon/lockout/account-management core: 8 subcategories with CIS values. On its own it satisfies neither CIS nor MSB. Option 'extended' covers all 27 CIS L1 subcategories. It is a superset of the MSB Windows 11 25H2/26H2 audit set, so it satisfies MSB too. Where MSB differs from CIS: since 23H2, MSB sets Sensitive Privilege Use to Success only (CIS wants Success,Failure; the 22H2 MSB still had Success,Failure). MSB does not configure Logoff, Application Group Management, Authorization Policy Change or IPsec Driver. Subcategory names are the English auditpol names; CIS calls 'Plug and Play Events' 'Audit PNP Activity'. On localized systems use the GUIDs: auditpol /set /subcategory:{GUID} /success:enable /failure:enable. GUID table: Credential Validation = {0CCE923F-69AE-11D9-BED3-505054503030} (CIS 17.1.1: Success,Failure); Application Group Management = {0CCE9239-69AE-11D9-BED3-505054503030} (17.2.1: Success,Failure); Security Group Management = {0CCE9237-69AE-11D9-BED3-505054503030} (17.2.2: Success); User Account Management = {0CCE9235-69AE-11D9-BED3-505054503030} (17.2.3: Success,Failure); Plug and Play Events = {0CCE9248-69AE-11D9-BED3-505054503030} (17.3.1: Success); Process Creation = {0CCE922B-69AE-11D9-BED3-505054503030} (17.3.2: Success); Account Lockout = {0CCE9217-69AE-11D9-BED3-505054503030} (17.5.1: Failure); Group Membership = {0CCE9249-69AE-11D9-BED3-505054503030} (17.5.2: Success); Logoff = {0CCE9216-69AE-11D9-BED3-505054503030} (17.5.3: Success); Logon = {0CCE9215-69AE-11D9-BED3-505054503030} (17.5.4: Success,Failure); Other Logon/Logoff Events = {0CCE921C-69AE-11D9-BED3-505054503030} (17.5.5: Success,Failure); Special Logon = {0CCE921B-69AE-11D9-BED3-505054503030} (17.5.6: Success); Detailed File Share = {0CCE9244-69AE-11D9-BED3-505054503030} (17.6.1: Failure); File Share = {0CCE9224-69AE-11D9-BED3-505054503030} (17.6.2: Success,Failure); Other Object Access Events = {0CCE9227-69AE-11D9-BED3-505054503030} (17.6.3: Success,Failure); Removable Storage = {0CCE9245-69AE-11D9-BED3-505054503030} (17.6.4: Success,Failure); Audit Policy Change = {0CCE922F-69AE-11D9-BED3-505054503030} (17.7.1: Success); Authentication Policy Change = {0CCE9230-69AE-11D9-BED3-505054503030} (17.7.2: Success); Authorization Policy Change = {0CCE9231-69AE-11D9-BED3-505054503030} (17.7.3: Success); MPSSVC Rule-Level Policy Change = {0CCE9232-69AE-11D9-BED3-505054503030} (17.7.4: Success,Failure); Other Policy Change Events = {0CCE9234-69AE-11D9-BED3-505054503030} (17.7.5: Failure); Sensitive Privilege Use = {0CCE9228-69AE-11D9-BED3-505054503030} (17.8.1: Success,Failure); IPsec Driver = {0CCE9213-69AE-11D9-BED3-505054503030} (17.9.1: Success,Failure); Other System Events = {0CCE9214-69AE-11D9-BED3-505054503030} (17.9.2: Success,Failure); Security State Change = {0CCE9210-69AE-11D9-BED3-505054503030} (17.9.3: Success); Security System Extension = {0CCE9211-69AE-11D9-BED3-505054503030} (17.9.4: Success); System Integrity = {0CCE9212-69AE-11D9-BED3-505054503030} (17.9.5: Success,Failure). SCENoApplyLegacyAuditPolicy (CIS 2.3.2.1, MSB) is a Security Option. It is normally stored in GptTmpl.inf [Registry Values] as MACHINE\\System\\CurrentControlSet\\Control\\Lsa\\SCENoApplyLegacyAuditPolicy=4,1. Writing it through Registry.pol or Set-GPRegistryValue sets the same registry value. Persistence: auditpol only changes the effective policy. At the next refresh it is overwritten by an audit.csv in local GP (%SystemRoot%\\System32\\GroupPolicy\\Machine\\Microsoft\\Windows NT\\Audit\\audit.csv) or by a domain GPO. Domain mode: Set-GPRegistryValue cannot set advanced audit. Instead, write audit.csv into the GPO at Machine\\Microsoft\\Windows NT\\Audit\\audit.csv (Setting Value 1=Success, 2=Failure, 3=both, 0=none). Then register the Advanced Audit Policy client-side extension in gPCMachineExtensionNames.",
+      "notes": "Audit values follow CIS v4.0.0 section 17; every item there is Level 1. CIS words some items as 'include Success' or 'include Failure'. So for audit, matchMode 'atLeast' should mean: the actual flags must be a SUPERSET of ours (Success,Failure satisfies Success). Option 'basic' is the logon/lockout/account-management core: 8 subcategories with CIS values. On its own it satisfies neither CIS nor MSB. Option 'extended' covers all 27 CIS L1 subcategories. It is a superset of the MSB Windows 11 25H2/26H2 audit set, so it satisfies MSB under superset semantics. Where MSB differs from CIS: since 23H2, MSB sets Sensitive Privilege Use to Success only (CIS wants Success,Failure; the 22H2 MSB still had Success,Failure). Tools that compare exactly (Policy Analyzer; HardeningKitty's MSB 25H2 list checks this item with '=') will report 'extended' as a deviation from MSB on that one subcategory, although it logs more. Failure auditing there (event 4673) is noisy on Windows 11, which is the likely reason MSB dropped it. MSB does not configure Logoff, Application Group Management, Authorization Policy Change or IPsec Driver. Subcategory names are the English auditpol names; CIS calls 'Plug and Play Events' 'Audit PNP Activity'. On localized systems (for example Croatian Windows) the names differ, so use the GUIDs: auditpol /set /subcategory:{GUID} /success:enable /failure:enable. GUID table: Credential Validation = {0CCE923F-69AE-11D9-BED3-505054503030} (CIS 17.1.1: Success,Failure); Application Group Management = {0CCE9239-69AE-11D9-BED3-505054503030} (CIS 17.2.1: Success,Failure); Security Group Management = {0CCE9237-69AE-11D9-BED3-505054503030} (CIS 17.2.2: Success); User Account Management = {0CCE9235-69AE-11D9-BED3-505054503030} (CIS 17.2.3: Success,Failure); Plug and Play Events = {0CCE9248-69AE-11D9-BED3-505054503030} (CIS 17.3.1: Success); Process Creation = {0CCE922B-69AE-11D9-BED3-505054503030} (CIS 17.3.2: Success); Account Lockout = {0CCE9217-69AE-11D9-BED3-505054503030} (CIS 17.5.1: Failure); Group Membership = {0CCE9249-69AE-11D9-BED3-505054503030} (CIS 17.5.2: Success); Logoff = {0CCE9216-69AE-11D9-BED3-505054503030} (CIS 17.5.3: Success); Logon = {0CCE9215-69AE-11D9-BED3-505054503030} (CIS 17.5.4: Success,Failure); Other Logon/Logoff Events = {0CCE921C-69AE-11D9-BED3-505054503030} (CIS 17.5.5: Success,Failure); Special Logon = {0CCE921B-69AE-11D9-BED3-505054503030} (CIS 17.5.6: Success); Detailed File Share = {0CCE9244-69AE-11D9-BED3-505054503030} (CIS 17.6.1: Failure); File Share = {0CCE9224-69AE-11D9-BED3-505054503030} (CIS 17.6.2: Success,Failure); Other Object Access Events = {0CCE9227-69AE-11D9-BED3-505054503030} (CIS 17.6.3: Success,Failure); Removable Storage = {0CCE9245-69AE-11D9-BED3-505054503030} (CIS 17.6.4: Success,Failure); Audit Policy Change = {0CCE922F-69AE-11D9-BED3-505054503030} (CIS 17.7.1: Success); Authentication Policy Change = {0CCE9230-69AE-11D9-BED3-505054503030} (CIS 17.7.2: Success); Authorization Policy Change = {0CCE9231-69AE-11D9-BED3-505054503030} (CIS 17.7.3: Success); MPSSVC Rule-Level Policy Change = {0CCE9232-69AE-11D9-BED3-505054503030} (CIS 17.7.4: Success,Failure); Other Policy Change Events = {0CCE9234-69AE-11D9-BED3-505054503030} (CIS 17.7.5: Failure); Sensitive Privilege Use = {0CCE9228-69AE-11D9-BED3-505054503030} (CIS 17.8.1: Success,Failure); IPsec Driver = {0CCE9213-69AE-11D9-BED3-505054503030} (CIS 17.9.1: Success,Failure); Other System Events = {0CCE9214-69AE-11D9-BED3-505054503030} (CIS 17.9.2: Success,Failure); Security State Change = {0CCE9210-69AE-11D9-BED3-505054503030} (CIS 17.9.3: Success); Security System Extension = {0CCE9211-69AE-11D9-BED3-505054503030} (CIS 17.9.4: Success); System Integrity = {0CCE9212-69AE-11D9-BED3-505054503030} (CIS 17.9.5: Success,Failure). SCENoApplyLegacyAuditPolicy (CIS 2.3.2.1, MSB) is a Security Option. It is normally stored in GptTmpl.inf [Registry Values] as MACHINE\\System\\CurrentControlSet\\Control\\Lsa\\SCENoApplyLegacyAuditPolicy=4,1. Writing it through Registry.pol or Set-GPRegistryValue sets the same registry value, but it is outside a Policies key and stays set (tattoos) after removal. Persistence: auditpol only changes the effective policy. At the next refresh it is overwritten by an audit.csv in local GP (%SystemRoot%\\System32\\GroupPolicy\\Machine\\Microsoft\\Windows NT\\Audit\\audit.csv) or by a domain GPO. Domain mode: Set-GPRegistryValue cannot set advanced audit. Instead, write audit.csv into the GPO at Machine\\Microsoft\\Windows NT\\Audit\\audit.csv (Setting Value 1=Success, 2=Failure, 3=both, 0=none). Then register the Advanced Audit Policy client-side extension in gPCMachineExtensionNames.",
       "sources": [
         "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
@@ -7494,13 +7510,13 @@
       "category": "audit",
       "title": "Veličina zapisnika događaja",
       "description": "Povećava zapisnike Aplikacija, Sigurnost, Postavljanje i Sustav da se stari događaji ne brišu prebrzo. Tako ostaje dovoljno povijesti za istragu incidenta.",
-      "impact": "Korisnici ništa ne primjećuju; zapisnici zauzimaju do oko 290 MB (Preporučeno) ili 1,2 GB (Veliko) diska.",
+      "impact": "Korisnici ništa ne primjećuju; zapisnici zauzimaju do oko 290 MB (Standardno) ili 1,2 GB (Veliko) diska.",
       "impactLevel": "none",
       "requiresRestart": false,
       "options": [
         {
           "id": "standard",
-          "title": "Preporučeno",
+          "title": "Standardno",
           "matchMode": "atLeast",
           "settings": [
             {
@@ -7649,7 +7665,7 @@
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Zapisnik Aplikacija: najmanje 32 768 KB.; Zapisnik Sigurnost: najmanje 196 608 KB.; Zapisnik Postavljanje: najmanje 32 768 KB.; Zapisnik Sustav: najmanje 32 768 KB.; Kad se zapisnik napuni, najstariji događaji se prepisuju (postavka 'Disabled') za sva četiri zapisnika.",
+          "recommendation": "Zapisnik Aplikacija: najmanje 32 768 KB.; Zapisnik Sigurnost: najmanje 196 608 KB.; Zapisnik Postavljanje: najmanje 32 768 KB.; Zapisnik Sustav: najmanje 32 768 KB.; Kad se zapisnik napuni, najstariji događaji se prepisuju (postavka Onemogućeno) za sva četiri zapisnika.",
           "satisfiedBy": [
             "standard",
             "large"
@@ -7665,7 +7681,7 @@
           ]
         }
       ],
-      "notes": "MaxSize is a REG_DWORD in KB. Use multiples of 64 KB; the policy accepts up to 4194240 KB. Retention is a REG_SZ. CIS expects \"0\", which means the policy 'Control Event Log behavior when the log file reaches its maximum size' is Disabled: the oldest events are overwritten, as Windows does by default. The option matchMode atLeast is meant for the MaxSize DWORDs; compare Retention as an exact string. MSB does not configure the Setup log or Retention. Left out: CIS 18.5.13 (L1) MSS WarningLevel <= 90 for the Security log (System\\CurrentControlSet\\Services\\Eventlog\\Security\\WarningLevel), because it needs atMost semantics. Add it as its own control if wanted.",
+      "notes": "MaxSize is a REG_DWORD in KB. The current EventLog.admx accepts 1028 to 2147483647 KB; its help text says 1 MB to 2 TB. 4194240 KB was the old Windows Server 2003 limit and is not the policy maximum. Keep values in multiples of 64 KB, because Event Viewer rounds to 64 KB. In practice, keep each log at or below about 4 GB. Retention is a REG_SZ. CIS expects \"0\", which means the policy 'Control Event Log behavior when the log file reaches its maximum size' is Disabled: the oldest events are overwritten, as Windows does by default. The option matchMode atLeast is meant for the MaxSize DWORDs; compare Retention as an exact string. MSB does not configure the Setup log or Retention. Left out: CIS 18.5.13 (L1) MSS WarningLevel <= 90 for the Security log (System\\CurrentControlSet\\Services\\Eventlog\\Security\\WarningLevel), because it needs atMost semantics. Add it as its own control if wanted. Option title changed from 'Preporučeno' to 'Standardno', because level 1 (Osnovno) selects it and the old title clashed with the level name 'Preporučeno'.",
       "sources": [
         "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://raw.githubusercontent.com/scipag/HardeningKitty/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
