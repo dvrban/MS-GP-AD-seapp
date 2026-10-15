@@ -3,6 +3,12 @@ name: tests
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      snimke_u_biljeske:
+        description: 'Snimke sučelja ispisati i kao bilješke (kad artefakti nisu dostupni)'
+        type: boolean
+        default: false
 
 jobs:
   pester:
@@ -44,3 +50,21 @@ jobs:
           name: gui-screenshots
           path: gui-screenshots
           if-no-files-found: ignore
+      - name: Snimke kao bilješke (priprema)
+        if: always() && matrix.shell == 'powershell' && inputs.snimke_u_biljeske
+        run: ./.github/scripts/Export-ScreenshotNotes.ps1 -Folder gui-screenshots -Prepare
+      - name: Snimke kao bilješke (1/5)
+        if: always() && matrix.shell == 'powershell' && inputs.snimke_u_biljeske
+        run: ./.github/scripts/Export-ScreenshotNotes.ps1 -Folder gui-screenshots -Part 0
+      - name: Snimke kao bilješke (2/5)
+        if: always() && matrix.shell == 'powershell' && inputs.snimke_u_biljeske
+        run: ./.github/scripts/Export-ScreenshotNotes.ps1 -Folder gui-screenshots -Part 1
+      - name: Snimke kao bilješke (3/5)
+        if: always() && matrix.shell == 'powershell' && inputs.snimke_u_biljeske
+        run: ./.github/scripts/Export-ScreenshotNotes.ps1 -Folder gui-screenshots -Part 2
+      - name: Snimke kao bilješke (4/5)
+        if: always() && matrix.shell == 'powershell' && inputs.snimke_u_biljeske
+        run: ./.github/scripts/Export-ScreenshotNotes.ps1 -Folder gui-screenshots -Part 3
+      - name: Snimke kao bilješke (5/5)
+        if: always() && matrix.shell == 'powershell' && inputs.snimke_u_biljeske
+        run: ./.github/scripts/Export-ScreenshotNotes.ps1 -Folder gui-screenshots -Part 4
