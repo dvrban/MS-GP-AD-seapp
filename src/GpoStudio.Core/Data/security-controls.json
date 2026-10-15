@@ -1671,7 +1671,8 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml",
         "https://github.com/dgulle/Security-Baselines"
-      ]
+      ],
+      "requirement": "BitLocker: Windows Pro, Enterprise ili Education."
     },
     {
       "id": "defender.realtime",
@@ -1791,7 +1792,8 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml",
         "https://www.cisecurity.org/insights/blog/cis-benchmarks-september-2026-update"
-      ]
+      ],
+      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
     },
     {
       "id": "defender.removable-scan",
@@ -1846,7 +1848,8 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml"
-      ]
+      ],
+      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
     },
     {
       "id": "defender.pua",
@@ -1916,7 +1919,8 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml"
-      ]
+      ],
+      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
     },
     {
       "id": "defender.cloud",
@@ -2077,7 +2081,8 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_22h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml",
         "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/windows-11-version-26h2-security-baseline/4560382"
-      ]
+      ],
+      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
     },
     {
       "id": "defender.network-protection",
@@ -2163,7 +2168,8 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml"
-      ]
+      ],
+      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
     },
     {
       "id": "defender.asr",
@@ -2622,7 +2628,8 @@
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml",
         "https://github.com/dgulle/Security-Baselines",
         "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/windows-11-version-25h2-security-baseline/4456231"
-      ]
+      ],
+      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
     },
     {
       "id": "defender.smartscreen",
@@ -2788,7 +2795,8 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml"
-      ]
+      ],
+      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
     },
     {
       "id": "defender.hide-exclusions",
@@ -2852,7 +2860,8 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
         "https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/cis-policy-queries.yml",
         "https://github.com/dgulle/Security-Baselines"
-      ]
+      ],
+      "requirement": "Microsoft Defender mora biti glavni antivirus (bez drugog antivirusnog programa)."
     },
     {
       "id": "network.firewall",
@@ -3720,7 +3729,8 @@
         "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Stand-alone_v5.0.0_L1.audit:98f4f8f136a5370e8ca9322c40e9f6c1",
         "https://policypicker.app/policy/windows/network/dns-client/configure-multicast-dns-mdns-protocol-a84770a8a85d",
         "https://techcommunity.microsoft.com/blog/networkingblog/aligning-on-mdns-ramping-down-netbios-name-resolution-and-llmnr/3290816"
-      ]
+      ],
+      "requirement": "Windows 11 24H2 ili noviji."
     },
     {
       "id": "network.anonymous",
@@ -3973,7 +3983,8 @@
         "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Stand-alone_v5.0.0_L1_BL.audit:8ffec185a2439b5b5ba5250653d40b55",
         "https://www.stigviewer.com/stigs/microsoft_windows_11/2026-05-19/finding/V-253362",
         "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm"
-      ]
+      ],
+      "requirement": "Djeluje samo na računalima u domeni."
     },
     {
       "id": "network.tcpip-hardening",
@@ -4560,7 +4571,8 @@
         "2": null,
         "3": null
       },
-      "benchmarks": []
+      "benchmarks": [],
+      "requirement": "Windows Enterprise ili Education; na Pro izdanju nema učinka."
     },
     {
       "id": "apps.wsh",
@@ -4654,7 +4666,8 @@
         "https://learn.microsoft.com/en-us/windows/privacy/configure-windows-diagnostic-data-in-your-organization",
         "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-15239.html",
         "https://www.tenable.com/audits/items/CIS_MS_InTune_for_Windows_11_Level_1_v1.0.0.audit:0f885ad280d7f9231f94f169d23a83f2"
-      ]
+      ],
+      "requirement": "Opcija 'Isključeno' djeluje samo na Enterprise i Education; Pro tada šalje samo obavezne podatke."
     },
     {
       "id": "privacy.feedback-logs",
@@ -4876,7 +4889,8 @@
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_user.csv",
         "https://github.com/dgulle/Security-Baselines/tree/master/Windows%20Baseline%2026H2",
         "https://technet.microsoft.com/itpro/windows/configure/windows-spotlight"
-      ]
+      ],
+      "requirement": "Puni učinak na Windows 11 Enterprise i Education; Pro poštuje samo prijedloge trećih strana."
     },
     {
       "id": "privacy.spotlight",
@@ -4970,7 +4984,8 @@
       "sources": [
         "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_user.csv",
         "https://technet.microsoft.com/itpro/windows/configure/windows-spotlight"
-      ]
+      ],
+      "requirement": "Puni učinak na Windows 11 Enterprise i Education."
     },
     {
       "id": "privacy.lock-screen",
@@ -5418,7 +5433,8 @@
         "https://gpedit.tplant.com.au/en-us/policy/WindowsCopilot/DisableAIDataAnalysis/",
         "https://www.askwoody.com/?p=2712964",
         "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Stand-alone_v5.0.0_L1.audit:7b8117ca6f5a872b478046e044c8ad79"
-      ]
+      ],
+      "requirement": "Copilot+ računala s Windows 11 24H2 ili novijim; na ostalima nema učinka."
     },
     {
       "id": "privacy.online-speech",
@@ -5790,7 +5806,8 @@
         "https://www.neowin.net/news/windows-11-kb5127648-fixes-group-policy-fails-from-buggy-admin-protection/",
         "https://petri.com/windows-11-administrator-protection-design-flaws/",
         "https://cloudinfra.net/configure-uac-user-account-control-using-intune"
-      ]
+      ],
+      "requirement": "Windows 11 24H2 ili noviji, samo klijentska računala."
     },
     {
       "id": "system.uac-remote-local",

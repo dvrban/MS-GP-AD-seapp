@@ -766,7 +766,7 @@
         <Setter Property="VerticalGridLinesBrush" Value="{StaticResource Line}"/>
         <Setter Property="GridLinesVisibility" Value="Horizontal"/>
         <Setter Property="HeadersVisibility" Value="Column"/>
-        <Setter Property="RowHeight" Value="28"/>
+        <Setter Property="MinRowHeight" Value="28"/>
         <Setter Property="FontFamily" Value="{StaticResource FontTekst}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="AutoGenerateColumns" Value="False"/>
@@ -785,6 +785,11 @@
         <Setter Property="FontSize" Value="10"/>
         <Setter Property="Height" Value="30"/>
         <Setter Property="Padding" Value="8,0"/>
+    </Style>
+    <!-- Ćelija s prelamanjem dugog teksta (ElementStyle stupca) -->
+    <Style x:Key="CelijaPrelom" TargetType="TextBlock">
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="Margin" Value="0,5"/>
     </Style>
     <Style TargetType="DataGridCell">
         <Setter Property="BorderThickness" Value="0"/>

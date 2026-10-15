@@ -269,11 +269,11 @@
                     <DataGrid x:Name="dgCompliance" Margin="22,4,22,0">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="PODRUČJE" Binding="{Binding Category}" Width="150"/>
-                            <DataGridTextColumn Header="POSTAVKA" Binding="{Binding Control}" Width="2*"/>
+                            <DataGridTextColumn Header="POSTAVKA" Binding="{Binding Control}" ElementStyle="{StaticResource CelijaPrelom}" Width="2*"/>
                             <DataGridTextColumn Header="STANDARD" Binding="{Binding Source}" Width="90"/>
-                            <DataGridTextColumn Header="OZNAKA" Binding="{Binding Reference}" Width="110"/>
-                            <DataGridTextColumn Header="PREPORUKA" Binding="{Binding Recommendation}" Width="2*"/>
-                            <DataGridTextColumn Header="ODABIR / STANJE" Binding="{Binding SelectedText}" Width="*"/>
+                            <DataGridTextColumn Header="OZNAKA" Binding="{Binding Reference}" ElementStyle="{StaticResource CelijaPrelom}" Width="110"/>
+                            <DataGridTextColumn Header="PREPORUKA" Binding="{Binding Recommendation}" ElementStyle="{StaticResource CelijaPrelom}" Width="2*"/>
+                            <DataGridTextColumn Header="ODABIR / STANJE" Binding="{Binding SelectedText}" ElementStyle="{StaticResource CelijaPrelom}" Width="*"/>
                             <DataGridTemplateColumn Header="STATUS" Width="130">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -326,10 +326,10 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="POSTAVKA" Binding="{Binding Setting}" Width="2*"/>
-                            <DataGridTextColumn Header="TRENUTNO" Binding="{Binding Current}" Width="*"/>
-                            <DataGridTextColumn Header="NOVO" Binding="{Binding Desired}" Width="*"/>
-                            <DataGridTextColumn Header="TEHNIČKI ZAPIS" Binding="{Binding Technical}" Width="2*"/>
+                            <DataGridTextColumn Header="POSTAVKA" Binding="{Binding Setting}" ElementStyle="{StaticResource CelijaPrelom}" Width="2*"/>
+                            <DataGridTextColumn Header="TRENUTNO" Binding="{Binding Current}" ElementStyle="{StaticResource CelijaPrelom}" Width="*"/>
+                            <DataGridTextColumn Header="NOVO" Binding="{Binding Desired}" ElementStyle="{StaticResource CelijaPrelom}" Width="*"/>
+                            <DataGridTextColumn Header="TEHNIČKI ZAPIS" Binding="{Binding Technical}" ElementStyle="{StaticResource CelijaPrelom}" Width="2*"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </DockPanel>
