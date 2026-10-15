@@ -69,6 +69,10 @@ Describe 'GUI (WPF)' -Skip:(-not $canRun) {
         $Sec.Level | Should -Be $kiosk.Level
         foreach ($k in $kiosk.Changes.Keys) { $Sec.Selection[$k] | Should -Be $kiosk.Changes[$k] }
         Get-SelectionTitle | Should -Match ([regex]::Escape($kiosk.Name))
+        Get-SelectionTitle | Should -Not -Match 'prilagođeno'
+        Test-HasManualChanges | Should -BeFalse
+        $first = @($kiosk.Changes.Keys)[0]
+        $Sec.Rows[$first].Manual.Visibility | Should -Be 'Visible'
         Update-Summary
         $null = Save-PageShot 'Pregled' '01-pregled-preset.png'
     }

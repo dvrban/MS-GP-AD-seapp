@@ -16,6 +16,7 @@ $Sec = @{
     Level          = 2
     Selection      = [ordered]@{}
     Preset         = $null       # naziv učitanog preseta ili izvora odabira (npr. stanje računala)
+    Baseline       = [ordered]@{} # odabir kakav je bio nakon zadnje razine, preseta ili preuzetog stanja
     Rows           = @{}         # id kontrole -> elementi retka
     CategoryItems  = @{}         # id kategorije -> stavka popisa
     Updating       = $false
@@ -56,16 +57,19 @@ function Get-SelectionStats {
         if ($value) { $enabled++ }
         if ([string]$value -ne [string](Get-GpsControlLevelOption $c $Sec.Level)) { $changed++ }
     }
-    [pscustomobject]@{ Enabled = $enabled; Changed = $changed; Total = @($Sec.Catalog.controls).Count }
+    $edited = 0
+    foreach ($c in @($Sec.Catalog.controls)) { if ([string]$Sec.Selection[$c.id] -ne [string]$Sec.Baseline[$c.id]) { $edited++ } }
+    # Changed: razlika prema razini (oznake u retcima), Edited: ručne izmjene nakon razine/preseta.
+    [pscustomobject]@{ Enabled = $enabled; Changed = $changed; Edited = $edited; Total = @($Sec.Catalog.controls).Count }
 }
 
 function Get-SelectionTitle {
     $stats = Get-SelectionStats
     if ($Sec.Preset) {
-        if ($stats.Changed -gt 0 -and $Sec.Preset -notlike 'Stanje*') { return "$($Sec.Preset) (prilagođeno)" }
+        if ($stats.Edited -gt 0) { return "$($Sec.Preset) (prilagođeno)" }
         return $Sec.Preset
     }
-    if ($stats.Changed -gt 0) { return "Prilagođeno (temelj: $($LevelNames[$Sec.Level]))" }
+    if ($stats.Edited -gt 0) { return "Prilagođeno (temelj: $($LevelNames[$Sec.Level]))" }
     $LevelNames[$Sec.Level]
 }
 
@@ -78,6 +82,7 @@ function Initialize-SecurityUi {
     foreach ($c in @($Sec.Catalog.controls)) { $Sec.Index[$c.id] = $c }
     foreach ($cat in @($Sec.Catalog.categories)) { $Sec.Categories[$cat.id] = $cat }
     $Sec.Selection = Get-GpsControlSelection -Catalog $Sec.Catalog -Level $Sec.Level
+    Set-SelectionBaseline
 
     foreach ($level in 1..3) {
         $count = @((Get-GpsControlSelection -Catalog $Sec.Catalog -Level $level).Values | Where-Object { $_ }).Count
@@ -200,7 +205,7 @@ function New-ControlRow($Control) {
     }
     if (Get-GpsOptionalProperty $Control 'requiresRestart') { $null = $tags.Children.Add((New-AuxTag 'RESTART' 'Restart' 'Promjena djeluje nakon ponovnog pokretanja računala.')) }
     if (Test-ControlUsesLocalOnly $Control) { $null = $tags.Children.Add((New-AuxTag 'SAMO LOKALNO' 'Neutral' 'Lozinke i revizija primjenjuju se na lokalni GP; u domenskom GPO-u još nisu podržane.')) }
-    $manual = New-AuxTag 'RUČNO PROMIJENJENO' 'Info'
+    $manual = New-AuxTag 'IZVAN RAZINE' 'Info'
     $manual.Visibility = 'Collapsed'
     $null = $tags.Children.Add($manual)
     $null = $left.Children.Add($tags)
@@ -265,6 +270,7 @@ function Update-ControlRow([string]$ControlId) {
         $row.Hint.Text = "Razina $($LevelNames[$Sec.Level]) predlaže: $(Get-ControlLevelOptionTitle $control $Sec.Level)."
         $row.Hint.Visibility = 'Visible'
         $row.Manual.Visibility = 'Visible'
+        $row.Manual.ToolTip = "Odabir se razlikuje od razine $($LevelNames[$Sec.Level]) (vaša promjena ili preset)."
     }
     else {
         $row.Hint.Visibility = 'Collapsed'
@@ -295,7 +301,7 @@ function Update-ControlFilter {
         $ui.txtCategoryDesc.Text = "Postavki koje sadrže '$($ui.txtControlSearch.Text.Trim())': $visible."
     }
     elseif ($onlySelected -or $onlyChanged) {
-        $ui.txtCategoryTitle.Text = if ($onlySelected) { 'Uključene postavke' } else { 'Ručno promijenjene postavke' }
+        $ui.txtCategoryTitle.Text = if ($onlySelected) { 'Uključene postavke' } else { 'Postavke izvan odabrane razine' }
         $ui.txtCategoryDesc.Text = "Iz svih područja: $visible."
     }
     elseif ($Sec.Category) {
@@ -321,17 +327,23 @@ $SummaryTimer.Interval = [TimeSpan]::FromMilliseconds(120)
 $SummaryTimer.Add_Tick({ $SummaryTimer.Stop(); Update-Summary })
 function Request-SummaryUpdate { $SummaryTimer.Stop(); $SummaryTimer.Start() }
 
-function Test-HasManualChanges { (Get-SelectionStats).Changed -gt 0 }
+function Test-HasManualChanges { (Get-SelectionStats).Edited -gt 0 }
+
+function Set-SelectionBaseline {
+    $Sec.Baseline = [ordered]@{}
+    foreach ($k in @($Sec.Selection.Keys)) { $Sec.Baseline[$k] = $Sec.Selection[$k] }
+}
 
 function Set-SecurityLevel([int]$Level, [switch]$Force) {
     if (-not $Force -and (Test-HasManualChanges)) {
         $answer = Show-AuxDialog -Title 'Promjena razine' -Kind Warning -Buttons @('PROMIJENI RAZINU', 'ODUSTANI') `
-            -Message "Imate ručne promjene u odnosu na razinu $($LevelNames[$Sec.Level]). Odabir razine $($LevelNames[$Level]) ih poništava. Nastaviti?"
+            -Message "Imate ručne promjene u trenutnom odabiru. Odabir razine $($LevelNames[$Level]) ih poništava. Nastaviti?"
         if ($answer -ne 'PROMIJENI RAZINU') { Sync-LevelRadio; return }
     }
     $Sec.Level = $Level
     $Sec.Preset = $null
     $Sec.Selection = Get-GpsControlSelection -Catalog $Sec.Catalog -Level $Level
+    Set-SelectionBaseline
     Sync-LevelRadio
     Update-AllControlRows
     Update-Summary
@@ -351,6 +363,7 @@ function Use-ControlPreset($Preset) {
     $Sec.Selection = Resolve-GpsControlPreset -Catalog $Sec.Catalog -Preset $Preset -WarningVariable presetWarnings -WarningAction SilentlyContinue
     foreach ($w in $presetWarnings) { Write-UiLog "Preset '$($Preset.Name)': $w" -Level Warning }
     $Sec.Preset = "Preset: $($Preset.Name)"
+    Set-SelectionBaseline
     Sync-LevelRadio
     Update-AllControlRows
     Update-Summary
@@ -366,7 +379,7 @@ function Update-Summary {
     $title = Get-SelectionTitle
     $ui.txtSelectionTitle.Text = $title
     $areas = @($Sec.Catalog.categories | Where-Object { $cid = $_.id; @($Sec.Catalog.controls | Where-Object { $_.category -eq $cid -and $Sec.Selection[$_.id] }).Count -gt 0 }).Count
-    $ui.txtSelectionInfo.Text = "$($stats.Enabled) od $($stats.Total) postavki u $areas područja" + $(if ($stats.Changed) { "  ·  ručnih promjena: $($stats.Changed)" })
+    $ui.txtSelectionInfo.Text = "$($stats.Enabled) od $($stats.Total) postavki u $areas područja" + $(if ($stats.Edited) { "  ·  ručnih promjena: $($stats.Edited)" })
     $ui.txtSummaryNote.Text = "$($stats.Enabled) POSTAVKI"
 
     $ui.pnlSummary.Children.Clear()
@@ -410,7 +423,7 @@ function Update-Summary {
         if ($Sec.TilesOverview.ContainsKey($r.Id)) { Update-AuxScoreTile $Sec.TilesOverview[$r.Id] $r.Score $r.Satisfied $r.Total }
     }
 
-    $ui.chipLevel.Content = 'RAZINA: ' + $LevelNames[$Sec.Level].ToUpperInvariant() + $(if ($stats.Changed) { ' + PROMJENE' })
+    $ui.chipLevel.Content = 'RAZINA: ' + $LevelNames[$Sec.Level].ToUpperInvariant() + $(if ($stats.Changed) { ' + IZMJENE' })
     $ui.stSelection.Text = "$($stats.Enabled) POSTAVKI  ·  $($title.ToUpperInvariant())"
     Update-ActionSource
     if ($ui.pgUsporedba.Visibility -eq 'Visible') { Update-ComparePage }
@@ -476,7 +489,6 @@ function Update-PresetList {
         $card = [System.Windows.Controls.HeaderedContentControl]::new()
         $card.Style = Get-AuxBrush 'Kartica'
         $card.Header = if ($p.BuiltIn) { 'UGRAĐENI PRESET' } else { 'VLASTITI PRESET' }
-        $card.Width = 380
         $card.Margin = '0,0,10,10'
         $stack = [System.Windows.Controls.StackPanel]::new()
         $name = New-AuxText $p.Name 'Naslov'
@@ -523,6 +535,7 @@ function Save-UiPreset {
         $path = Export-GpsControlPreset -Preset $preset -Force
     }
     $Sec.Preset = "Preset: $($preset.Name)"
+    Set-SelectionBaseline
     Write-UiLog "Preset spremljen: $path" -Level Ok
     Update-PresetList
     Update-Summary
@@ -604,6 +617,7 @@ function Use-DetectedState {
                 -Message "Odabir će se postaviti na stanje računala $($Sec.Detected.ComputerName). Postavke koje na računalu nisu postavljene bit će 'Ne mijenjaj'. Nastaviti?") -ne 'PREUZMI') { return }
     foreach ($k in @($Sec.Detected.Selection.Keys)) { $Sec.Selection[$k] = $Sec.Detected.Selection[$k] }
     $Sec.Preset = "Stanje računala $($Sec.Detected.ComputerName)"
+    Set-SelectionBaseline
     Update-AllControlRows
     Update-Summary
     Write-UiLog "Odabir preuzet sa stanja računala $($Sec.Detected.ComputerName)." -Level Ok

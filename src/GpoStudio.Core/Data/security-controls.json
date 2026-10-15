@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": "2026.10-nacrt",
+  "catalogVersion": "2026.10",
   "standards": [
     {
       "id": "CIS-L1",
@@ -99,70 +99,84 @@
       "id": "accounts.password-length",
       "category": "accounts",
       "title": "Minimalna duljina lozinke",
-      "description": "Duže lozinke se puno teže pogađaju i probijaju. Vrijedi za lokalne račune na računalu.",
-      "impact": "Korisnici pri sljedećoj promjeni lozinke moraju odabrati dužu lozinku.",
+      "description": "Određuje najmanji broj znakova koji lozinka mora imati. Dužu lozinku puno je teže pogoditi ili probiti.",
+      "impact": "Kod sljedeće promjene lozinke korisnici moraju odabrati dužu lozinku; postojeće lozinke i PIN i dalje rade.",
       "impactLevel": "medium",
       "requiresRestart": false,
       "options": [
         {
-          "id": "8",
+          "id": "len-8",
           "title": "8 znakova",
           "matchMode": "atLeast",
+          "settings": [],
           "security": {
             "MinimumPasswordLength": 8
           }
         },
         {
-          "id": "12",
+          "id": "len-12",
           "title": "12 znakova",
           "matchMode": "atLeast",
+          "settings": [],
           "security": {
             "MinimumPasswordLength": 12
           }
         },
         {
-          "id": "14",
+          "id": "len-14",
           "title": "14 znakova",
           "matchMode": "atLeast",
+          "settings": [],
           "security": {
             "MinimumPasswordLength": 14
           }
         }
       ],
       "levels": {
-        "1": "8",
-        "2": "14",
-        "3": "14"
+        "1": "len-8",
+        "2": "len-14",
+        "3": "len-14"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
           "recommendation": "14 ili više znakova",
           "satisfiedBy": [
-            "14"
-          ]
+            "len-14"
+          ],
+          "reference": "1.1.4"
         },
         {
           "standard": "MSB",
-          "recommendation": "14 znakova",
+          "recommendation": "14 ili više znakova",
           "satisfiedBy": [
-            "14"
+            "len-14"
           ]
         }
+      ],
+      "notes": "secedit [System Access] applies to LOCAL (SAM) accounts. Domain accounts take password policy only from a GPO linked at the domain root (or Fine-Grained Password Policies); an OU-linked GPO only changes local accounts of the member computers. In domain mode these keys must go into the GPO's GptTmpl.inf - Set-GPRegistryValue cannot write them. len-16 needs RelaxMinimumPasswordLengthLimits=1 in place BEFORE secedit imports MinimumPasswordLength>14 (write the SAM value / refresh policy first), otherwise the import is rejected. len-16 is deliberately not used by any level: Windows LAPS-generated local admin passwords must satisfy local policy, and LAPS PasswordLength below 16 (CIS asks 15+) would make rotation fail. Microsoft/Entra accounts and Windows Hello PINs are not affected. NIST SP 800-63B-4 suggests 15+ for single-factor passwords.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://github.com/fbprogmbh/Hardening-Audit-Tool-AuditTAP/tree/master/ATAPAuditor/AuditGroups",
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Enterprise_v5.1.0_L1.audit:036b2dd5f4bc31a78a09f8b8c5d132f8",
+        "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/windows-11-version-26h2-security-baseline/4560382"
       ]
     },
     {
       "id": "accounts.password-complexity",
       "category": "accounts",
       "title": "Složene lozinke",
-      "description": "Lozinka mora sadržavati velika i mala slova, brojke ili znakove i ne smije sadržavati korisničko ime.",
-      "impact": "Jednostavne lozinke poput \"ljeto2024\" više neće biti prihvaćene.",
+      "description": "Lozinka mora sadržavati znakove iz barem tri skupine (velika slova, mala slova, brojke, posebni znakovi) i ne smije sadržavati korisničko ime. Takve lozinke teže je pogoditi.",
+      "impact": "Kod sljedeće promjene lozinke jednostavne lozinke poput 'ljeto2026' više se ne prihvaćaju.",
       "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
           "id": "on",
           "title": "Uključeno",
+          "matchMode": "exact",
+          "settings": [],
           "security": {
             "PasswordComplexity": 1
           }
@@ -179,7 +193,8 @@
           "recommendation": "Uključeno",
           "satisfiedBy": [
             "on"
-          ]
+          ],
+          "reference": "1.1.5"
         },
         {
           "standard": "MSB",
@@ -188,21 +203,28 @@
             "on"
           ]
         }
+      ],
+      "notes": "Local default on stand-alone Windows 11 is Disabled. Enforced only at the next password change. NIST SP 800-63B discourages composition rules, but both CIS and MSB still require this, so it is on at every level.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://www.tenable.com/audits/CIS_Microsoft_Windows_11_Enterprise_v5.0.1_L1_BL"
       ]
     },
     {
       "id": "accounts.password-history",
       "category": "accounts",
-      "title": "Zabrana ponavljanja starih lozinki",
-      "description": "Windows pamti zadnje lozinke korisnika, pa se stara lozinka ne može odmah ponovno koristiti.",
-      "impact": "Korisnik pri promjeni ne može vratiti neku od zadnjih 24 lozinki.",
+      "title": "Bez ponavljanja starih lozinki",
+      "description": "Windows pamti zadnje 24 lozinke i ne dopušta njihovo ponovno korištenje. Stara, možda otkrivena lozinka tako se ne vraća u upotrebu.",
+      "impact": "Pri promjeni lozinke korisnik ne može ponovno upotrijebiti neku od prethodnih lozinki.",
       "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
-          "id": "24",
-          "title": "Zadnje 24",
+          "id": "on",
+          "title": "24 lozinke",
           "matchMode": "atLeast",
+          "settings": [],
           "security": {
             "PasswordHistorySize": 24
           }
@@ -210,47 +232,55 @@
       ],
       "levels": {
         "1": null,
-        "2": "24",
-        "3": "24"
+        "2": "on",
+        "3": "on"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "24 ili više zapamćenih lozinki",
+          "recommendation": "Pamti se 24 ili više lozinki",
           "satisfiedBy": [
-            "24"
-          ]
+            "on"
+          ],
+          "reference": "1.1.1"
         },
         {
           "standard": "MSB",
-          "recommendation": "24",
+          "recommendation": "Pamti se 24 lozinke",
           "satisfiedBy": [
-            "24"
+            "on"
           ]
         }
+      ],
+      "notes": "Only meaningful together with accounts.password-min-age (otherwise a user can change the password 24 times in a row and return to the old one).",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv"
       ]
     },
     {
       "id": "accounts.password-max-age",
       "category": "accounts",
-      "title": "Istek lozinke",
-      "description": "Određuje nakon koliko dana korisnik mora promijeniti lozinku. Prečesto mijenjanje potiče slabe lozinke, pa je preporuka jednom godišnje.",
-      "impact": "Windows će korisnika zamoliti da promijeni lozinku kad istekne.",
-      "impactLevel": "medium",
+      "title": "Najduže trajanje lozinke",
+      "description": "Nakon zadanog broja dana Windows traži novu lozinku. Današnje preporuke savjetuju rijetke promjene, a lozinku treba odmah promijeniti ako postoji sumnja da je otkrivena.",
+      "impact": "Korisnici jednom godišnje (ili svakih 90 dana) moraju smisliti novu lozinku.",
+      "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
-          "id": "365",
-          "title": "Jednom godišnje",
+          "id": "days-365",
+          "title": "365 dana",
           "matchMode": "atMost",
+          "settings": [],
           "security": {
             "MaximumPasswordAge": 365
           }
         },
         {
-          "id": "90",
-          "title": "Svaka 3 mjeseca",
+          "id": "days-90",
+          "title": "90 dana",
           "matchMode": "atMost",
+          "settings": [],
           "security": {
             "MaximumPasswordAge": 90
           }
@@ -258,34 +288,41 @@
       ],
       "levels": {
         "1": null,
-        "2": "365",
-        "3": "365"
+        "2": "days-365",
+        "3": "days-365"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "365 dana ili manje, ali ne 0 (bez isteka)",
+          "recommendation": "365 dana ili manje, ali ne 0 (lozinka mora jednom isteći)",
           "satisfiedBy": [
-            "365",
-            "90"
-          ]
+            "days-365",
+            "days-90"
+          ],
+          "reference": "1.1.2"
         }
       ],
-      "notes": "Microsoft baseline does not configure maximum password age (removed in 2019); NIST 800-63B discourages periodic expiry."
+      "notes": "MSB deliberately does NOT configure password expiration since the Windows 10 1903 baseline (Microsoft: periodic expiration is 'an ancient and obsolete mitigation of very low value'); NIST SP 800-63B also rejects forced periodic changes. days-90 is offered only for regulatory needs (e.g. PCI DSS when the password is the only factor) and is not used by any level. In secedit -1 means 'never expires' and 0 is also 'never' in the UI; atMost (0 < actual <= ours) correctly reads both as non-compliant. Keep MinimumPasswordAge < MaximumPasswordAge.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://learn.microsoft.com/cs-cz/archive/blogs/secguide/security-baseline-final-for-windows-10-v1903-and-windows-server-v1903",
+        "https://www.bleepingcomputer.com/news/microsoft/windows-10-1903-gets-rid-of-password-expiration-policies"
+      ]
     },
     {
       "id": "accounts.password-min-age",
       "category": "accounts",
-      "title": "Minimalna starost lozinke",
-      "description": "Lozinka se ne može promijeniti ponovno unutar jednog dana, da korisnik ne bi brzim promjenama zaobišao zabranu starih lozinki.",
-      "impact": "Nakon promjene lozinke sljedeća promjena moguća je tek sutradan.",
+      "title": "Najkraće trajanje lozinke",
+      "description": "Nova lozinka mora vrijediti barem jedan dan prije sljedeće promjene. Tako korisnik ne može u nekoliko brzih promjena vratiti staru lozinku.",
+      "impact": "Korisnik ne može promijeniti lozinku dvaput u istom danu; administrator je po potrebi može resetirati.",
       "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
-          "id": "1",
+          "id": "on",
           "title": "1 dan",
           "matchMode": "atLeast",
+          "settings": [],
           "security": {
             "MinimumPasswordAge": 1
           }
@@ -293,237 +330,94 @@
       ],
       "levels": {
         "1": null,
-        "2": "1",
-        "3": "1"
+        "2": "on",
+        "3": "on"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
           "recommendation": "1 dan ili više",
           "satisfiedBy": [
-            "1"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "accounts.lockout",
-      "category": "accounts",
-      "title": "Zaključavanje računa nakon pogrešnih lozinki",
-      "description": "Nakon nekoliko pogrešnih lozinki račun se privremeno zaključava. Tako napadač ne može isprobavati tisuće lozinki.",
-      "impact": "Korisnik koji više puta pogriješi lozinku mora pričekati da se račun otključa.",
-      "impactLevel": "medium",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "10",
-          "title": "10 pokušaja, 10 min",
-          "security": {
-            "LockoutBadCount": 10,
-            "LockoutDuration": 10,
-            "ResetLockoutCount": 10
-          }
-        },
-        {
-          "id": "5",
-          "title": "5 pokušaja, 15 min",
-          "security": {
-            "LockoutBadCount": 5,
-            "LockoutDuration": 15,
-            "ResetLockoutCount": 15
-          }
+            "on"
+          ],
+          "reference": "1.1.3"
         }
       ],
-      "levels": {
-        "1": "10",
-        "2": "10",
-        "3": "5"
-      },
-      "benchmarks": [
-        {
-          "standard": "CIS-L1",
-          "recommendation": "Najviše 5 pokušaja (ne 0), zaključavanje i brojač 15 minuta ili više",
-          "satisfiedBy": [
-            "5"
-          ]
-        },
-        {
-          "standard": "MSB",
-          "recommendation": "10 pokušaja, 10 minuta",
-          "satisfiedBy": [
-            "10",
-            "5"
-          ]
-        }
+      "notes": "Not part of MSB. Works together with password history.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://www.tenable.com/audits/CIS_Microsoft_Windows_11_Enterprise_v5.0.1_L1_BL"
       ]
     },
     {
-      "id": "accounts.guest",
+      "id": "accounts.reversible-encryption",
       "category": "accounts",
-      "title": "Isključen račun Gost",
-      "description": "Ugrađeni račun Gost omogućuje prijavu bez lozinke. Treba biti isključen.",
+      "title": "Bez čitljivo spremljenih lozinki",
+      "description": "Windows nikada ne sprema lozinke na način iz kojega se mogu vratiti u izvorni tekst. Takvo spremanje gotovo je isto kao lozinka zapisana na papiriću.",
       "impact": "Korisnici ništa ne primjećuju.",
       "impactLevel": "none",
       "requiresRestart": false,
       "options": [
         {
-          "id": "off",
-          "title": "Isključen",
+          "id": "on",
+          "title": "Zabranjeno",
+          "matchMode": "exact",
+          "settings": [],
           "security": {
-            "EnableGuestAccount": 0
+            "ClearTextPassword": 0
           }
         }
       ],
       "levels": {
-        "1": "off",
-        "2": "off",
-        "3": "off"
-      },
-      "benchmarks": [
-        {
-          "standard": "CIS-L1",
-          "recommendation": "Isključen",
-          "satisfiedBy": [
-            "off"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "accounts.screen-lock",
-      "category": "accounts",
-      "title": "Automatsko zaključavanje zaslona",
-      "description": "Računalo se samo zaključa kad se neko vrijeme ne koristi, pa nitko ne može sjesti za tuđe nezaključano računalo.",
-      "impact": "Nakon odabranog vremena bez rada korisnik se mora ponovno prijaviti.",
-      "impactLevel": "medium",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "900",
-          "title": "15 minuta",
-          "matchMode": "atMost",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "InactivityTimeoutSecs",
-              "type": "REG_DWORD",
-              "data": 900
-            }
-          ]
-        },
-        {
-          "id": "600",
-          "title": "10 minuta",
-          "matchMode": "atMost",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "InactivityTimeoutSecs",
-              "type": "REG_DWORD",
-              "data": 600
-            }
-          ]
-        },
-        {
-          "id": "300",
-          "title": "5 minuta",
-          "matchMode": "atMost",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "InactivityTimeoutSecs",
-              "type": "REG_DWORD",
-              "data": 300
-            }
-          ]
-        }
-      ],
-      "levels": {
-        "1": "900",
-        "2": "900",
-        "3": "300"
-      },
-      "benchmarks": [
-        {
-          "standard": "CIS-L1",
-          "recommendation": "900 sekundi ili manje, ali ne 0",
-          "satisfiedBy": [
-            "900",
-            "600",
-            "300"
-          ]
-        },
-        {
-          "standard": "MSB",
-          "recommendation": "900 sekundi",
-          "satisfiedBy": [
-            "900",
-            "600",
-            "300"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "accounts.last-username",
-      "category": "accounts",
-      "title": "Ne prikazuj zadnjeg korisnika",
-      "description": "Zaslon za prijavu ne prikazuje ime zadnjeg korisnika, pa napadač ne dobiva pola podataka za prijavu.",
-      "impact": "Korisnik pri svakoj prijavi upisuje i korisničko ime.",
-      "impactLevel": "medium",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "on",
-          "title": "Uključeno",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "DontDisplayLastUserName",
-              "type": "REG_DWORD",
-              "data": 1
-            }
-          ]
-        }
-      ],
-      "levels": {
-        "1": null,
-        "2": null,
+        "1": "on",
+        "2": "on",
         "3": "on"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Uključeno",
+          "recommendation": "Isključeno spremanje lozinki uz povratnu enkripciju",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "1.1.7"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Isključeno spremanje lozinki uz povratnu enkripciju",
           "satisfiedBy": [
             "on"
           ]
         }
+      ],
+      "notes": "Windows default is already 0; setting it explicitly guards against legacy CHAP/IIS digest configurations re-enabling it.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://www.tenable.com/audits/CIS_Microsoft_Windows_11_Enterprise_v5.0.1_L1_BL"
       ]
     },
     {
-      "id": "accounts.ctrl-alt-del",
+      "id": "accounts.relax-length-limit",
       "category": "accounts",
-      "title": "Prijava uz Ctrl+Alt+Del",
-      "description": "Prije prijave treba pritisnuti Ctrl+Alt+Del. To jamči da lozinku upisujete u pravi Windows, a ne u lažni prozor.",
-      "impact": "Korisnik pritišće Ctrl+Alt+Del prije upisa lozinke.",
-      "impactLevel": "low",
+      "title": "Lozinke duže od 14 znakova",
+      "description": "Uklanja staro ograničenje prema kojem pravilo minimalne duljine lozinke ne može tražiti više od 14 znakova. Bez ove postavke ne može se zadati strože pravilo duljine.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
       "requiresRestart": false,
       "options": [
         {
           "id": "on",
           "title": "Uključeno",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "DisableCAD",
+              "key": "System\\CurrentControlSet\\Control\\SAM",
+              "valueName": "RelaxMinimumPasswordLengthLimits",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 1,
+              "action": "Set"
             }
           ]
         }
@@ -536,73 +430,555 @@
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Uključeno (DisableCAD = 0)",
+          "recommendation": "Uključeno",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "1.1.6"
+        }
+      ],
+      "notes": "Security Options value (Windows 10 2004+/Server 2022+). Has no effect by itself; it only allows MinimumPasswordLength > 14 (see accounts.password-length len-16). Not part of MSB. CIS 1.1.6 number inferred from v5.0.1 1.1.5/1.1.7 being confirmed and v4.0.0 order.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv"
+      ]
+    },
+    {
+      "id": "accounts.lockout",
+      "category": "accounts",
+      "title": "Zaključavanje nakon pogrešnih lozinki",
+      "description": "Nakon nekoliko pogrešno upisanih lozinki račun se privremeno zaključava. To zaustavlja napadače koji pokušavaju pogoditi lozinku.",
+      "impact": "Tko više puta pogrešno upiše lozinku, mora pričekati 10 do 15 minuta ili zamoliti administratora da otključa račun.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "ms-10",
+          "title": "10 pokušaja / 10 min",
+          "matchMode": "exact",
+          "settings": [],
+          "security": {
+            "LockoutBadCount": 10,
+            "LockoutDuration": 10,
+            "ResetLockoutCount": 10
+          }
+        },
+        {
+          "id": "cis-5",
+          "title": "5 pokušaja / 15 min",
+          "matchMode": "exact",
+          "settings": [],
+          "security": {
+            "LockoutBadCount": 5,
+            "LockoutDuration": 15,
+            "ResetLockoutCount": 15
+          }
+        }
+      ],
+      "levels": {
+        "1": "ms-10",
+        "2": "ms-10",
+        "3": "cis-5"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Najviše 5 pogrešnih pokušaja (ne 0); zaključavanje i poništavanje brojača nakon 15 ili više minuta",
+          "satisfiedBy": [
+            "cis-5"
+          ],
+          "reference": "1.2.1, 1.2.2, 1.2.4"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "10 pokušaja, zaključavanje 10 minuta, brojač se poništava nakon 10 minuta",
+          "satisfiedBy": [
+            "ms-10",
+            "cis-5"
+          ]
+        }
+      ],
+      "notes": "matchMode cannot express mixed semantics: when reading state, LockoutBadCount should be judged atMost (0 < actual <= ours) and LockoutDuration/ResetLockoutCount atLeast; 'exact' is used to stay safe (consider a per-key override in the engine). MSB counts cis-5 as satisfying because the MSB checks used by HardeningKitty/AuditTAP are threshold <= 10 and durations >= 10; a literal diff (Policy Analyzer) will still show a difference. secedit rules: ResetLockoutCount must be <= LockoutDuration and durations are ignored when LockoutBadCount = 0, so write LockoutBadCount first. Windows 11 22H2+ already ships 10/10/10 as the local default. Both standards also require 'Allow Administrator account lockout' = Enabled (secedit AllowAdministratorLockout = 1, CIS 1.2.3): default on Win11 22H2+, but the key is not in the allowed security key list - consider adding it. Domain accounts follow the domain-root policy only. Windows Hello PIN has its own TPM anti-hammering.",
+      "sources": [
+        "https://www.tenable.com/audits/CIS_Microsoft_Windows_11_Enterprise_v5.1.0_L1",
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Enterprise_v5.0.0_L1.audit:bf1d4473bf6960631269d11e9b669e3f",
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Enterprise_v5.0.0_L1.audit:d53e3a1264782397cc5849697092c4cd",
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-15424.html",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://github.com/fbprogmbh/Hardening-Audit-Tool-AuditTAP/tree/master/ATAPAuditor/AuditGroups",
+        "https://specopssoft.com/blog/default-account-lockout-policies-in-windows-11/"
+      ]
+    },
+    {
+      "id": "accounts.guest-disabled",
+      "category": "accounts",
+      "title": "Isključen račun Gost",
+      "description": "Ugrađeni račun Gost omogućuje ulazak bez lozinke. Kad je isključen, nitko se ne može anonimno prijaviti na računalo.",
+      "impact": "Korisnici ništa ne primjećuju jer je račun Gost u Windowsima 11 obično već isključen.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Isključen",
+          "matchMode": "exact",
+          "settings": [],
+          "security": {
+            "EnableGuestAccount": 0
+          }
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Račun Gost isključen",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "2.3.1.1"
+        }
+      ],
+      "notes": "Not in MSB (disabled by default). The CIS 'rename guest/administrator account' items are omitted because they need free-text input.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://learn.microsoft.com/cs-cz/windows/client-management/mdm/policy-csp-LocalPoliciesSecurityOptions"
+      ]
+    },
+    {
+      "id": "accounts.blank-passwords",
+      "category": "accounts",
+      "title": "Prazne lozinke samo lokalno",
+      "description": "Lokalni računi bez lozinke mogu se koristiti samo za prijavu za samim računalom, a ne preko mreže ili udaljene radne površine.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "LimitBlankPasswordUse",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "2.3.1.2"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Uključeno",
           "satisfiedBy": [
             "on"
           ]
         }
+      ],
+      "notes": "Windows default is already 1; explicit value protects against tools that relax it.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://learn.microsoft.com/pt-br/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/accounts-limit-local-account-use-of-blank-passwords-to-console-logon-only"
+      ]
+    },
+    {
+      "id": "accounts.auto-lock",
+      "category": "accounts",
+      "title": "Automatsko zaključavanje zaslona",
+      "description": "Ako nitko ne koristi računalo zadano vrijeme, Windows zaključava zaslon. Tako nitko drugi ne može raditi na računalu dok je korisnik odsutan.",
+      "impact": "Nakon razdoblja neaktivnosti korisnik ponovno upisuje lozinku ili PIN.",
+      "impactLevel": "low",
+      "requiresRestart": true,
+      "options": [
+        {
+          "id": "min-15",
+          "title": "15 minuta",
+          "matchMode": "atMost",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "InactivityTimeoutSecs",
+              "type": "REG_DWORD",
+              "data": 900,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "min-10",
+          "title": "10 minuta",
+          "matchMode": "atMost",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "InactivityTimeoutSecs",
+              "type": "REG_DWORD",
+              "data": 600,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "min-5",
+          "title": "5 minuta",
+          "matchMode": "atMost",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "InactivityTimeoutSecs",
+              "type": "REG_DWORD",
+              "data": 300,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "min-15",
+        "2": "min-15",
+        "3": "min-10"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "900 sekundi (15 min) ili manje, ali ne 0",
+          "satisfiedBy": [
+            "min-15",
+            "min-10",
+            "min-5"
+          ],
+          "reference": "2.3.7.3"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "900 sekundi (15 min)",
+          "satisfiedBy": [
+            "min-15",
+            "min-10",
+            "min-5"
+          ]
+        }
+      ],
+      "notes": "Security option 'Interactive logon: Machine inactivity limit'. Microsoft Learn states a restart is required. 0 or empty disables it; maximum 599940. CIS item was 2.3.7.4 in v4.0.0 and is 2.3.7.3 in v5.0.1 (the BitLocker 'Machine account lockout threshold' item no longer sits before it). MSB literally specifies 900; stricter values are counted as satisfying, though literal-diff tools will flag 600/300.",
+      "sources": [
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-14986.html",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://learn.microsoft.com/id-id/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/interactive-logon-machine-inactivity-limit"
+      ]
+    },
+    {
+      "id": "accounts.hide-last-user",
+      "category": "accounts",
+      "title": "Skrivanje zadnjeg korisnika",
+      "description": "Zaslon za prijavu ne prikazuje ime osobe koja se zadnja prijavila. Napadač tako ne dobiva unaprijed pola podataka potrebnih za prijavu.",
+      "impact": "Korisnici pri svakoj prijavi moraju upisati i korisničko ime, a ne samo lozinku ili PIN.",
+      "impactLevel": "medium",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "DontDisplayLastUserName",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": null,
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno (ne prikazuj zadnjeg prijavljenog korisnika)",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "2.3.7.2"
+        }
+      ],
+      "notes": "CIS L1 item intentionally kept out of level 2: it removes the user tile, so staff must type their account name (e.g. AzureAD\\name or e-mail) before PIN/password on every sign-in - heavy friction for non-technical users. Not in MSB. Applies at the next sign-in screen, no restart.",
+      "sources": [
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-14984.html",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://learn.microsoft.com/en-au/windows/security/threat-protection/security-policy-settings/interactive-logon-do-not-display-last-user-name"
+      ]
+    },
+    {
+      "id": "accounts.require-ctrl-alt-del",
+      "category": "accounts",
+      "title": "Prijava uz Ctrl+Alt+Del",
+      "description": "Prije prijave treba pritisnuti Ctrl+Alt+Del. Tu kombinaciju tipki prima samo Windows, pa lažni zaslon za prijavu ne može ukrasti lozinku.",
+      "impact": "Prije upisa lozinke ili PIN-a korisnici pritišću Ctrl+Alt+Del.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "DisableCAD",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": null,
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L2",
+          "recommendation": "'Ne traži CTRL+ALT+DEL' isključeno, tj. tipke su obavezne",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "2.3.7.1"
+        }
+      ],
+      "notes": "Moved from Level 1 (v4.0.0) to Level 2 in CIS v5.x (listed in the v5.0.1 benchmark as L2 and present in Tenable's v5.1.0 L2-only audit). Not in MSB. On keyboard-less tablets the secure attention sequence is Win+Power. Microsoft notes reverting requires removing the DisableCAD value, not just 'Not defined'.",
+      "sources": [
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-14983.html",
+        "https://www.tenable.com/audits/CIS_Microsoft_Windows_11_Enterprise_v5.1.0_L2_BL",
+        "https://learn.microsoft.com/fr-fr/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/interactive-logon-do-not-require-ctrl-alt-del"
+      ]
+    },
+    {
+      "id": "accounts.anonymous-sid-lookup",
+      "category": "accounts",
+      "title": "Bez anonimnog otkrivanja računa",
+      "description": "Anonimni korisnici s mreže ne mogu doznati imena korisničkih računa, npr. pravo ime administratorskog računa.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Zabranjeno",
+          "matchMode": "exact",
+          "settings": [],
+          "security": {
+            "LSAAnonymousNameLookup": 0
+          }
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Isključeno anonimno prevođenje SID/ime",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "2.3.10.1"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Isključeno anonimno prevođenje SID/ime",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ],
+      "notes": "'Network access: Allow anonymous SID/Name translation'. Placed under accounts because it is a secedit [System Access] key; deduplicate by id if the network group also emits it. Windows default is already Disabled.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv"
       ]
     },
     {
       "id": "updates.automatic",
       "category": "updates",
-      "title": "Automatska ažuriranja",
-      "description": "Windows sam preuzima i instalira sigurnosne zakrpe. Većina napada koristi propuste za koje zakrpa već postoji.",
-      "impact": "Ažuriranja se instaliraju automatski; povremeno je potreban ponovni pokretanje računala.",
+      "title": "Automatska ažuriranja Windowsa",
+      "description": "Windows sam preuzima i instalira sigurnosne zakrpe čim izađu, bez odgode. Tako računalo uvijek ima najnoviju zaštitu.",
+      "impact": "Ako računalo ostane uključeno preko noći, može se samo ponovno pokrenuti oko 3 sata ujutro.",
       "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
-          "id": "notify",
-          "title": "Preuzmi i obavijesti",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
-              "valueName": "NoAutoUpdate",
-              "type": "REG_DWORD",
-              "data": 0
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
-              "valueName": "AUOptions",
-              "type": "REG_DWORD",
-              "data": 3
-            }
-          ]
-        },
-        {
           "id": "auto",
-          "title": "Instaliraj automatski",
+          "title": "Automatski",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
               "valueName": "NoAutoUpdate",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 0,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
               "valueName": "AUOptions",
               "type": "REG_DWORD",
-              "data": 4
+              "data": 4,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
               "valueName": "ScheduledInstallDay",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 0,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
               "valueName": "ScheduledInstallTime",
               "type": "REG_DWORD",
-              "data": 3
+              "data": 3,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+              "valueName": "ScheduledInstallEveryWeek",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+              "valueName": "NoAutoRebootWithLoggedOnUsers",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "DeferQualityUpdates",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "DeferQualityUpdatesPeriodInDays",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "notify",
+          "title": "Preuzmi i pitaj",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+              "valueName": "NoAutoUpdate",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+              "valueName": "AUOptions",
+              "type": "REG_DWORD",
+              "data": 3,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+              "valueName": "ScheduledInstallDay",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+              "valueName": "ScheduledInstallTime",
+              "type": "REG_DWORD",
+              "data": 3,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+              "valueName": "ScheduledInstallEveryWeek",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
+              "valueName": "NoAutoRebootWithLoggedOnUsers",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "DeferQualityUpdates",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "DeferQualityUpdatesPeriodInDays",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
             }
           ]
         }
@@ -615,245 +991,483 @@
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Uključeno, instalacija svaki dan",
+          "recommendation": "Automatska ažuriranja uključena (bilo koja opcija osim isključivanja); Dan zakazane instalacije: svaki dan; Staro pravilo 'Bez automatskog restarta dok je korisnik prijavljen' isključeno; Sigurnosne (kvalitativne) zakrpe bez odgode: 0 dana",
           "satisfiedBy": [
-            "auto"
-          ]
+            "auto",
+            "notify"
+          ],
+          "reference": "18.10.93.2.1, 18.10.93.2.2, 18.10.93.1.1, 18.10.93.4.3"
         }
+      ],
+      "notes": "The option values match what the GP editor writes when 'Configure Automatic Updates' is enabled with option 4 (auto download + scheduled install, every day 03:00, every week) or option 3 (auto download, notify to install). ScheduledInstallDay/Time are written for both options because the ADMX writes these elements whatever option is chosen, and the CIS audit reads only the registry value. The quality-update deferral is merged in here (DeferQualityUpdates=1, DeferQualityUpdatesPeriodInDays=0 = CIS 'Select when Quality Updates are received' Enabled: 0 days) so the user sees one 'patch immediately' switch. It is a WUfB policy, so WSUS-managed devices ignore it. NoAutoRebootWithLoggedOnUsers=0 is the CIS L1 'Disabled' state of a legacy policy. Microsoft says it was never built as a CSP and does not apply to Windows 11, so writing 0 only passes the CIS audit and changes nothing. Restarts are controlled by active hours and deadlines (see updates.active-hours and updates.deadlines), which Microsoft recommends over legacy restart policies. MSB (25H2/26H2) has no Windows Update settings. CIS numbers are for v4.0.0; in v5.0.x this section moved to 18.10.94 (Tenable lists 18.10.94.2.2 'Scheduled install day' for v5.0.0). AUOptions 5 and 7 (Server only) are deliberately not offered.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update",
+        "https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/dd939844(v=ws.10)",
+        "https://learn.microsoft.com/en-us/windows/deployment/update/waas-restart",
+        "https://learn.microsoft.com/en-us/windows/deployment/update/update-policies",
+        "https://learn.microsoft.com/en-us/windows/deployment/update/avoid-legacy-policy-configurations",
+        "https://learn.microsoft.com/en-us/answers/questions/590130/wsus-updates-not-install-automatically",
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Enterprise_v5.0.0_L1.audit:61d496d7254dff69330a77fac86aca4d"
       ]
     },
     {
       "id": "updates.deadlines",
       "category": "updates",
-      "title": "Rok za instalaciju ažuriranja",
-      "description": "Ako korisnik odgađa ažuriranja, nakon roka se instaliraju i računalo se ponovno pokreće.",
-      "impact": "Nakon isteka roka računalo se samo ponovno pokreće ako korisnik to nije napravio.",
+      "title": "Rok za instalaciju i restart",
+      "description": "Određuje najviše koliko dana smije proći od izlaska zakrpe do njezine instalacije i ponovnog pokretanja. Korisnik može odgađati restart, ali samo do isteka roka.",
+      "impact": "Kad rok istekne, računalo se ponovno pokreće uz upozorenje, pa i tijekom radnog vremena.",
       "impactLevel": "medium",
       "requiresRestart": false,
       "options": [
         {
-          "id": "7",
+          "id": "7-dana",
           "title": "7 dana",
+          "matchMode": "atMost",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
               "valueName": "SetComplianceDeadline",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "SetComplianceDeadlineForQU",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "SetComplianceDeadlineForFU",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
               "valueName": "ConfigureDeadlineForQualityUpdates",
               "type": "REG_DWORD",
-              "data": 7
+              "data": 7,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
               "valueName": "ConfigureDeadlineForFeatureUpdates",
               "type": "REG_DWORD",
-              "data": 7
+              "data": 14,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
               "valueName": "ConfigureDeadlineGracePeriod",
               "type": "REG_DWORD",
-              "data": 2
+              "data": 3,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
               "valueName": "ConfigureDeadlineGracePeriodForFeatureUpdates",
               "type": "REG_DWORD",
-              "data": 2
+              "data": 3,
+              "action": "Set"
             }
           ]
         },
         {
-          "id": "3",
+          "id": "3-dana",
           "title": "3 dana",
+          "matchMode": "atMost",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
               "valueName": "SetComplianceDeadline",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "SetComplianceDeadlineForQU",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "SetComplianceDeadlineForFU",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
               "valueName": "ConfigureDeadlineForQualityUpdates",
               "type": "REG_DWORD",
-              "data": 3
+              "data": 3,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
               "valueName": "ConfigureDeadlineForFeatureUpdates",
               "type": "REG_DWORD",
-              "data": 3
+              "data": 7,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
               "valueName": "ConfigureDeadlineGracePeriod",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 2,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
               "valueName": "ConfigureDeadlineGracePeriodForFeatureUpdates",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 2,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "2-dana",
+          "title": "2 dana",
+          "matchMode": "atMost",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "SetComplianceDeadline",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "SetComplianceDeadlineForQU",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "SetComplianceDeadlineForFU",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ConfigureDeadlineForQualityUpdates",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ConfigureDeadlineForFeatureUpdates",
+              "type": "REG_DWORD",
+              "data": 7,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ConfigureDeadlineGracePeriod",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ConfigureDeadlineGracePeriodForFeatureUpdates",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
-        "1": null,
-        "2": "7",
-        "3": "3"
+        "1": "7-dana",
+        "2": "3-dana",
+        "3": "2-dana"
       },
-      "benchmarks": []
+      "benchmarks": [],
+      "notes": "Neither CIS Windows 11 Enterprise nor MSB sets deadlines. Microsoft recommends them to make sure patches actually get installed (Windows Update client policies). Option titles give the quality-update deadline. The feature-update deadline is 14/7/7 days, and the grace period (days after install before a forced restart) is 3/2/1 for both. Update CSP ranges: deadlines 0-30, grace 0-7. These names are documented: ConfigureDeadlineForQualityUpdates, ConfigureDeadlineForFeatureUpdates, ConfigureDeadlineGracePeriod, ConfigureDeadlineGracePeriodForFeatureUpdates, and the legacy enable flag SetComplianceDeadline. Since Windows 11 22H2 the ADMX splits the policy in two: ComplianceDeadline (quality updates) and ComplianceDeadlineForFU (feature updates). A third-party ADMX viewer gives their enable flags as SetComplianceDeadlineForQU and SetComplianceDeadlineForFU. I found no Microsoft text confirming these two names. They are written as a precaution so that both old and new ADMX/clients see the policy as enabled. Check WindowsUpdate.admx on a 25H2/26H2 machine and drop them if they are not there. The 'don't auto-restart until end of grace period' flags (ConfigureDeadlineNoAutoReboot / ...ForQualityUpdates / ...ForFeatureUpdates) are left out on purpose: their names differ between ADMX generations, and Microsoft's update-policies doc says to leave them off so restarts are scheduled outside active hours. Once deadline plus grace has passed, the restart ignores active hours. matchMode atMost: a shorter deadline already set on the PC counts as compliant.",
+      "sources": [
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update",
+        "https://learn.microsoft.com/en-us/windows/deployment/update/wufb-compliancedeadlines",
+        "https://learn.microsoft.com/en-us/windows/deployment/update/update-policies",
+        "https://learn.microsoft.com/en-us/answers/questions/5870805/force-install-update-with-deadline-without-reboot",
+        "https://winaero.com/set-deadlines-automatic-updates-restarts-windows-10/",
+        "https://www.windowscentral.com/how-configure-deadline-automatic-updates-and-restarts-windows-10-may-2019-update",
+        "https://gpedit.tplant.com.au/en-us/policy/WindowsUpdate/ComplianceDeadline/",
+        "https://gpedit.tplant.com.au/en-us/policy/WindowsUpdate/ComplianceDeadlineForFU/"
+      ]
     },
     {
-      "id": "updates.defer-feature",
+      "id": "updates.active-hours",
+      "category": "updates",
+      "title": "Bez restarta u radno vrijeme",
+      "description": "Windows neće sam ponovno pokretati računalo između 7 i 19 sati. Ažuriranja se dovršavaju izvan tog vremena.",
+      "impact": "Korisnici ništa ne primjećuju; restart se događa navečer ili noću, osim kad istekne rok za ažuriranje.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "7-19",
+          "title": "7–19 h",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "SetActiveHours",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ActiveHoursStart",
+              "type": "REG_DWORD",
+              "data": 7,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "ActiveHoursEnd",
+              "type": "REG_DWORD",
+              "data": 19,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "7-19",
+        "2": "7-19",
+        "3": "7-19"
+      },
+      "benchmarks": [],
+      "notes": "GP 'Turn off auto-restart for updates during active hours' (SetActiveHours=1; ActiveHoursStart/End as hours 0-23). Windows 10 1703 and later allow up to 18 active hours; 7-19 is 12. Not in CIS or MSB. Added as the usability partner of updates.deadlines and updates.automatic, because Microsoft recommends deadlines + active hours instead of legacy restart policies. Once deadline plus grace period has passed, Windows restarts regardless of active hours.",
+      "sources": [
+        "https://learn.microsoft.com/en-us/windows/deployment/update/waas-restart",
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update",
+        "https://www.elevenforum.com/t/set-active-hours-for-windows-update-in-windows-11.3436/"
+      ]
+    },
+    {
+      "id": "updates.feature-deferral",
       "category": "updates",
       "title": "Odgoda velikih nadogradnji",
-      "description": "Velike godišnje nadogradnje Windowsa instaliraju se tek kad su provjerene kod drugih, a sigurnosne zakrpe stižu bez odgode.",
-      "impact": "Nova verzija Windowsa dolazi nekoliko mjeseci kasnije.",
-      "impactLevel": "none",
+      "description": "Nova godišnja verzija Windowsa stiže tek 180 dana nakon izlaska. Do tada Microsoft ispravi većinu početnih grešaka, a sigurnosne zakrpe i dalje stižu odmah.",
+      "impact": "Nove mogućnosti Windowsa stižu otprilike pola godine kasnije.",
+      "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
           "id": "180",
           "title": "180 dana",
+          "matchMode": "atLeast",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
               "valueName": "DeferFeatureUpdates",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "BranchReadinessLevel",
+              "type": "REG_DWORD",
+              "data": 16,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
               "valueName": "DeferFeatureUpdatesPeriodInDays",
               "type": "REG_DWORD",
-              "data": 180
+              "data": 180,
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
-        "1": null,
+        "1": "180",
         "2": "180",
         "3": "180"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Uključeno, 180 dana ili više",
+          "recommendation": "Velike nadogradnje odgođene 180 ili više dana",
           "satisfiedBy": [
             "180"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "updates.quality-now",
-      "category": "updates",
-      "title": "Sigurnosne zakrpe bez odgode",
-      "description": "Mjesečne sigurnosne zakrpe instaliraju se čim izađu.",
-      "impact": "Korisnici ništa ne primjećuju.",
-      "impactLevel": "none",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "0",
-          "title": "Bez odgode",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
-              "valueName": "DeferQualityUpdates",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
-              "valueName": "DeferQualityUpdatesPeriodInDays",
-              "type": "REG_DWORD",
-              "data": 0
-            }
-          ]
+          ],
+          "reference": "18.10.93.4.2"
         }
       ],
-      "levels": {
-        "1": "0",
-        "2": "0",
-        "3": "0"
-      },
-      "benchmarks": [
-        {
-          "standard": "CIS-L1",
-          "recommendation": "Uključeno, 0 dana",
-          "satisfiedBy": [
-            "0"
-          ]
-        }
+      "notes": "GP 'Select when Preview Builds and Feature Updates are received' writes DeferFeatureUpdates=1, BranchReadinessLevel and DeferFeatureUpdatesPeriodInDays (max 365). BranchReadinessLevel=16 is what the GP editor writes for the General Availability (formerly Semi-Annual) channel; since 1903 the two semi-annual values were merged into 16. The HardeningKitty CIS lists use BranchReadinessLevel=2 (Insider Dev/Fast), which looks like an error in the list; CIS only requires 'Enabled: 180 or more days'. With atLeast, 365 days or BranchReadinessLevel 32 also pass. Deferrals are ignored when a Target Release Version policy is set, and on WSUS-managed devices. The quality-update deferral (0 days, CIS 18.10.93.4.3) is in updates.automatic. Not in MSB.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update",
+        "https://learn.microsoft.com/en-us/windows/deployment/update/waas-configure-wufb",
+        "https://learn.microsoft.com/en-us/answers/questions/1046601/why-do-we-get-preview-update-22h2-when-gpo-is-set",
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-15487.html"
       ]
     },
     {
-      "id": "updates.preview-builds",
+      "id": "updates.preview",
       "category": "updates",
-      "title": "Bez probnih verzija Windowsa",
-      "description": "Računalo ne može ući u program Windows Insider s nedovršenim verzijama sustava.",
+      "title": "Samo provjerena ažuriranja",
+      "description": "Računalo ne prima probne (Insider) verzije Windowsa ni neobavezna probna ažuriranja. Nove mogućnosti koje su po zadanom isključene ostaju isključene.",
       "impact": "Korisnici ništa ne primjećuju.",
       "impactLevel": "none",
       "requiresRestart": false,
       "options": [
         {
-          "id": "off",
-          "title": "Isključeno",
+          "id": "on",
+          "title": "Uključeno",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
               "valueName": "ManagePreviewBuilds",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 0,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
-              "valueName": "ManagePreviewBuildsPolicyValue",
+              "valueName": "SetAllowOptionalContent",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "AllowOptionalContent",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "AllowTemporaryEnterpriseFeatureControl",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
-        "1": "off",
-        "2": "off",
-        "3": "off"
+        "1": "on",
+        "2": "on",
+        "3": "on"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Isključene probne verzije",
+          "recommendation": "Upravljanje probnim verzijama (Manage preview builds): Disabled; Neobavezna ažuriranja (Enable optional updates): Disabled; Novosti iz servisiranja koje su po zadanom isključene: Disabled",
           "satisfiedBy": [
-            "off"
+            "on"
+          ],
+          "reference": "18.10.93.4.1, 18.10.93.4.4, 18.10.93.2.4"
+        }
+      ],
+      "notes": "Three CIS L1 items merged into one switch. (1) Manage preview builds: CIS Windows 11 Enterprise has recommended 'Disabled' (ManagePreviewBuilds=0) since v2.0.0 (Tenable changelog rev 1.3). Syxsense shows the same 'Disabled' wording under the v5 number 18.10.94.4.1. HardeningKitty's v4 list instead checks ManagePreviewBuilds=1 + ManagePreviewBuildsPolicyValue=0 ('Enabled: Disable preview builds', the older Windows 10 wording). Both states block Insider builds, but a PC set up that way will read as not matching. (2) Enable optional updates = Disabled: the ADMX enable flag is SetAllowOptionalContent (0 = disabled). AllowOptionalContent=0 (CSP 'don't receive optional updates') is also written because the HardeningKitty CIS check reads that value. (3) Enable features introduced via servicing that are off by default = Disabled: AllowTemporaryEnterpriseFeatureControl=0, which is the default behaviour. In CIS v5.0.1, item (3) is numbered 18.10.94.2.3. Not in MSB.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update",
+        "https://www.tenable.com/audits/CIS_Microsoft_Windows_11_Enterprise_v2.0.0_L1/changelog/1.3",
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-15506.html",
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Enterprise_v5.0.1_L1.audit:11317093eac5c77955fb79e59f539eca",
+        "https://learn.microsoft.com/en-us/windows-insider/business/manage-builds",
+        "https://www.deskmodder.de/blog/2023/11/23/windows-11-optionale-updates-ueber-eine-neue-gruppenrichtlinie-regeln/",
+        "https://petervanderwoude.nl/post/enabling-optional-windows-updates/"
+      ]
+    },
+    {
+      "id": "updates.no-pause",
+      "category": "updates",
+      "title": "Zabrani pauziranje ažuriranja",
+      "description": "Korisnici ne mogu u postavkama pauzirati ažuriranja na nekoliko tjedana. Tako zakrpe ne kasne zbog zaboravljene pauze.",
+      "impact": "Gumb za pauziranje ažuriranja u postavkama bit će nedostupan.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+              "valueName": "SetDisablePauseUXAccess",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
           ]
         }
+      ],
+      "levels": {
+        "1": null,
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Ukloniti korisnicima mogućnost pauziranja ažuriranja",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "18.10.93.2.3"
+        }
+      ],
+      "notes": "GP 'Remove access to \"Pause updates\" feature' (SetDisablePauseUXAccess=1). Not in MSB. In CIS v5.0.1, number 18.10.94.2.3 belongs to 'Enable features introduced via servicing...', so this item was renumbered or removed in v5 (not checked). Level 1 leaves it unset so small offices are not surprised.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update",
+        "https://www.tenable.com/audits/items/CIS_MS_Windows_11_Enterprise_Level_1_v1.0.0.audit:be57e17a83bf2e8dc263a4f8a00a34f3"
       ]
     },
     {
@@ -2426,197 +3040,548 @@
     {
       "id": "privacy.telemetry",
       "category": "privacy",
-      "title": "Dijagnostički podaci",
-      "description": "Koliko podataka o radu sustava Windows šalje Microsoftu.",
+      "title": "Dijagnostički podaci Microsoftu",
+      "description": "Određuje koliko podataka o radu računala Windows šalje Microsoftu. Manje podataka znači bolju privatnost.",
       "impact": "Korisnici ništa ne primjećuju.",
-      "impactLevel": "none",
+      "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
           "id": "required",
           "title": "Samo obavezni",
-          "matchMode": "atMost",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\DataCollection",
               "valueName": "AllowTelemetry",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             }
           ]
         },
         {
           "id": "off",
-          "title": "Isključeni",
+          "title": "Isključeno",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\DataCollection",
               "valueName": "AllowTelemetry",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 0,
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
-        "1": null,
+        "1": "required",
         "2": "required",
-        "3": "required"
+        "3": "off"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Obavezni podaci ili isključeno",
+          "recommendation": "Isključeno ili samo obavezni dijagnostički podaci",
           "satisfiedBy": [
             "required",
             "off"
-          ]
+          ],
+          "reference": "18.10.16.1"
         }
       ],
-      "notes": "AllowTelemetry=0 is honoured only on Enterprise/Education; Pro treats it as 1. State check: 0 matches \"off\", 1 matches \"required\"."
-    },
-    {
-      "id": "privacy.advertising",
-      "category": "privacy",
-      "title": "Bez ID-a za oglašavanje",
-      "description": "Aplikacije ne mogu pratiti korisnika preko jedinstvenog ID-a za oglase.",
-      "impact": "Korisnici ništa ne primjećuju.",
-      "impactLevel": "none",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "off",
-          "title": "Isključeno",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows\\AdvertisingInfo",
-              "valueName": "DisabledByGroupPolicy",
-              "type": "REG_DWORD",
-              "data": 1
-            }
-          ]
-        }
-      ],
-      "levels": {
-        "1": "off",
-        "2": "off",
-        "3": "off"
-      },
-      "benchmarks": [
-        {
-          "standard": "CIS-L2",
-          "recommendation": "Isključeno",
-          "satisfiedBy": [
-            "off"
-          ]
-        }
+      "notes": "GP 'Allow Diagnostic Data'. Windows 11 values: 0 = diagnostic data off, 1 = Required, 3 = Optional (2/Enhanced is retired on Windows 11). Only Enterprise, Education, IoT Enterprise and Server honour 0; Pro/Home silently treat it as 1, so show an edition hint when 'Isključeno' is picked on Pro. With 0, Windows Update for Business reports, Autopatch, Intune Endpoint analytics and similar Microsoft reporting lose data; Windows Update itself keeps working. CIS L1 accepts 0 or 1 (audit operator <= 1). Not in MSB.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://learn.microsoft.com/en-us/windows/privacy/configure-windows-diagnostic-data-in-your-organization",
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-15239.html",
+        "https://www.tenable.com/audits/items/CIS_MS_InTune_for_Windows_11_Level_1_v1.0.0.audit:0f885ad280d7f9231f94f169d23a83f2"
       ]
     },
     {
-      "id": "privacy.consumer",
+      "id": "privacy.feedback-logs",
       "category": "privacy",
-      "title": "Bez reklamiranih aplikacija",
-      "description": "Windows ne instalira sam preporučene aplikacije i igre iz Trgovine.",
-      "impact": "Izbornik Start ne prikazuje ponude aplikacija.",
+      "title": "Bez anketa i dodatnih zapisa",
+      "description": "Windows više ne traži od korisnika ocjene i povratne informacije. Microsoftu šalje i manje dodatnih zapisa i ispisa memorije nakon rušenja.",
+      "impact": "Korisnici više ne vide skočne ankete za povratne informacije.",
       "impactLevel": "none",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "off",
-          "title": "Isključeno",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
-              "valueName": "DisableWindowsConsumerFeatures",
-              "type": "REG_DWORD",
-              "data": 1
-            }
-          ]
-        }
-      ],
-      "levels": {
-        "1": "off",
-        "2": "off",
-        "3": "off"
-      },
-      "benchmarks": [
-        {
-          "standard": "CIS-L1",
-          "recommendation": "Isključeno",
-          "satisfiedBy": [
-            "off"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "privacy.lockscreen",
-      "category": "privacy",
-      "title": "Zaključani zaslon bez kamere i prezentacije",
-      "description": "Na zaključanom zaslonu nije dostupna kamera ni prikaz slika.",
-      "impact": "Kamera se ne može otvoriti sa zaključanog zaslona.",
-      "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
           "id": "on",
           "title": "Uključeno",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows\\Personalization",
-              "valueName": "NoLockScreenCamera",
+              "key": "Software\\Policies\\Microsoft\\Windows\\DataCollection",
+              "valueName": "DoNotShowFeedbackNotifications",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows\\Personalization",
-              "valueName": "NoLockScreenSlideshow",
+              "key": "Software\\Policies\\Microsoft\\Windows\\DataCollection",
+              "valueName": "LimitDiagnosticLogCollection",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\DataCollection",
+              "valueName": "LimitDumpCollection",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\DataCollection",
+              "valueName": "DisableOneSettingsDownloads",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\DataCollection",
+              "valueName": "EnableOneSettingsAuditing",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
-        "1": null,
+        "1": "on",
         "2": "on",
         "3": "on"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Kamera i prezentacija isključeni",
+          "recommendation": "Ne prikazivati obavijesti za povratne informacije; Ograničiti prikupljanje dijagnostičkih zapisa; Ograničiti prikupljanje ispisa memorije (dump); Isključiti preuzimanje postavki s usluge OneSettings; Bilježiti upite prema usluzi OneSettings",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "18.10.16.4, 18.10.16.6, 18.10.16.7, 18.10.16.3, 18.10.16.5"
+        }
+      ],
+      "notes": "Five CIS L1 'Data Collection and Preview Builds' items merged into one switch. All values are DWORD 1 under Software\\Policies\\Microsoft\\Windows\\DataCollection. DisableOneSettingsDownloads stops Windows downloading diagnostic configuration from Microsoft's OneSettings service. CIS rates the impact as minimal, but if a Microsoft diagnostics or reporting feature misbehaves, check this value first. Not in MSB. Works independently of the AllowTelemetry level chosen in privacy.telemetry.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://learn.microsoft.com/en-us/windows/privacy/configure-windows-diagnostic-data-in-your-organization"
+      ]
+    },
+    {
+      "id": "privacy.advertising",
+      "category": "privacy",
+      "title": "Bez praćenja za oglase",
+      "description": "Isključuje oglasni ID i prilagođene preporuke na temelju dijagnostičkih podataka. Aplikacije tada ne mogu pratiti korisnika radi oglasa.",
+      "impact": "Korisnici ništa ne primjećuju; oglasi u aplikacijama su manje osobni.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AdvertisingInfo",
+              "valueName": "DisabledByGroupPolicy",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+              "valueName": "DisableTailoredExperiencesWithDiagnosticData",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L2",
+          "recommendation": "Oglasni ID isključen; Ne koristiti dijagnostičke podatke za prilagođena iskustva",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "18.9.49.1, 19.7.8.3"
+        }
+      ],
+      "notes": "Machine GP 'Turn off the advertising ID' (User Profiles) plus User GP 'Do not use diagnostic data for tailored experiences' (Cloud Content). Both are CIS Level 2 only, but users see no difference, so they are on from level 1. Not in MSB. The User value goes into the user part of Registry.pol / the GPO user configuration and applies to every user of the PC.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_user.csv",
+        "https://learn.microsoft.com/en-us/windows/privacy/configure-windows-diagnostic-data-in-your-organization"
+      ]
+    },
+    {
+      "id": "privacy.consumer-experiences",
+      "category": "privacy",
+      "title": "Bez reklama i preporuka",
+      "description": "Windows ne instalira sam preporučene aplikacije i igre. Ne prikazuje ni reklamne obavijesti ni prijedloge aplikacija drugih tvrtki.",
+      "impact": "U izborniku Start i postavkama više nema preporučenih aplikacija i reklamnih poruka.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+              "valueName": "DisableWindowsConsumerFeatures",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+              "valueName": "DisableConsumerAccountStateContent",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+              "valueName": "DisableCloudOptimizedContent",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+              "valueName": "DisableThirdPartySuggestions",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Microsoftova potrošačka iskustva isključena; Isključen sadržaj o stanju potrošačkog računa iz oblaka; Bez prijedloga sadržaja drugih tvrtki u Windows Spotlightu",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "18.10.13.3, 18.10.13.1, 19.7.8.2"
+        },
+        {
+          "standard": "CIS-L2",
+          "recommendation": "Isključen sadržaj optimiziran iz oblaka",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "18.10.13.2"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Microsoftova potrošačka iskustva isključena; Bez prijedloga sadržaja drugih tvrtki u Windows Spotlightu",
           "satisfiedBy": [
             "on"
           ]
         }
+      ],
+      "notes": "Cloud Content policies. Only Enterprise/Education honour DisableWindowsConsumerFeatures ('Turn off Microsoft consumer experiences'); Pro has ignored it since 1607. DisableThirdPartySuggestions is a User policy and works on Pro. In this area MSB 25H2 and 26H2 contain only the consumer-experiences and third-party-suggestions settings (Intune JSON: Experience/AllowWindowsConsumerFeatures=0, AllowThirdPartySuggestionsInWindowsSpotlight=0). The Spotlight lock-screen/desktop items are in privacy.spotlight.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_user.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_user.csv",
+        "https://github.com/dgulle/Security-Baselines/tree/master/Windows%20Baseline%2026H2",
+        "https://technet.microsoft.com/itpro/windows/configure/windows-spotlight"
+      ]
+    },
+    {
+      "id": "privacy.spotlight",
+      "category": "privacy",
+      "title": "Windows Spotlight slike i savjeti",
+      "description": "Isključuje Spotlight, tj. dnevne slike s interneta, savjete i promotivni sadržaj na zaključanom zaslonu i radnoj površini.",
+      "impact": "Zaključani zaslon i pozadina prikazuju običnu sliku umjesto dnevne slike s interneta.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "basic",
+          "title": "Zaslon i pozadina",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+              "valueName": "ConfigureWindowsSpotlight",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+              "valueName": "DisableSpotlightCollectionOnDesktop",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "all",
+          "title": "Sve isključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+              "valueName": "ConfigureWindowsSpotlight",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+              "valueName": "DisableSpotlightCollectionOnDesktop",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Windows\\CloudContent",
+              "valueName": "DisableWindowsSpotlightFeatures",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "basic",
+        "3": "all"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Spotlight na zaključanom zaslonu isključen (Disabled); Spotlight zbirka na radnoj površini isključena",
+          "satisfiedBy": [
+            "basic",
+            "all"
+          ],
+          "reference": "19.7.8.1, 19.7.8.5"
+        },
+        {
+          "standard": "CIS-L2",
+          "recommendation": "Sve Spotlight značajke isključene",
+          "satisfiedBy": [
+            "all"
+          ],
+          "reference": "19.7.8.4"
+        }
+      ],
+      "notes": "User-scope Cloud Content policies. 'Configure Windows spotlight on lock screen' = Disabled writes ConfigureWindowsSpotlight=2 (1 would force Spotlight on). Microsoft documents the Spotlight background policies for Enterprise/Education; Pro may ignore them. Level 1 leaves Spotlight alone because it only changes the look and has no security effect. Not in MSB (MSB only sets DisableThirdPartySuggestions; see privacy.consumer-experiences).",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_user.csv",
+        "https://technet.microsoft.com/itpro/windows/configure/windows-spotlight"
+      ]
+    },
+    {
+      "id": "privacy.lock-screen",
+      "category": "privacy",
+      "title": "Privatnost zaključanog zaslona",
+      "description": "Dok je računalo zaključano, nije moguće koristiti kameru, glasovne naredbe ni prezentaciju slika. Strogi način skriva i obavijesti, da se ne vidi njihov sadržaj.",
+      "impact": "Kamera i glasovni pomoćnik ne rade na zaključanom zaslonu; obavijesti se vide tek nakon otključavanja.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "basic",
+          "title": "Osnovno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Personalization",
+              "valueName": "NoLockScreenCamera",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Personalization",
+              "valueName": "NoLockScreenSlideshow",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AppPrivacy",
+              "valueName": "LetAppsActivateWithVoiceAboveLock",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Windows Search",
+              "valueName": "AllowCortanaAboveLock",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "strict",
+          "title": "I bez obavijesti",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Personalization",
+              "valueName": "NoLockScreenCamera",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Personalization",
+              "valueName": "NoLockScreenSlideshow",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\AppPrivacy",
+              "valueName": "LetAppsActivateWithVoiceAboveLock",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Windows Search",
+              "valueName": "AllowCortanaAboveLock",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Windows\\CurrentVersion\\PushNotifications",
+              "valueName": "NoToastApplicationNotificationOnLockScreen",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "basic",
+        "2": "strict",
+        "3": "strict"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Zabranjena kamera na zaključanom zaslonu; Zabranjena prezentacija slika na zaključanom zaslonu; Aplikacije se ne smiju aktivirati glasom dok je sustav zaključan; Cortana nije dostupna na zaključanom zaslonu",
+          "satisfiedBy": [
+            "basic",
+            "strict"
+          ],
+          "reference": "18.1.1.1, 18.1.1.2, 18.10.5.1, 18.10.59.4"
+        },
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Bez skočnih obavijesti na zaključanom zaslonu",
+          "satisfiedBy": [
+            "strict"
+          ],
+          "reference": "19.5.1.1"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Zabranjena kamera na zaključanom zaslonu; Zabranjena prezentacija slika na zaključanom zaslonu; Aplikacije se ne smiju aktivirati glasom dok je sustav zaključan",
+          "satisfiedBy": [
+            "basic",
+            "strict"
+          ]
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Bez skočnih obavijesti na zaključanom zaslonu",
+          "satisfiedBy": [
+            "strict"
+          ]
+        }
+      ],
+      "notes": "LetAppsActivateWithVoiceAboveLock=2 means 'Force Deny' (App Privacy). NoToastApplicationNotificationOnLockScreen is a User policy (Start Menu and Taskbar > Notifications). The related machine policy 'Turn off app notifications on the lock screen' (System\\Logon, DisableLockScreenAppNotifications=1, CIS L1 18.9.28.5) is left out so it does not overlap with a logon/lock category owned by another group. Add it here if no other group covers it. AllowCortanaAboveLock sits here rather than in privacy.search because it is about what the lock screen exposes.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_user.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_user.csv",
+        "https://github.com/dgulle/Security-Baselines/tree/master/Windows%20Baseline%2026H2"
       ]
     },
     {
       "id": "privacy.location",
       "category": "privacy",
-      "title": "Isključena lokacija",
-      "description": "Windows i aplikacije ne mogu koristiti lokaciju računala.",
-      "impact": "Karte i vremenska prognoza ne znaju gdje se računalo nalazi.",
+      "title": "Isključi lokaciju",
+      "description": "Windows i aplikacije ne mogu doznati gdje se računalo nalazi. Lokacija se ne šalje ni Microsoftu ni aplikacijama.",
+      "impact": "Karte, vremenska prognoza, automatska vremenska zona i 'Pronađi moj uređaj' neće raditi.",
       "impactLevel": "medium",
       "requiresRestart": false,
       "options": [
         {
           "id": "off",
           "title": "Isključeno",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\LocationAndSensors",
               "valueName": "DisableLocation",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 1,
+              "action": "Set"
             }
           ]
         }
@@ -2629,424 +3594,298 @@
       "benchmarks": [
         {
           "standard": "CIS-L2",
-          "recommendation": "Isključeno",
+          "recommendation": "Lokacija isključena",
           "satisfiedBy": [
             "off"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "privacy.activity",
-      "category": "privacy",
-      "title": "Bez povijesti aktivnosti",
-      "description": "Windows ne bilježi i ne šalje Microsoftu popis otvorenih dokumenata i aplikacija.",
-      "impact": "Vremenska crta aktivnosti nije dostupna.",
-      "impactLevel": "none",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "off",
-          "title": "Isključeno",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows\\System",
-              "valueName": "EnableActivityFeed",
-              "type": "REG_DWORD",
-              "data": 0
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows\\System",
-              "valueName": "PublishUserActivities",
-              "type": "REG_DWORD",
-              "data": 0
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows\\System",
-              "valueName": "UploadUserActivities",
-              "type": "REG_DWORD",
-              "data": 0
-            }
-          ]
+          ],
+          "reference": "18.10.37.1"
         }
       ],
-      "levels": {
-        "1": null,
-        "2": "off",
-        "3": "off"
-      },
-      "benchmarks": [
-        {
-          "standard": "CIS-L1",
-          "recommendation": "Slanje aktivnosti isključeno",
-          "satisfiedBy": [
-            "off"
-          ]
-        }
+      "notes": "GP 'Location and Sensors > Turn off location'. CIS Level 2 only and not in MSB, so it is on only at level 3. CIS L2 also sets the Geolocation Service (lfsvc) to Disabled (v4.0.0 item 5.6). That is a service start type (secedit [Service General Setting] / System Services), not a Registry.pol value, so it is not written here. Laptops that travel between time zones lose automatic time-zone detection.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv"
       ]
     },
     {
       "id": "privacy.search",
       "category": "privacy",
-      "title": "Pretraživanje bez Cortane i lokacije",
-      "description": "Pretraživanje u Windowsu ne koristi Cortanu ni lokaciju računala.",
-      "impact": "Cortana nije dostupna.",
-      "impactLevel": "none",
+      "title": "Pretraživanje bez Cortane",
+      "description": "Isključuje Cortanu i zabranjuje pretraživanju da koristi lokaciju računala. Strogi način isključuje i rezultate iz oblaka i istaknute teme u pretraživanju.",
+      "impact": "Pretraživanje datoteka i aplikacija na računalu radi kao i prije.",
+      "impactLevel": "low",
       "requiresRestart": false,
       "options": [
         {
-          "id": "off",
-          "title": "Isključeno",
+          "id": "basic",
+          "title": "Bez Cortane",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\Windows Search",
               "valueName": "AllowCortana",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 0,
+              "action": "Set"
             },
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\Windows Search",
               "valueName": "AllowSearchToUseLocation",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "strict",
+          "title": "Samo lokalno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Windows Search",
+              "valueName": "AllowCortana",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Windows Search",
+              "valueName": "AllowSearchToUseLocation",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Windows Search",
+              "valueName": "AllowCloudSearch",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Windows Search",
+              "valueName": "EnableDynamicContentInWSB",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
-        "1": null,
-        "2": "off",
-        "3": "off"
+        "1": "basic",
+        "2": "basic",
+        "3": "strict"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Cortana i lokacija u pretraživanju isključeni",
+          "recommendation": "Cortana isključena; Pretraživanje i Cortana ne smiju koristiti lokaciju",
           "satisfiedBy": [
-            "off"
+            "basic",
+            "strict"
+          ],
+          "reference": "18.10.59.3, 18.10.59.6"
+        },
+        {
+          "standard": "CIS-L2",
+          "recommendation": "Pretraživanje u oblaku isključeno; Istaknuto u pretraživanju (search highlights) isključeno",
+          "satisfiedBy": [
+            "strict"
+          ],
+          "reference": "18.10.59.2, 18.10.59.7"
+        }
+      ],
+      "notes": "Windows Search policies under Software\\Policies\\Microsoft\\Windows\\Windows Search. Current Windows 11 builds no longer ship the Cortana app; CIS still audits AllowCortana and setting it does no harm. 'Samo lokalno' (AllowCloudSearch=0) removes OneDrive/SharePoint/Outlook work-account results from Windows Search, so say this in the UI for Microsoft 365 offices. Search policy changes may need a sign-out before they show. In this area MSB only sets AllowIndexingEncryptedStoresOrItems=0, which is a security setting rather than privacy and is not part of this group.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv"
+      ]
+    },
+    {
+      "id": "privacy.activity-history",
+      "category": "privacy",
+      "title": "Povijest aktivnosti",
+      "description": "Windows ne šalje Microsoftu popis aplikacija, datoteka i stranica koje korisnik otvara. Strogi način potpuno isključuje vođenje te povijesti.",
+      "impact": "Korisnici uglavnom ništa ne primjećuju; nastavak rada na drugom uređaju neće raditi.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "no-upload",
+          "title": "Ne šalji u oblak",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\System",
+              "valueName": "UploadUserActivities",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "off",
+          "title": "Potpuno isključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\System",
+              "valueName": "EnableActivityFeed",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\System",
+              "valueName": "PublishUserActivities",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\System",
+              "valueName": "UploadUserActivities",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
           ]
         }
+      ],
+      "levels": {
+        "1": "no-upload",
+        "2": "no-upload",
+        "3": "off"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L2",
+          "recommendation": "Zabranjeno slanje korisničkih aktivnosti",
+          "satisfiedBy": [
+            "no-upload",
+            "off"
+          ],
+          "reference": "18.9.31.2"
+        }
+      ],
+      "notes": "OS Policies: 'Enables Activity Feed' (EnableActivityFeed), 'Allow publishing of User Activities' (PublishUserActivities), 'Allow upload of User Activities' (UploadUserActivities); 0 = Disabled. CIS audits only UploadUserActivities (Level 2). Windows 11 no longer has Timeline, so the real-world impact is small. Not in MSB.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://winutil.christitus.com/dev/tweaks/essential-tweaks/activity",
+        "https://pureinfotech.com/disable-timeline-windows-10/"
       ]
     },
     {
       "id": "privacy.recall",
       "category": "privacy",
-      "title": "Bez snimki zaslona za Recall",
-      "description": "Windows ne sprema snimke zaslona za značajku Recall (Copilot+ računala).",
-      "impact": "Recall nije dostupan.",
-      "impactLevel": "none",
-      "requiresRestart": false,
+      "title": "Recall snimke zaslona",
+      "description": "Recall na novim Copilot+ računalima stalno snima zaslon da bi se sadržaj kasnije mogao pretraživati. Ova postavka sprječava spremanje snimki ili potpuno uklanja Recall.",
+      "impact": "Recall se ne može koristiti; na računalima bez Recalla nema nikakve promjene.",
+      "impactLevel": "low",
+      "requiresRestart": true,
       "options": [
         {
-          "id": "off",
-          "title": "Isključeno",
+          "id": "no-snapshots",
+          "title": "Bez snimki",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
               "key": "Software\\Policies\\Microsoft\\Windows\\WindowsAI",
               "valueName": "DisableAIDataAnalysis",
               "type": "REG_DWORD",
-              "data": 1
-            }
-          ]
-        }
-      ],
-      "levels": {
-        "1": null,
-        "2": "off",
-        "3": "off"
-      },
-      "benchmarks": []
-    },
-    {
-      "id": "system.uac",
-      "category": "system",
-      "title": "Kontrola korisničkog računa (UAC)",
-      "description": "Prije promjena koje traže administratorska prava Windows traži potvrdu na zaštićenom zaslonu. Zlonamjerni program tako ne može tiho dobiti prava.",
-      "impact": "Ovisno o razini: potvrda ili upis lozinke administratora; standardni korisnici ne mogu sami pokretati programe kao administrator.",
-      "impactLevel": "medium",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "standard",
-          "title": "Standardno",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "EnableLUA",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "ConsentPromptBehaviorAdmin",
-              "type": "REG_DWORD",
-              "data": 5
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "ConsentPromptBehaviorUser",
-              "type": "REG_DWORD",
-              "data": 3
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "PromptOnSecureDesktop",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "FilterAdministratorToken",
-              "type": "REG_DWORD",
-              "data": 0
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "EnableInstallerDetection",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "EnableVirtualization",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "EnableSecureUIAPaths",
-              "type": "REG_DWORD",
-              "data": 1
-            }
-          ]
-        },
-        {
-          "id": "recommended",
-          "title": "Preporučeno",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "EnableLUA",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "ConsentPromptBehaviorAdmin",
-              "type": "REG_DWORD",
-              "data": 2
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "ConsentPromptBehaviorUser",
-              "type": "REG_DWORD",
-              "data": 0
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "PromptOnSecureDesktop",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "FilterAdministratorToken",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "EnableInstallerDetection",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "EnableVirtualization",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "EnableSecureUIAPaths",
-              "type": "REG_DWORD",
-              "data": 1
-            }
-          ]
-        },
-        {
-          "id": "strict",
-          "title": "Strogo",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "EnableLUA",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "ConsentPromptBehaviorAdmin",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "ConsentPromptBehaviorUser",
-              "type": "REG_DWORD",
-              "data": 0
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "PromptOnSecureDesktop",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "FilterAdministratorToken",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "EnableInstallerDetection",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "EnableVirtualization",
-              "type": "REG_DWORD",
-              "data": 1
-            },
-            {
-              "scope": "Machine",
-              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
-              "valueName": "EnableSecureUIAPaths",
-              "type": "REG_DWORD",
-              "data": 1
-            }
-          ]
-        }
-      ],
-      "levels": {
-        "1": "standard",
-        "2": "recommended",
-        "3": "strict"
-      },
-      "benchmarks": [
-        {
-          "standard": "CIS-L1",
-          "recommendation": "Potvrda na zaštićenom zaslonu, odbij za standardne korisnike, Admin Approval Mode",
-          "satisfiedBy": [
-            "recommended",
-            "strict"
-          ]
-        },
-        {
-          "standard": "MSB",
-          "recommendation": "Potvrda na zaštićenom zaslonu, odbij za standardne korisnike",
-          "satisfiedBy": [
-            "recommended",
-            "strict"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "system.installer-elevated",
-      "category": "system",
-      "title": "Instalacije bez skrivenih administratorskih prava",
-      "description": "Isključuje opasnu postavku kojom bi svaki korisnik mogao instalirati programe s administratorskim pravima.",
-      "impact": "Korisnici ništa ne primjećuju.",
-      "impactLevel": "none",
-      "requiresRestart": false,
-      "options": [
-        {
-          "id": "off",
-          "title": "Isključeno",
-          "settings": [
-            {
-              "scope": "Machine",
-              "key": "Software\\Policies\\Microsoft\\Windows\\Installer",
-              "valueName": "AlwaysInstallElevated",
-              "type": "REG_DWORD",
-              "data": 0
+              "data": 1,
+              "action": "Set"
             },
             {
               "scope": "User",
-              "key": "Software\\Policies\\Microsoft\\Windows\\Installer",
-              "valueName": "AlwaysInstallElevated",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsAI",
+              "valueName": "DisableAIDataAnalysis",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "removed",
+          "title": "Ukloni Recall",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsAI",
+              "valueName": "AllowRecallEnablement",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsAI",
+              "valueName": "DisableAIDataAnalysis",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Windows\\WindowsAI",
+              "valueName": "DisableAIDataAnalysis",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
-        "1": "off",
-        "2": "off",
-        "3": "off"
+        "1": "no-snapshots",
+        "2": "removed",
+        "3": "removed"
       },
-      "benchmarks": [
-        {
-          "standard": "CIS-L1",
-          "recommendation": "Isključeno",
-          "satisfiedBy": [
-            "off"
-          ]
-        }
+      "benchmarks": [],
+      "notes": "Windows AI policies (WindowsCopilot.admx), key Software\\Policies\\Microsoft\\Windows\\WindowsAI. 'Turn off saving snapshots for use with Recall' (DisableAIDataAnalysis=1) exists under both Computer and User configuration, so both scopes are written. Turning it on deletes snapshots that are already saved. 'Allow Recall to be enabled' (AllowRecallEnablement=0, machine only) needs Windows 11 24H2 with KB5055627 (build 26100.3915) or later. It removes the Recall optional component and deletes snapshots. It needs a restart, and bringing Recall back later means restoring the component, so the UI should warn. Only Copilot+ PCs have Recall. On managed (domain/MDM) devices it is off by default, but on small-office workgroup PCs the user may have opted in during setup, so level 1 already blocks snapshots. Benchmarks: not in CIS Windows 11 Enterprise v4.0.0 (absent from the v4 list) and not in MSB 25H2/26H2. CIS Microsoft Windows 11 Stand-alone Benchmark v5.0.0 has 18.10.73.1 (L1) 'Allow Recall to be enabled' = Disabled (per Tenable). CIS Enterprise v5.x very likely has a matching L1 item, which option 'removed' would satisfy. Add a CIS-L1 entry once its v5.x number is confirmed.",
+      "sources": [
+        "https://learn.microsoft.com/en-us/windows/client-management/manage-recall",
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-windowsai",
+        "https://gpedit.tplant.com.au/en-us/policy/WindowsCopilot/DisableAIDataAnalysis/",
+        "https://www.askwoody.com/?p=2712964",
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Stand-alone_v5.0.0_L1.audit:7b8117ca6f5a872b478046e044c8ad79"
       ]
     },
     {
-      "id": "system.lsa-protection",
-      "category": "system",
-      "title": "Zaštita lozinki u memoriji (LSA)",
-      "description": "Proces koji čuva lozinke prijavljenih korisnika radi kao zaštićeni proces, pa ga alati za krađu lozinki ne mogu čitati.",
-      "impact": "Rijetko, stari dodaci za prijavu (npr. čitači kartica) mogu prestati raditi.",
+      "id": "privacy.online-speech",
+      "category": "privacy",
+      "title": "Bez prepoznavanja govora u oblaku",
+      "description": "Isključuje Microsoftovo mrežno prepoznavanje govora. Glasovni zapisi korisnika ne šalju se u oblak.",
+      "impact": "Glasovno diktiranje i glasovne naredbe koje trebaju internet neće raditi.",
       "impactLevel": "low",
-      "requiresRestart": true,
+      "requiresRestart": false,
       "options": [
         {
           "id": "on",
           "title": "Uključeno",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
-              "key": "SYSTEM\\CurrentControlSet\\Control\\Lsa",
-              "valueName": "RunAsPPL",
+              "key": "Software\\Policies\\Microsoft\\InputPersonalization",
+              "valueName": "AllowInputPersonalization",
               "type": "REG_DWORD",
-              "data": 1
+              "data": 0,
+              "action": "Set"
             }
           ]
         }
@@ -3059,56 +3898,657 @@
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Uključeno s UEFI zaključavanjem",
+          "recommendation": "Korisnici ne smiju uključiti mrežno prepoznavanje govora",
           "satisfiedBy": [
             "on"
-          ]
+          ],
+          "reference": "18.1.2.2"
         }
+      ],
+      "notes": "GP 'Control Panel > Regional and Language Options > Allow users to enable online speech recognition services' = Disabled (AllowInputPersonalization=0). Features that run on the device, such as Voice access, keep working. Not in MSB. Left out of level 1 because people who use voice typing would notice.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv"
       ]
     },
     {
-      "id": "system.wdigest",
+      "id": "system.uac",
       "category": "system",
-      "title": "Bez lozinki u čitljivom obliku (WDigest)",
-      "description": "Windows ne čuva lozinke u memoriji u obliku koji se može pročitati.",
-      "impact": "Korisnici ništa ne primjećuju.",
-      "impactLevel": "none",
-      "requiresRestart": false,
+      "title": "Kontrola korisničkog računa (UAC)",
+      "description": "UAC traži potvrdu prije nego što program dobije administratorske ovlasti. Tako zlonamjerni program ne može neprimjetno mijenjati sustav.",
+      "impact": "Uz Preporučeno i Strogo standardni korisnici ne mogu sami instalirati programe, a administratori potvrđuju svaku promjenu sustava.",
+      "impactLevel": "medium",
+      "requiresRestart": true,
       "options": [
         {
-          "id": "off",
-          "title": "Isključeno",
+          "id": "standard",
+          "title": "Standardno",
+          "matchMode": "exact",
           "settings": [
             {
               "scope": "Machine",
-              "key": "SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\WDigest",
-              "valueName": "UseLogonCredential",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableLUA",
               "type": "REG_DWORD",
-              "data": 0
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "ConsentPromptBehaviorAdmin",
+              "type": "REG_DWORD",
+              "data": 5,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "ConsentPromptBehaviorUser",
+              "type": "REG_DWORD",
+              "data": 3,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "PromptOnSecureDesktop",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableInstallerDetection",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableSecureUIAPaths",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableVirtualization",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "recommended",
+          "title": "Preporučeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableLUA",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "FilterAdministratorToken",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "ConsentPromptBehaviorAdmin",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "ConsentPromptBehaviorUser",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "PromptOnSecureDesktop",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableInstallerDetection",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableSecureUIAPaths",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableVirtualization",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "strict",
+          "title": "Strogo",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableLUA",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "FilterAdministratorToken",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "ConsentPromptBehaviorAdmin",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "ConsentPromptBehaviorUser",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "PromptOnSecureDesktop",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableInstallerDetection",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableSecureUIAPaths",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "EnableVirtualization",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
             }
           ]
         }
       ],
       "levels": {
-        "1": "off",
-        "2": "off",
-        "3": "off"
+        "1": "standard",
+        "2": "recommended",
+        "3": "strict"
       },
       "benchmarks": [
         {
           "standard": "CIS-L1",
-          "recommendation": "Isključeno",
+          "recommendation": "UAC uključen; administratori potvrđuju na sigurnoj radnoj površini (pristanak ili lozinka); zahtjevi standardnih korisnika automatski se odbijaju; ugrađeni Administrator također traži potvrdu",
           "satisfiedBy": [
-            "off"
+            "recommended",
+            "strict"
+          ],
+          "reference": "2.3.17.1-2.3.17.8"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "UAC uključen; administratori: pristanak na sigurnoj radnoj površini; standardni korisnici: automatsko odbijanje; ugrađeni Administrator traži potvrdu",
+          "satisfiedBy": [
+            "recommended",
+            "strict"
+          ]
+        }
+      ],
+      "notes": "All values are Security Options under HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System; writing them through Registry.pol works but tattoos (they stay after the GPO is removed). ConsentPromptBehaviorAdmin: 0 elevate without prompt, 1 credentials on secure desktop, 2 consent on secure desktop, 3 credentials, 4 consent, 5 consent for non-Windows binaries (default). ConsentPromptBehaviorUser: 0 auto-deny, 1 credentials on secure desktop, 3 credentials (default). 'standard' = Windows defaults with UAC forced on (repairs a disabled UAC). A restart is only needed when EnableLUA or FilterAdministratorToken actually changes; prompt behaviour applies immediately. With auto-deny, standard users get 'access denied' instead of a password prompt; IT must sign in with an admin account to install software. 'strict' (admin value 1) satisfies CIS ('consent on the secure desktop or higher') and is stricter than MSB's literal 2 - counted as satisfying MSB, but literal-diff tools will flag it. PromptOnSecureDesktop is a CIS item only (MSB leaves the default). CIS v5.0.1 section 2.3.17 numbering is unchanged from v4.0.0 (2.3.17.1-2.3.17.4, 2.3.17.6, 2.3.17.7 confirmed for v5.0.1), which also indicates CIS has not added the Administrator protection settings.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://github.com/fbprogmbh/Hardening-Audit-Tool-AuditTAP/tree/master/ATAPAuditor/AuditGroups",
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-15024.html",
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-15025.html",
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-15026.html",
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-15029.html",
+        "https://learn.microsoft.com/en-us/windows/security/application-security/application-control/user-account-control/settings-and-configuration",
+        "https://www.stigaview.com/products/win10/v3r6/WN10-SO-000250"
+      ]
+    },
+    {
+      "id": "system.admin-protection",
+      "category": "system",
+      "title": "Zaštita administratora",
+      "description": "Novija zaštita u Windowsima 11: administrator radi s običnim ovlastima, a za svaku administratorsku radnju dobiva privremeno, odvojeno ovlaštenje uz potvrdu lozinkom ili Windows Hellom.",
+      "impact": "Administratori svaku instalaciju ili promjenu sustava potvrđuju lozinkom, PIN-om ili licem; neki stariji alati mogu prestati raditi.",
+      "impactLevel": "high",
+      "requiresRestart": true,
+      "options": [
+        {
+          "id": "legacy",
+          "title": "Klasični UAC",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "TypeOfAdminApprovalMode",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "TypeOfAdminApprovalMode",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "ConsentPromptBehaviorEnhancedAdmin",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": null,
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "MSB",
+          "recommendation": "Uključena zaštita administratora; potvrda lozinkom na sigurnoj radnoj površini",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ],
+      "notes": "Windows 11 24H2+ client only (not Server, Windows 365, AVD). Microsoft updated the 26H2 baseline (v2 package) for Administrator protection GA with 'Configure type of Admin Approval Mode' = Admin Approval Mode with Administrator protection (TypeOfAdminApprovalMode=2) and the Administrator-protection prompt = 'Prompt for credentials on the secure desktop'; MC1506291: for baseline users it becomes enabled by default with the October 2026 security update (24H2/25H2/26H2). ConsentPromptBehaviorEnhancedAdmin=1 is used for 'credentials' (AuditTAP's MSB 25H2 check and the 24H2 baseline GPO report both show 1); HardeningKitty's MSB list uses 2, which upstream issue #217 reports as wrong - verify on a test device. Not in CIS v5.0.1. Known issues: Group Policy refresh failures with the baseline on Aug/Sept 2026 previews (reported fixed by KB5127648), conflicts with Endpoint Privilege Management tools, no auto-elevation for Windows binaries, Project Zero bypasses (reported fixed). 'legacy' (1) is Microsoft's documented rollback; it is not tied to any level. Restart required.",
+      "sources": [
+        "https://techcommunity.microsoft.com/blog/microsoft-security-baselines/windows-11-version-26h2-security-baseline/4560382",
+        "https://mc.merill.net/message/MC1506291",
+        "https://learn.microsoft.com/en-us/windows/security/application-security/application-control/administrator-protection/",
+        "https://github.com/fbprogmbh/Hardening-Audit-Tool-AuditTAP/tree/master/ATAPAuditor/AuditGroups",
+        "https://github.com/0x6d69636b/windows_hardening/issues/217",
+        "https://www.go-euc.com/assets/files/120-will-windows-security-hardening-improve-systems-performance/computer-microsoft-security-baseline-report.htm",
+        "https://www.neowin.net/news/windows-11-kb5127648-fixes-group-policy-fails-from-buggy-admin-protection/",
+        "https://petri.com/windows-11-administrator-protection-design-flaws/",
+        "https://cloudinfra.net/configure-uac-user-account-control-using-intune"
+      ]
+    },
+    {
+      "id": "system.uac-remote-local",
+      "category": "system",
+      "title": "UAC za mrežne prijave",
+      "description": "Lokalni administratorski račun koji se prijavljuje preko mreže ne dobiva automatski pune ovlasti. Napadaču je tako teže s jednog zaraženog računala preuzeti ostala.",
+      "impact": "Korisnici ništa ne primjećuju; neki alati za udaljeno upravljanje koji koriste lokalni administratorski račun mogu trebati domenski račun.",
+      "impactLevel": "low",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+              "valueName": "LocalAccountTokenFilterPolicy",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno (UAC ograničenja za lokalne račune pri mrežnoj prijavi)",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "18.4.1"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Uključeno",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ],
+      "notes": "MS Security Guide (SecGuide.admx) 'Apply UAC restrictions to local accounts on network logons': Enabled = LocalAccountTokenFilterPolicy 0, which is also the Windows default. Breaks remote administration with LOCAL admin accounts (PsExec, admin shares like C$, some RMM/backup agents); domain accounts are not affected.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_server)/syx-1037-14234.html"
+      ]
+    },
+    {
+      "id": "system.installer-elevated",
+      "category": "system",
+      "title": "Instalacije bez skrivenih ovlasti",
+      "description": "Windows Installer (.msi) ne smije svaku instalaciju automatski pokretati s administratorskim ovlastima, a korisnici ne mogu mijenjati sigurnosne opcije instalacije. Inače bi svatko preko .msi paketa mogao preuzeti računalo.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Installer",
+              "valueName": "AlwaysInstallElevated",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "User",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Installer",
+              "valueName": "AlwaysInstallElevated",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\Installer",
+              "valueName": "EnableUserControl",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Isključeno 'Uvijek instaliraj s povišenim ovlastima' (računalo i korisnik) i 'Dopusti korisniku kontrolu nad instalacijama'",
+          "satisfiedBy": [
+            "on"
           ]
         },
         {
           "standard": "MSB",
-          "recommendation": "Isključeno",
+          "recommendation": "Isključeno 'Uvijek instaliraj s povišenim ovlastima' i 'Dopusti korisniku kontrolu nad instalacijama' (računalo)",
           "satisfiedBy": [
-            "off"
+            "on"
           ]
         }
+      ],
+      "notes": "AlwaysInstallElevated only takes effect when it is 1 in BOTH HKLM and HKCU; forcing 0 in both blocks this classic privilege escalation. In CIS v4.0.0 these are 18.10.81.1 (EnableUserControl), 18.10.81.2 (computer) and 19.7.44.1 (user); the v5.x numbers were not verified (section 18.10 was renumbered), so no reference is given. MSB does not configure the user-scope value. Defaults are already 'not elevated'.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_user.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-applicationmanagement",
+        "https://learn.microsoft.com/el-gr/windows/win32/msi/alwaysinstallelevated",
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks/syx-1033-15765.html"
+      ]
+    },
+    {
+      "id": "system.lsa-protection",
+      "category": "system",
+      "title": "Zaštita lozinki u memoriji (LSA)",
+      "description": "Windows proces koji čuva prijave i lozinke (LSASS) radi kao zaštićeni proces. Alati za krađu lozinki tako ne mogu čitati njegovu memoriju.",
+      "impact": "Korisnici ništa ne primjećuju; vrlo stari dodaci za prijavu ili sigurnosni programi mogu se prestati učitavati.",
+      "impactLevel": "low",
+      "requiresRestart": true,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "RunAsPPL",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\System",
+              "valueName": "RunAsPPL",
+              "type": "REG_DWORD",
+              "data": 2,
+              "action": "Set"
+            }
+          ]
+        },
+        {
+          "id": "uefi-lock",
+          "title": "Uključeno + UEFI",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Control\\Lsa",
+              "valueName": "RunAsPPL",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            },
+            {
+              "scope": "Machine",
+              "key": "Software\\Policies\\Microsoft\\Windows\\System",
+              "valueName": "RunAsPPL",
+              "type": "REG_DWORD",
+              "data": 1,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": null,
+        "2": "on",
+        "3": "uefi-lock"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "Uključeno s UEFI zaključavanjem",
+          "satisfiedBy": [
+            "uefi-lock"
+          ],
+          "reference": "18.9.27.2"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "Uključeno s UEFI zaključavanjem",
+          "satisfiedBy": [
+            "uefi-lock"
+          ]
+        }
+      ],
+      "notes": "RunAsPPL: 0 off, 1 on with UEFI lock, 2 on without UEFI lock (Win11 22H2+). Written to BOTH the classic location System\\CurrentControlSet\\Control\\Lsa (honoured by every build; 23H2 and older templates wrote here) and the 24H2+ ADMX location Software\\Policies\\Microsoft\\Windows\\System (what the MSB 25H2 GPO and CIS v5 audit check). With the UEFI lock the state lives in a UEFI variable: deleting the registry values does NOT turn it off; Microsoft's LSA Protected Process Opt-out tool (LSAPPLConfig.efi) at the console is needed. Level 2 deliberately uses 2 (reversible) and therefore does not meet CIS/MSB literally; level 3 matches both. After reboot, System log event 12 (Wininit) confirms protected mode; blocked plug-ins are logged in Microsoft-Windows-CodeIntegrity/Operational. CIS number was 18.9.26.2 in v4.0.0, 18.9.27.2 in v5.0.1.",
+      "sources": [
+        "https://www.syxsense.com/syxsense-securityarticles/cis_benchmarks_(windows_11)/syx-1039-15150.html",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv",
+        "https://github.com/fbprogmbh/Hardening-Audit-Tool-AuditTAP/tree/master/ATAPAuditor/AuditGroups",
+        "https://learn.microsoft.com/en-us/windows-server/security/credentials-protection-and-management/configuring-additional-lsa-protection"
+      ]
+    },
+    {
+      "id": "system.wdigest",
+      "category": "system",
+      "title": "Isključen WDigest",
+      "description": "Sprječava da Windows za staru WDigest prijavu drži lozinke u memoriji u čitljivom obliku. Napadač tako ne može jednostavno pročitati lozinke prijavljenih korisnika.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": false,
+      "options": [
+        {
+          "id": "on",
+          "title": "Isključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Control\\SecurityProviders\\WDigest",
+              "valueName": "UseLogonCredential",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "WDigest prijava isključena",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "18.4.7"
+        }
+      ],
+      "notes": "Removed from MSB in the 25H2 baseline (deprecated; WDigest credential caching disabled by default since Windows 8.1) and absent from 26H2; still CIS v5.0.1 L1 (18.4.7) and DISA STIG. Explicit 0 guards against attackers/tools setting 1. Applies to new logons (no restart; credentials already cached stay until sign-out). Stale values from older baselines are harmless.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://www.tenable.com/audits/items/CIS_Microsoft_Windows_11_Enterprise_v4.0.0_L1.audit:6416659aa5d604a28590b9d55372059e",
+        "https://github.com/dgulle/Security-Baselines",
+        "https://stigaview.com/products/win11/v2r7/WN11-CC-000038",
+        "https://learn.microsoft.com/en-us/windows/win32/secauthn/microsoft-digest-ssp"
+      ]
+    },
+    {
+      "id": "system.sehop",
+      "category": "system",
+      "title": "Zaštita od zlouporabe grešaka (SEHOP)",
+      "description": "Uključuje ugrađenu Windows zaštitu koja blokira čestu tehniku napada preko grešaka u programima.",
+      "impact": "Korisnici ništa ne primjećuju.",
+      "impactLevel": "none",
+      "requiresRestart": true,
+      "options": [
+        {
+          "id": "on",
+          "title": "Uključeno",
+          "matchMode": "exact",
+          "settings": [
+            {
+              "scope": "Machine",
+              "key": "System\\CurrentControlSet\\Control\\Session Manager\\kernel",
+              "valueName": "DisableExceptionChainValidation",
+              "type": "REG_DWORD",
+              "data": 0,
+              "action": "Set"
+            }
+          ]
+        }
+      ],
+      "levels": {
+        "1": "on",
+        "2": "on",
+        "3": "on"
+      },
+      "benchmarks": [
+        {
+          "standard": "CIS-L1",
+          "recommendation": "SEHOP uključen",
+          "satisfiedBy": [
+            "on"
+          ],
+          "reference": "18.4.5"
+        },
+        {
+          "standard": "MSB",
+          "recommendation": "SEHOP uključen",
+          "satisfiedBy": [
+            "on"
+          ]
+        }
+      ],
+      "notes": "MS Security Guide setting: DisableExceptionChainValidation 0 = SEHOP enabled (kernel reads it at boot). Added beyond the draft list because it is in both standards with no user impact; very old 32-bit apps can be exempted per-app via Exploit protection. Deduplicate by id if an exploit-protection category elsewhere emits it.",
+      "sources": [
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_cis_microsoft_windows_11_enterprise_24h2_machine.csv",
+        "https://github.com/scipag/HardeningKitty/blob/master/lists/finding_list_msft_security_baseline_windows_11_25h2_machine.csv"
       ]
     },
     {

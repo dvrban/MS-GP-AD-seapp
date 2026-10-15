@@ -9,6 +9,10 @@ on:
         description: 'Snimke sučelja ispisati i kao bilješke (kad artefakti nisu dostupni)'
         type: boolean
         default: false
+      snimke_filter:
+        description: 'Koje snimke (zamjenski znakovi, npr. 01*)'
+        type: string
+        default: '*'
 
 jobs:
   pester:
@@ -52,7 +56,7 @@ jobs:
           if-no-files-found: ignore
       - name: Snimke kao bilješke (priprema)
         if: always() && matrix.shell == 'powershell' && inputs.snimke_u_biljeske
-        run: ./.github/scripts/Export-ScreenshotNotes.ps1 -Folder gui-screenshots -Prepare
+        run: ./.github/scripts/Export-ScreenshotNotes.ps1 -Folder gui-screenshots -Prepare -Filter '${{ inputs.snimke_filter }}'
       - name: Snimke kao bilješke (1/5)
         if: always() && matrix.shell == 'powershell' && inputs.snimke_u_biljeske
         run: ./.github/scripts/Export-ScreenshotNotes.ps1 -Folder gui-screenshots -Part 0

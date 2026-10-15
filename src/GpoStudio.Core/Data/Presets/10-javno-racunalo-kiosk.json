@@ -5,8 +5,8 @@
   "level": 2,
   "changes": {
     "usb.storage": "blocked",
-    "accounts.last-username": "on",
-    "accounts.screen-lock": "300",
+    "accounts.hide-last-user": "on",
+    "accounts.auto-lock": "min-5",
     "apps.store": "off",
     "apps.wsh": "off",
     "network.rdp": "off",

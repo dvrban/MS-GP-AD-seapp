@@ -135,6 +135,11 @@ $SearchTimer = [System.Windows.Threading.DispatcherTimer]::new()
 $SearchTimer.Interval = [TimeSpan]::FromMilliseconds(250)
 $SearchTimer.Add_Tick({ $SearchTimer.Stop(); Update-ControlFilter })
 $ui.txtControlSearch.Add_TextChanged({ $SearchTimer.Stop(); $SearchTimer.Start() })
+# Kartice preseta: broj stupaca prema širini (oko 340 px po kartici).
+$ui.pnlPresets.Add_SizeChanged({
+        $columns = [int][math]::Max(1, [math]::Floor($ui.pnlPresets.ActualWidth / 340))
+        if ($ui.pnlPresets.Columns -ne $columns) { $ui.pnlPresets.Columns = $columns }
+    })
 foreach ($rb in 'rbFilterAll', 'rbFilterSelected', 'rbFilterChanged') { $ui[$rb].Add_Checked({ Update-ControlFilter }) }
 $ui.btnResetToLevel.Add_Click({ Set-SecurityLevel $Sec.Level })
 $ui.btnSavePresetFromControls.Add_Click({ Save-UiPreset })

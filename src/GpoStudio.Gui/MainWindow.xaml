@@ -1,4 +1,4 @@
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+﻿<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="GPO Studio · Auxilium Informatika" Height="860" Width="1320" MinHeight="700" MinWidth="1100"
         WindowStartupLocation="CenterScreen" Background="{StaticResource Void}" Foreground="{StaticResource Text}"
@@ -64,7 +64,7 @@
         <!-- ===== Glavni dio: navigacija + stranice + traka radnji ===== -->
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="196"/>
+                <ColumnDefinition Width="222"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
@@ -208,7 +208,7 @@
                                 <TextBox x:Name="txtControlSearch" Width="300" Tag="Traži postavku u svim područjima…" Margin="0,0,14,0"/>
                                 <RadioButton x:Name="rbFilterAll" Style="{StaticResource Segment}" GroupName="filter" Content="SVE" IsChecked="True"/>
                                 <RadioButton x:Name="rbFilterSelected" Style="{StaticResource Segment}" GroupName="filter" Content="UKLJUČENE"/>
-                                <RadioButton x:Name="rbFilterChanged" Style="{StaticResource Segment}" GroupName="filter" Content="RUČNO PROMIJENJENE"/>
+                                <RadioButton x:Name="rbFilterChanged" Style="{StaticResource Segment}" GroupName="filter" Content="IZVAN RAZINE"/>
                             </WrapPanel>
                         </StackPanel>
                         <ScrollViewer x:Name="svControls" VerticalScrollBarVisibility="Auto">
@@ -234,7 +234,7 @@
                         <TextBlock x:Name="txtPresetFolder" Style="{StaticResource Nagovjestaj}" Margin="0,8,0,0"/>
                     </StackPanel>
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <WrapPanel x:Name="pnlPresets" Margin="22,6,12,16"/>
+                        <UniformGrid x:Name="pnlPresets" Columns="2" Margin="22,6,12,16" VerticalAlignment="Top"/>
                     </ScrollViewer>
                 </DockPanel>
 

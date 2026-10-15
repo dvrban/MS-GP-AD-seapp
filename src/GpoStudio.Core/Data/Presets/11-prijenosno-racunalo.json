@@ -5,7 +5,7 @@
   "level": 2,
   "changes": {
     "usb.bitlocker-write": "on",
-    "accounts.screen-lock": "300",
+    "accounts.auto-lock": "min-5",
     "network.firewall-log": "on",
     "network.rdp": "off"
   }

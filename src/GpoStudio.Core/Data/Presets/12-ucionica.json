@@ -6,6 +6,6 @@
   "changes": {
     "usb.storage": "noexec",
     "apps.store": "off",
-    "accounts.last-username": "on"
+    "accounts.hide-last-user": "on"
   }
 }
