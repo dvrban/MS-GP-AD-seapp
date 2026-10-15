@@ -1,4 +1,4 @@
-<!--
+﻿<!--
     Auxilium tema za WPF (GPO Studio).
     Vrijednosti su iz Auxilium stil-kita (auxilium-tokeni.css, www.auxilium.hr):
     tri razine tamnih površina, obrub 1 px u boji Line, odsječeni kutovi (gore-lijevo i dolje-desno),
@@ -18,7 +18,7 @@
     <Color x:Key="LineColor">#2A3550</Color>
     <Color x:Key="TextColor">#E8ECF5</Color>
     <Color x:Key="MutedColor">#8B93A9</Color>
-    <Color x:Key="Muted2Color">#5D6478</Color>
+    <Color x:Key="Muted2Color">#828AA0</Color>
     <Color x:Key="AmberColor">#FFC94A</Color>
     <Color x:Key="AmberDimColor">#C99A3A</Color>
     <Color x:Key="CyanColor">#5FD8C9</Color>
@@ -200,12 +200,16 @@
         <Setter Property="Foreground" Value="{StaticResource Cyan}"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <TextBlock x:Name="t" Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" TextDecorations="Underline"/>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{StaticResource Amber}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter Property="Foreground" Value="{StaticResource Amber}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -378,14 +382,14 @@
             <Setter.Value>
                 <ControlTemplate TargetType="CheckBox">
                     <StackPanel Orientation="Horizontal" Background="Transparent">
-                        <Border x:Name="okvir" Width="18" Height="18" Background="{StaticResource Void}" BorderBrush="{StaticResource Line}" BorderThickness="1" VerticalAlignment="Center">
+                        <Border x:Name="okvir" Width="18" Height="18" Background="{StaticResource Void}" BorderBrush="{StaticResource Muted2}" BorderThickness="1" VerticalAlignment="Center">
                             <Path x:Name="kvacica" Data="M3,9 L7,13 L14,4" Stroke="{StaticResource Amber}" StrokeThickness="2" Visibility="Collapsed"/>
                         </Border>
                         <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="okvir" Property="BorderBrush" Value="{StaticResource Muted}"/>
+                            <Setter TargetName="okvir" Property="BorderBrush" Value="{StaticResource Text}"/>
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="okvir" Property="BorderBrush" Value="{StaticResource Amber}"/>
@@ -766,6 +770,8 @@
         <Setter Property="VerticalGridLinesBrush" Value="{StaticResource Line}"/>
         <Setter Property="GridLinesVisibility" Value="Horizontal"/>
         <Setter Property="HeadersVisibility" Value="Column"/>
+        <!-- Redoslijed (odstupanja i promjene prvo) postavlja kod; zaglavlja nemaju strelicu sortiranja. -->
+        <Setter Property="CanUserSortColumns" Value="False"/>
         <Setter Property="MinRowHeight" Value="28"/>
         <Setter Property="FontFamily" Value="{StaticResource FontTekst}"/>
         <Setter Property="FontSize" Value="12"/>

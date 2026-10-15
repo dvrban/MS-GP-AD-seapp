@@ -139,6 +139,9 @@ $SearchTimer.Add_Tick({ $SearchTimer.Stop(); Update-ControlFilter })
 $ui.txtControlSearch.Add_TextChanged({ $SearchTimer.Stop(); $SearchTimer.Start() })
 foreach ($grid in 'dgCompliance', 'dgChanges', 'dgSettings') { Register-AuxGridStarColumns $ui[$grid] }
 
+# Traka radnji: gumbi se prelamaju tek kad izvoru primjene ostane manje od oko 280 px.
+$ui.bdrActions.Add_SizeChanged({ $ui.pnlActions.MaxWidth = [math]::Max(320, $ui.bdrActions.ActualWidth - 44 - 280) })
+
 # Kartice preseta: broj stupaca prema širini (oko 340 px po kartici).
 $ui.pnlPresets.Add_SizeChanged({
         $columns = [int][math]::Max(1, [math]::Floor($ui.pnlPresets.ActualWidth / 340))
@@ -236,6 +239,13 @@ $window.Add_Closing({
     })
 
 if ($NoShow) { return }
+# Prozor ne smije biti veći od radne površine (npr. 1366x768 ili konzola virtualnog stroja 1024x768).
+$workArea = [System.Windows.SystemParameters]::WorkArea
+if ($window.Width -gt $workArea.Width -or $window.Height -gt $workArea.Height) {
+    $window.Width = [math]::Max($window.MinWidth, [math]::Min($window.Width, $workArea.Width))
+    $window.Height = [math]::Max($window.MinHeight, [math]::Min($window.Height, $workArea.Height))
+    $window.WindowState = 'Maximized'
+}
 $null = $window.ShowDialog()
 
 #endregion

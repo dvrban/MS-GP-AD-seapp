@@ -321,6 +321,8 @@ function New-AuxScoreTile {
     $stack = [System.Windows.Controls.StackPanel]::new()
     # Ne $title: PowerShell ne razlikuje velika i mala slova, pa bi to bio parametar [string]$Title.
     $titleText = New-AuxText $Title 'Eyebrow'
+    $titleText.TextTrimming = 'CharacterEllipsis'
+    $titleText.ToolTip = $Title
     $number = [System.Windows.Controls.TextBlock]::new()
     $number.FontFamily = Get-AuxBrush 'FontNaslov'
     $number.FontWeight = 'Bold'
@@ -340,6 +342,7 @@ function New-AuxScoreTile {
     $label.FontWeight = 'Bold'
     $label.FontSize = 11
     $label.Margin = '0,6,0,0'
+    $label.TextWrapping = 'Wrap'
     $sub = New-AuxText $Subtitle 'Nagovjestaj' '0,2,0,0'
     $sub.TextWrapping = 'NoWrap'
     $sub.TextTrimming = 'CharacterEllipsis'
