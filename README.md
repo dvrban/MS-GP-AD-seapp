@@ -101,13 +101,39 @@ Set-GpsLocalPolicy -PolicySet $set -WhatIf
 # Usporedba odabira i stvarnog stanja računala sa standardima
 Get-GpsControlCompliance -Catalog $catalog -Selection $selection | Select-Object Id, Score, Satisfied, Total
 $state = Get-GpsControlState -Catalog $catalog -ComputerName PC01
-Get-GpsControlCompliance -Catalog $catalog -Selection $state.Selection
+Get-GpsControlCompliance -Catalog $catalog -Selection $state.Selection -Details $state.Details
+ConvertTo-GpsComplianceHtml -Catalog $catalog -Selection $state.Selection -Details $state.Details -Subject 'Računalo PC01' |
+    Set-Content .\izvjestaj-PC01.html -Encoding UTF8
 
 # Preseti
 Get-GpsControlPreset | Select-Object Name, Level, BuiltIn
 $preset = New-GpsControlPreset -Catalog $catalog -Name 'Recepcija' -Level 2 -Selection $selection
 Export-GpsControlPreset -Preset $preset
 ```
+
+### Katalog sigurnosnih kontrola
+
+`src/GpoStudio.Core/Data/security-controls.json` opisuje svaku kontrolu: naslov i opis na hrvatskom,
+utjecaj na korisnike, opcije (registry vrijednosti, `[System Access]` postavke za `secedit`,
+podkategorije revizije), zadanu opciju po razini (`levels`) i preporuke standarda (`benchmarks`:
+standard, tekst, oznaka stavke i opcije koje je zadovoljavaju). Opcija koja je odabrana briše registry
+vrijednosti ostalih opcija iste kontrole. Neobavezna polja:
+
+| Polje | Značenje |
+|---|---|
+| `requirement` | uvjet (izdanje ili verzija Windowsa, domena); GUI ga prikazuje oznakom UVJET |
+| `requiresRestart` | promjena djeluje nakon ponovnog pokretanja |
+| `matchMode` | usporedba pri provjeri računala: `exact`, `atLeast` (veće je strože), `atMost` (manje je strože, 0 = isključeno), `atMostOrZero` (manje je strože, 0 je najstrože) |
+| `matchModes` | isto, ali za pojedinu vrijednost opcije (npr. broj pokušaja `atMost`, trajanje `atLeast`) |
+
+Vrijednosti su provjerene prema CIS Microsoft Windows 11 Enterprise Benchmarku (oznake stavki uglavnom
+iz v4.0.0, vrijednosti i prema v5.0.1) i Microsoft Security Baselineu za Windows 11 26H2. Postotak
+usklađenosti odnosi se samo na preporuke iz kataloga, ne na cijeli standard. `Test-GpsControlCatalog`
+provjerava katalog (Pester test to radi za ugrađeni katalog i presete).
+
+Revizija nema stanje "nije konfigurirano": kad se odabere blaža opcija revizije, podkategorije koje je
+uključivala samo strža opcija ostaju uključene; po potrebi ih isključite ručno, npr.
+`auditpol /set /subcategory:"Process Creation" /success:disable /failure:disable`.
 
 ## Testovi
 
